@@ -23,6 +23,10 @@ RUN pybabel compile -d app/translations
 
 FROM python:3.12-slim
 
+LABEL org.opencontainers.image.title="AccessFlow"
+LABEL org.opencontainers.image.description="Self-hosted Plex user management tool"
+LABEL org.opencontainers.image.source="https://github.com/Pantanet96/AccessFlow"
+
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     DATABASE_PATH=/data/app.db

@@ -1,6 +1,6 @@
 {
   "name": "accessflow-assets",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "private": true,
   "description": "Tailwind build pipeline for AccessFlow's static assets.",
   "scripts": {
