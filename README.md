@@ -7,10 +7,7 @@ FastAPI + Jinja2/HTMX + SQLite, shipped as a single Docker container that sits b
 [![Docker Image](https://img.shields.io/badge/docker-pantanet96%2Faccessflow-2496ED?logo=docker&logoColor=white)](https://hub.docker.com/r/pantanet96/accessflow)
 ![Python](https://img.shields.io/badge/python-3.12-blue?logo=python&logoColor=white)
 ![FastAPI](https://img.shields.io/badge/FastAPI-async-009688?logo=fastapi&logoColor=white)
-![License](https://img.shields.io/badge/status-private-lightgrey)
-
-> **Private repo.** This README contains only what's needed to deploy it, run the
-> operational scripts, and understand how the application works.
+![License](https://img.shields.io/badge/status-public-brightgreen)
 
 ## Contents
 
