@@ -147,6 +147,10 @@ volumes:
 
 > The image honors `X-Forwarded-Proto` (`--proxy-headers`), so behind an HTTPS proxy URLs come out as `https`.
 
+### Unraid
+
+Ships a Community Applications template → [docs/UNRAID.md](docs/UNRAID.md).
+
 ## Security
 
 - `APP_SECRET_KEY` is mandatory (random, ≥32 chars) — the app won't start without one.

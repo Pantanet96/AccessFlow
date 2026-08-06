@@ -1,0 +1,70 @@
+<?xml version="1.0"?>
+<Container version="2">
+  <Name>AccessFlow</Name>
+  <Repository>pantanet96/accessflow</Repository>
+  <Registry>https://hub.docker.com/r/pantanet96/accessflow</Registry>
+  <Branch/>
+  <Network>bridge</Network>
+  <MyIP/>
+  <Shell>sh</Shell>
+  <Privileged>false</Privileged>
+  <Support>https://github.com/Pantanet96/AccessFlow/issues</Support>
+  <Project>https://github.com/Pantanet96/AccessFlow</Project>
+  <Overview>Self-hosted portal to manage users, subscriptions and invites for a personal Plex server: roles, plans, renewals, payment reports, email/Telegram reminders. Requires APP_SECRET_KEY (>=32 random chars) and, to invite/manage Plex users, PLEX_TOKEN + PLEX_SERVER_NAME. Put the app behind a reverse proxy (NPM/SWAG/Traefik) and set PUBLIC_BASE_URL to your https:// URL.</Overview>
+  <Category>Tools: MediaServer:</Category>
+  <WebUI>http://[IP]:[PORT:8000]/</WebUI>
+  <TemplateURL>https://raw.githubusercontent.com/Pantanet96/AccessFlow/main/unraid/accessflow.xml</TemplateURL>
+  <Icon>https://raw.githubusercontent.com/Pantanet96/AccessFlow/main/docs/logo/accessflow_icon.png</Icon>
+  <ExtraParams/>
+  <Date/>
+  <Description>Self-hosted Plex user/subscription manager (FastAPI + SQLite).</Description>
+  <WebUIPassword/>
+  <Networking>
+    <Mode>bridge</Mode>
+    <Publish>
+      <Port>
+        <HostPort>8000</HostPort>
+        <ContainerPort>8000</ContainerPort>
+        <Protocol>tcp</Protocol>
+      </Port>
+    </Publish>
+  </Networking>
+  <Data>
+    <Volume>
+      <HostDir>/mnt/user/appdata/accessflow</HostDir>
+      <ContainerDir>/data</ContainerDir>
+      <Mode>rw</Mode>
+    </Volume>
+  </Data>
+  <Environment/>
+  <Config Name="WebUI Port" Target="8000" Default="8000" Mode="tcp" Description="Container Port: 8000" Type="Port" Display="always" Required="true" Mask="false">8000</Config>
+  <Config Name="Appdata" Target="/data" Default="/mnt/user/appdata/accessflow" Mode="rw" Description="SQLite DB + backups + secrets. Container Path: /data" Type="Path" Display="always" Required="true" Mask="false">/mnt/user/appdata/accessflow</Config>
+  <Config Name="App Secret Key" Target="APP_SECRET_KEY" Default="" Mode="" Description="REQUIRED. Random string >=32 chars, the app refuses to start without it. Generate: python -c &quot;import secrets;print(secrets.token_urlsafe(48))&quot;" Type="Variable" Display="always" Required="true" Mask="true"></Config>
+  <Config Name="Public Base URL" Target="PUBLIC_BASE_URL" Default="http://localhost:8000" Mode="" Description="Your public https:// URL (through the reverse proxy). Needed for Secure session cookies." Type="Variable" Display="always" Required="false" Mask="false">http://localhost:8000</Config>
+  <Config Name="Forwarded Allow IPs" Target="FORWARDED_ALLOW_IPS" Default="127.0.0.1" Mode="" Description="Reverse proxy source IP/subnet uvicorn trusts for X-Forwarded-*. Never &quot;*&quot; if exposed directly. Unraid docker bridge is typically 172.17.0.0/16." Type="Variable" Display="always" Required="false" Mask="false">127.0.0.1</Config>
+  <Config Name="Timezone" Target="TZ" Default="Europe/Rome" Mode="" Description="Timezone for schedules/reminders/backups." Type="Variable" Display="always" Required="false" Mask="false">Europe/Rome</Config>
+  <Config Name="Default Locale" Target="DEFAULT_LOCALE" Default="it" Mode="" Description="UI language (it/en)." Type="Variable" Display="always" Required="false" Mask="false">it</Config>
+  <Config Name="SuperAdmin Username" Target="SUPERADMIN_USERNAME" Default="admin" Mode="" Description="Local login username, seeded on first boot." Type="Variable" Display="always" Required="false" Mask="false">admin</Config>
+  <Config Name="SuperAdmin Password" Target="SUPERADMIN_PASSWORD" Default="" Mode="" Description="Leave blank: a random password is generated and logged once at first boot (change it later from /profile)." Type="Variable" Display="always" Required="false" Mask="true"></Config>
+  <Config Name="Plex Token" Target="PLEX_TOKEN" Default="" Mode="" Description="Admin Plex token, used for invites + OAuth. https://support.plex.tv/articles/204059436" Type="Variable" Display="always" Required="false" Mask="true"></Config>
+  <Config Name="Plex Server Name" Target="PLEX_SERVER_NAME" Default="" Mode="" Description="Name of the Plex server to manage." Type="Variable" Display="always" Required="false" Mask="false"></Config>
+  <Config Name="Plex Direct URL" Target="PLEX_DIRECT_URL" Default="" Mode="" Description="Optional: connect straight to this Plex baseurl (plex.direct dashed-host form), skipping plex.tv discovery. Leave blank for normal discovery." Type="Variable" Display="advanced" Required="false" Mask="false"></Config>
+  <Config Name="Plex Client ID" Target="PLEX_CLIENT_ID" Default="" Mode="" Description="Optional: stable Plex client identifier. Derived from the secret key if left blank." Type="Variable" Display="advanced" Required="false" Mask="false"></Config>
+  <Config Name="Plex Revoke On Delete" Target="PLEX_REVOKE_ON_DELETE" Default="false" Mode="" Description="Revoke the user's Plex server access when their AccessFlow account is deleted." Type="Variable" Display="advanced" Required="false" Mask="false">false</Config>
+  <Config Name="Telegram Bot Token" Target="TELEGRAM_BOT_TOKEN" Default="" Mode="" Description="Optional: enables the Telegram reminder bot. From @BotFather." Type="Variable" Display="advanced" Required="false" Mask="true"></Config>
+  <Config Name="Telegram Bot Username" Target="TELEGRAM_BOT_USERNAME" Default="" Mode="" Description="Bot username (without @), used for deep links." Type="Variable" Display="advanced" Required="false" Mask="false"></Config>
+  <Config Name="SMTP Host" Target="SMTP_HOST" Default="" Mode="" Description="Optional: enables email reminders." Type="Variable" Display="advanced" Required="false" Mask="false"></Config>
+  <Config Name="SMTP Port" Target="SMTP_PORT" Default="587" Mode="" Description="" Type="Variable" Display="advanced" Required="false" Mask="false">587</Config>
+  <Config Name="SMTP User" Target="SMTP_USER" Default="" Mode="" Description="" Type="Variable" Display="advanced" Required="false" Mask="false"></Config>
+  <Config Name="SMTP Password" Target="SMTP_PASS" Default="" Mode="" Description="" Type="Variable" Display="advanced" Required="false" Mask="true"></Config>
+  <Config Name="SMTP From" Target="SMTP_FROM" Default="" Mode="" Description="From address for reminder emails." Type="Variable" Display="advanced" Required="false" Mask="false"></Config>
+  <Config Name="SMTP From Name" Target="SMTP_FROM_NAME" Default="" Mode="" Description="Display name in the From header." Type="Variable" Display="advanced" Required="false" Mask="false"></Config>
+  <Config Name="SMTP TLS" Target="SMTP_TLS" Default="true" Mode="" Description="" Type="Variable" Display="advanced" Required="false" Mask="false">true</Config>
+  <Config Name="Notify Hour" Target="NOTIFY_HOUR" Default="9" Mode="" Description="Hour (0-23, server TZ) the daily expiration scan + reminders run." Type="Variable" Display="advanced" Required="false" Mask="false">9</Config>
+  <Config Name="Reminder Days Before" Target="REMINDER_DAYS_BEFORE" Default="7,3,1" Mode="" Description="Comma-separated days-before-expiry to send reminders. Admin-editable in Settings too." Type="Variable" Display="advanced" Required="false" Mask="false">7,3,1</Config>
+  <Config Name="Reminder Days After" Target="REMINDER_DAYS_AFTER" Default="0,3" Mode="" Description="Comma-separated overdue days for dunning follow-ups. Admin-editable in Settings too." Type="Variable" Display="advanced" Required="false" Mask="false">0,3</Config>
+  <Config Name="Digest Lookahead Days" Target="DIGEST_LOOKAHEAD_DAYS" Default="14" Mode="" Description="Manager weekly-digest lookahead window in days. Admin-editable in Settings too." Type="Variable" Display="advanced" Required="false" Mask="false">14</Config>
+  <Config Name="Backup Keep" Target="BACKUP_KEEP" Default="14" Mode="" Description="How many nightly SQLite backups to keep." Type="Variable" Display="advanced" Required="false" Mask="false">14</Config>
+  <Config Name="Enable Scheduler" Target="ENABLE_SCHEDULER" Default="true" Mode="" Description="Run the daily reminder/backup scheduler in-process." Type="Variable" Display="advanced" Required="false" Mask="false">true</Config>
+  <Config Name="Enable Telegram Bot" Target="ENABLE_BOT" Default="true" Mode="" Description="Run the Telegram bot (polling) in-process." Type="Variable" Display="advanced" Required="false" Mask="false">true</Config>
+</Container>
