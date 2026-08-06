@@ -1,3 +1,5 @@
+<img src="docs/logo/accessflow_icon.png" width="80" align="left" alt="AccessFlow logo">
+
 # AccessFlow
 
 **Self-hosted portal to manage users, subscriptions, and invites for a personal Plex server.**
