@@ -1,23 +1,41 @@
 # AccessFlow
 
-Self-hosted web portal to manage users, subscriptions, and invites for a personal Plex server.
-FastAPI + Jinja2/HTMX + SQLite, in a single Docker container behind your reverse proxy.
-AccessFlow is an independent project, not affiliated with Plex, Inc. — see the disclaimer below for details.
+**Self-hosted portal to manage users, subscriptions, and invites for a personal Plex server.**
 
-> **Private** repo. This README contains only what's needed to deploy it, run the
+FastAPI + Jinja2/HTMX + SQLite, shipped as a single Docker container that sits behind your reverse proxy.
+
+[![Docker Image](https://img.shields.io/badge/docker-pantanet96%2Faccessflow-2496ED?logo=docker&logoColor=white)](https://hub.docker.com/r/pantanet96/accessflow)
+![Python](https://img.shields.io/badge/python-3.12-blue?logo=python&logoColor=white)
+![FastAPI](https://img.shields.io/badge/FastAPI-async-009688?logo=fastapi&logoColor=white)
+![License](https://img.shields.io/badge/status-private-lightgrey)
+
+> **Private repo.** This README contains only what's needed to deploy it, run the
 > operational scripts, and understand how the application works.
 
-## Independence disclaimer
+## Contents
 
-AccessFlow is an independent project and is not affiliated with, sponsored by, endorsed by, or in any way officially connected to Plex, Inc. or its registered trademarks. The name "Plex" is used in this repository solely for descriptive purposes, to indicate interoperability with Plex's official public APIs.
+- [Features](#features)
+- [How it works](#how-it-works)
+- [Deploy](#deploy)
+- [Security](#security)
+- [Local development](#local-development)
+- [Configuration](#configuration)
+- [i18n](#i18n)
+- [Background workers](#background-workers)
 
-AccessFlow does not modify, circumvent, or alter the Plex software in any way, does not download or distribute media content, and does not process payments on behalf of third parties: it only tracks access expirations and periods already decided by the server administrator.
+## Features
 
-Anyone who installs and operates an instance of AccessFlow is solely responsible for their use of it, including compliance with Plex's Terms of Service, copyright law, and any applicable regulations in their jurisdiction. The project's authors assume no liability for misuse of the software.
+- **Role-based access** — SuperAdmin, Admin, Moderator, User, each scoped to only what they need.
+- **Multi-manager support** — every user has a manager who collects their payments; multiple people can run their own client base under the same server.
+- **Flexible plans** — free/trial plans out of the box, custom paid plans created on demand.
+- **Two-step renewals** — a renewal stays *pending* until the payment is actually collected, then extends the expiration.
+- **Automatic reminders** — expiration notices via email and Telegram, deduplicated, configurable schedule.
+- **Financial reports** — revenue collected, pending, and projected, straight from recorded payments.
+- **Telegram bot** — users link their account for reminders; admins can broadcast.
+- **Audit log, soft-delete, nightly backups** — out of the box.
+- **i18n** — English source strings, translatable via `.po` catalogs.
 
----
-
-## What it is and how it works (in brief)
+## How it works
 
 Manages the lifecycle of a Plex server's users: who has access, what plan they're on,
 when it expires, who collects the payment. The idea is to stop having to track "who
@@ -82,58 +100,46 @@ nightly backup of the SQLite database.
 
 ---
 
-## Deploy (production)
+## Deploy
 
 The image is published on Docker Hub (**public** repo): `pantanet96/accessflow`.
 
-### With Portainer (recommended)
+```bash
+cp .env.example .env   # fill in the secrets, never commit the real .env
+docker compose up -d
+```
 
-1. Create a **stack** with this `docker-compose.yml`:
+App at `http://localhost:8000`, behind your reverse proxy (NPM / Traefik / Caddy).
+Health check: `GET /healthz`.
 
-   ```yaml
-   services:
-     app:
-       image: pantanet96/accessflow:latest
-       env_file: .env
-       ports:
-         - "8000:8000"
-       volumes:
-         - appdata:/data
-       restart: unless-stopped
-   volumes:
-     appdata:
-   ```
+`docker-compose.yml`:
 
-2. Load the environment variables (see [.env.example](.env.example)) — **never** commit the real `.env`.
-3. Deploy. App at `http://<host>:8000`, behind your reverse proxy (NPM / Traefik / Caddy).
-4. **Upgrading to a new version**: re-pull the image (`latest` or a specific tag) and redeploy the stack.
+```yaml
+services:
+  app:
+    image: pantanet96/accessflow:latest
+    env_file: .env
+    ports:
+      - "8000:8000"
+    volumes:
+      - appdata:/data
+    restart: unless-stopped
+volumes:
+  appdata:
+```
+
+**Upgrading**: `docker compose pull && docker compose up -d`.
 
 > The image honors `X-Forwarded-Proto` (`--proxy-headers`), so behind an HTTPS proxy URLs come out as `https`.
 
-### With docker compose (also for local dev)
+## Security
 
-```bash
-cp .env.example .env   # fill in the secrets
-docker compose up --build
-```
+- `APP_SECRET_KEY` is mandatory (random, ≥32 chars) — the app won't start without one.
+- SuperAdmin password auto-generates on first boot if left blank; change it from `/profile`.
+- Set `FORWARDED_ALLOW_IPS` to your reverse proxy's subnet — never `*` on a directly exposed app.
+- Runs as an unprivileged container user; secrets are encrypted at rest.
 
-App at `http://localhost:8000`. Health check: `GET /healthz`.
-
-### Image / security notes
-
-- The image **never** contains `.env`, `data/`, or `*.db` files (excluded via `.dockerignore`).
-- Data persists in the `appdata` volume mounted at `/data` (DB + backups).
-- Application secrets are encrypted at rest (Fernet) using `APP_SECRET_KEY`.
-- **`APP_SECRET_KEY` is mandatory**: random, ≥32 characters. The app refuses to start with
-  a weak/default key (`python -c "import secrets;print(secrets.token_urlsafe(48))"`).
-  Only in dev/test can you set `ALLOW_INSECURE_SECRET=true`.
-- **SuperAdmin password**: if `SUPERADMIN_PASSWORD` is empty/default, a random one is
-  generated and logged **once** on first boot (warning) — log in and change it from `/profile`.
-- **`FORWARDED_ALLOW_IPS`**: set it to the reverse proxy's IP/subnet (e.g. `172.18.0.0/16`).
-  Don't leave it as `*` on an app exposed directly (a spoofable XFF header bypasses the per-IP lockout).
-- The container runs as an unprivileged user (uid `10001`): the `/data` volume must be
-  writable by that uid.
-- Session cookie gets the `Secure` flag automatically when `PUBLIC_BASE_URL` is `https://`.
+Full details → [docs/SECURITY.md](docs/SECURITY.md).
 
 ---
 
