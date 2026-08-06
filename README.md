@@ -9,6 +9,20 @@ FastAPI + Jinja2/HTMX + SQLite, shipped as a single Docker container that sits b
 ![FastAPI](https://img.shields.io/badge/FastAPI-async-009688?logo=fastapi&logoColor=white)
 ![License](https://img.shields.io/badge/status-public-brightgreen)
 
+## Screenshots
+
+| Dashboard | Users |
+|---|---|
+| ![Dashboard](docs/screenshots/Index.png) | ![Users](docs/screenshots/Users.png) |
+
+| Collect | Reports |
+|---|---|
+| ![Collect](docs/screenshots/Requests.png) | ![Reports](docs/screenshots/Reports.png) |
+
+Dark theme by default; an "ink" accent theme is also available:
+
+![Dashboard — ink theme](docs/screenshots/Index_ink_theme.png)
+
 ## Contents
 
 - [Features](#features)
