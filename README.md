@@ -19,9 +19,9 @@ FastAPI + Jinja2/HTMX + SQLite, shipped as a single Docker container that sits b
 |---|---|
 | ![Collect](docs/screenshots/Requests.png) | ![Reports](docs/screenshots/Reports.png) |
 
-Dark theme by default; an "ink" accent theme is also available:
+Rame (copper) theme by default; Inchiostro and Muschio variants also available from Settings:
 
-![Dashboard — ink theme](docs/screenshots/Index_ink_theme.png)
+![Dashboard — Inchiostro theme](docs/screenshots/Index_ink_theme.png)
 
 ## Contents
 
@@ -43,6 +43,7 @@ Dark theme by default; an "ink" accent theme is also available:
 - **Automatic reminders** — expiration notices via email and Telegram, deduplicated, configurable schedule.
 - **Financial reports** — revenue collected, pending, and projected, straight from recorded payments.
 - **Telegram bot** — users link their account for reminders; admins can broadcast.
+- **3 color themes** — Rame, Inchiostro, Muschio — switchable per-user from Settings.
 - **Audit log, soft-delete, nightly backups** — out of the box.
 - **i18n** — English source strings, translatable via `.po` catalogs.
 
