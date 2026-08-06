@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% block title %}{{ _("Notification templates") }}{% endblock %}
+{% block content %}
+<div class="flex flex-wrap items-center justify-between gap-gap-md mb-1">
+  <div class="flex items-center gap-gap-sm">
+    <span class="material-symbols-outlined text-primary-container" aria-hidden="true">description</span>
+    <h2 class="text-2xl font-bold text-on-surface">{{ _("Notification templates") }}</h2>
+  </div>
+  <a href="/settings" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-outline-variant text-on-surface-variant text-sm no-underline hover:text-on-surface hover:border-outline transition-colors">
+    <span class="material-symbols-outlined text-[18px]" aria-hidden="true">arrow_back</span>
+    {{ _("Back to settings") }}
+  </a>
+</div>
+{% if message %}
+<p class="flex items-center gap-2 text-status-active bg-status-active/10 rounded-lg py-2 px-3 mb-3 text-sm" role="status">
+  <span class="material-symbols-outlined text-[18px]" aria-hidden="true">check_circle</span>
+  {{ message }}
+</p>
+{% endif %}
+{% if error %}
+<p class="flex items-center gap-2 text-status-expired bg-status-expired/10 rounded-lg py-2 px-3 mb-3 text-sm" role="alert">
+  <span class="material-symbols-outlined text-[18px]" aria-hidden="true">error</span>
+  {{ error }}
+</p>
+{% endif %}
+
+<p class="text-on-surface-variant text-sm mb-gap-md">{{ _("Edit the text per channel and language. Leave a field empty and save (or Reset) to go back to the built-in default. A bad template is rejected on save — real notifications keep using the last good version.") }}</p>
+
+{% set TYPE_LABELS = {
+  "user_expiry": _("User — expiring soon"),
+  "manager_collect": _("Manager — collect payment"),
+  "user_overdue": _("User — overdue / suspended"),
+  "manager_overdue": _("Manager — overdue"),
+  "manager_digest": _("Manager — weekly collect digest"),
+  "welcome": _("Welcome (on activation)")
+} %}
+{% set PART_LABELS = {
+  "email_subject": _("Email · Subject"),
+  "email_html": _("Email · Body (HTML)"),
+  "telegram": _("Telegram · Message")
+} %}
+
+<div class="space-y-gap-md">
+{% for e in entries %}
+<details class="bg-surface-container border border-outline-variant rounded-xl px-gap-md">
+  <summary class="lib-sum w-full justify-between font-semibold text-base py-3">
+    {{ TYPE_LABELS.get(e.type, e.type) }}
+  </summary>
+  <div class="border-t border-outline-variant py-gap-md space-y-gap-md">
+    <p class="text-on-surface-variant text-sm">{{ _("Available variables") }}: {{ e.variables|join(', ') }}
+      — {{ _("wrap each in double braces, e.g.") }} <code class="font-mono text-xs bg-surface-container-high px-1.5 py-0.5 rounded">&#123;&#123; name &#125;&#125;</code></p>
+    {% for row in e.rows %}
+    <div class="pt-gap-md border-t border-outline-variant first:pt-0 first:border-t-0">
+      <form method="post" action="/settings/templates/save">
+        <input type="hidden" name="tpl_type" value="{{ e.type }}">
+        <input type="hidden" name="part" value="{{ row.part }}">
+        <input type="hidden" name="locale" value="{{ row.locale }}">
+        <label class="block">
+          <span class="flex flex-wrap items-center gap-2 text-sm font-medium text-on-surface-variant mb-1.5">
+            {{ PART_LABELS.get(row.part, row.part) }} — {{ row.locale|upper }}
+            {% if row.overridden %}<span class="badge badge--active">{{ _("custom") }}</span>{% endif %}
+          </span>
+          <textarea name="text" rows="{{ 2 if row.part == 'email_subject' else 4 }}"
+                    class="w-full rounded-lg bg-surface-container-low border border-outline-variant text-on-surface font-mono text-sm p-3 focus:outline-none focus:border-primary-container">{{ row.text }}</textarea>
+        </label>
+        <div class="row-actions mt-2">
+          <button type="submit" class="btn-sm bg-primary-container text-on-primary font-semibold hover:bg-primary transition-colors">{{ _("Save") }}</button>
+        </div>
+      </form>
+      {% if row.overridden %}
+      <form method="post" action="/settings/templates/reset" class="mt-2">
+        <input type="hidden" name="tpl_type" value="{{ e.type }}">
+        <input type="hidden" name="part" value="{{ row.part }}">
+        <input type="hidden" name="locale" value="{{ row.locale }}">
+        <button type="submit" class="btn-sm border border-outline-variant text-on-surface-variant hover:text-on-surface hover:border-outline transition-colors">{{ _("Reset to default") }}</button>
+      </form>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+</details>
+{% endfor %}
+</div>
+{% endblock %}

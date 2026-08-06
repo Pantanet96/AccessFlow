@@ -1,0 +1,256 @@
+{% extends "base.html" %}
+{% block title %}{{ _("My profile") }}{% endblock %}
+{% block content %}
+<div class="max-w-xl mx-auto space-y-6">
+
+  <div class="flex items-center justify-between gap-3">
+    <div class="flex items-center gap-3">
+      <span class="material-symbols-outlined text-primary-container" aria-hidden="true">person</span>
+      <h1 class="text-2xl font-bold text-on-surface">{{ _("My profile") }}</h1>
+    </div>
+    <a href="/profile?tutorial=1" class="text-sm text-on-surface-variant hover:text-on-surface underline">{{ _("Replay the tutorial") }}</a>
+  </div>
+
+  <section class="sub-card">
+    <form method="post" action="/profile" class="divide-y divide-outline-variant/40">
+
+      <div class="pb-6 space-y-5">
+        <div>
+          <label for="real_name" class="form-label mb-1">{{ _("Real name") }}</label>
+          <input id="real_name" type="text" name="real_name" value="{{ current_user.real_name }}" required
+                 class="w-full rounded-lg border border-outline-variant bg-surface-container-high px-3 py-2 text-sm text-on-surface placeholder:text-on-surface-variant/50 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors">
+        </div>
+        <div>
+          <label for="plex_email" class="form-label mb-1">{{ _("Plex email") }}</label>
+          <input id="plex_email" type="email" value="{{ current_user.plex_email or '' }}" disabled
+                 class="w-full rounded-lg border border-outline-variant bg-surface-container-high px-3 py-2 text-sm text-on-surface opacity-60 cursor-not-allowed">
+          <p class="mt-1.5 text-xs text-on-surface-variant/75">{{ _("Pulled from your Plex account.") }}</p>
+        </div>
+        <div>
+          <label for="notify_email" class="form-label mb-1">{{ _("Notification email") }}</label>
+          <input id="notify_email" type="email" name="notify_email" value="{{ current_user.notify_email or '' }}"
+                 placeholder="{{ current_user.plex_email or '' }}"
+                 class="w-full rounded-lg border border-outline-variant bg-surface-container-high px-3 py-2 text-sm text-on-surface placeholder:text-on-surface-variant/50 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors">
+          <p class="mt-1.5 text-xs text-on-surface-variant/75">{{ _("If empty, your Plex email is used.") }}</p>
+        </div>
+      </div>
+
+      <fieldset class="py-6">
+        <legend class="text-sm font-semibold text-on-surface mb-3">{{ _("Telegram ID") }}</legend>
+        <input type="text" name="telegram_id" value="{{ current_user.telegram_id or '' }}"
+               placeholder="123456789" inputmode="numeric"
+               class="w-full rounded-lg border border-outline-variant bg-surface-container-high px-3 py-2 text-sm text-on-surface placeholder:text-on-surface-variant/50 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors">
+        <details class="mt-3">
+          <summary class="lib-sum">{{ _("How do I find my Telegram ID?") }}</summary>
+          <ol class="mt-2 pl-5 space-y-1.5 text-sm text-on-surface-variant list-decimal">
+            {% if bot_username %}
+            <li>{{ _("Open Telegram and start the bot") }}
+              <a class="text-primary-container hover:underline" href="https://t.me/{{ bot_username }}" target="_blank" rel="noopener"><strong>@{{ bot_username }}</strong></a>
+              ({{ _("press Start") }}).</li>
+            {% else %}
+            <li>{{ _("Open Telegram and start the notification bot (press Start).") }}</li>
+            {% endif %}
+            <li>{{ _("Open") }} <a class="text-primary-container hover:underline" href="https://t.me/userinfobot" target="_blank" rel="noopener"><strong>@userinfobot</strong></a>
+              {{ _("and press Start: it replies with your numeric ID.") }}</li>
+            <li>{{ _("Copy that number here and save.") }}</li>
+          </ol>
+          <p class="mt-2 text-xs text-on-surface-variant/70">{{ _("Easier: use the one-tap button in the Connect Telegram section below.") }}</p>
+        </details>
+      </fieldset>
+
+      <fieldset class="py-6">
+        <legend class="text-sm font-semibold text-on-surface mb-3">{{ _("Notification channels") }}</legend>
+        <div class="space-y-3">
+          <div class="flex items-center justify-between gap-4">
+            <span class="text-sm text-on-surface">{{ _("Receive email notifications") }}</span>
+            <label class="toggle-switch">
+              <input type="checkbox" name="notify_via_email" class="toggle-switch__input peer" {% if current_user.notify_via_email %}checked{% endif %}>
+              <span class="toggle-switch__track"></span>
+              <span class="toggle-switch__thumb"></span>
+            </label>
+          </div>
+          <div class="flex items-center justify-between gap-4">
+            <span class="text-sm text-on-surface">{{ _("Receive Telegram notifications") }}</span>
+            <label class="toggle-switch">
+              <input type="checkbox" name="notify_via_telegram" class="toggle-switch__input peer" {% if current_user.notify_via_telegram %}checked{% endif %}>
+              <span class="toggle-switch__track"></span>
+              <span class="toggle-switch__thumb"></span>
+            </label>
+          </div>
+        </div>
+        <p class="mt-3 text-xs text-on-surface-variant/75">{{ _("Uncheck a channel to stop receiving notifications there.") }}</p>
+      </fieldset>
+
+      {% if current_user.role.value != 'user' %}
+      {% set DAYS = [_("Monday"), _("Tuesday"), _("Wednesday"), _("Thursday"), _("Friday"), _("Saturday"), _("Sunday")] %}
+      <fieldset class="py-6">
+        <legend class="text-sm font-semibold text-on-surface mb-3">{{ _("Weekly collect digest") }}</legend>
+        <div class="flex items-center justify-between gap-4">
+          <span class="text-sm text-on-surface">{{ _("Receive the weekly digest of users to collect from") }}</span>
+          <label class="toggle-switch">
+            <input type="checkbox" name="digest_enabled" class="toggle-switch__input peer" {% if current_user.digest_enabled %}checked{% endif %}>
+            <span class="toggle-switch__track"></span>
+            <span class="toggle-switch__thumb"></span>
+          </label>
+        </div>
+        <div class="mt-4">
+          <label for="digest_weekday" class="form-label mb-1">{{ _("Send it on") }}</label>
+          <select id="digest_weekday" name="digest_weekday"
+                  class="w-full rounded-lg border border-outline-variant bg-surface-container-high px-3 py-2 text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors">
+            {% for d in DAYS %}
+            <option value="{{ loop.index0 }}" {% if current_user.digest_weekday == loop.index0 %}selected{% endif %}>{{ d }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <p class="mt-3 text-xs text-on-surface-variant/75">{{ _("One consolidated email/Telegram instead of a message per user. Uses the channels selected above (keep at least one on).") }}</p>
+      </fieldset>
+      {% endif %}
+
+      <div class="pt-6 space-y-5">
+        <div>
+          <label for="locale" class="form-label mb-1">{{ _("Language") }}</label>
+          <select id="locale" name="locale"
+                  class="w-full rounded-lg border border-outline-variant bg-surface-container-high px-3 py-2 text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors">
+            <option value="it" {% if current_user.locale == 'it' %}selected{% endif %}>Italiano</option>
+            <option value="en" {% if current_user.locale == 'en' %}selected{% endif %}>English</option>
+          </select>
+        </div>
+        <div>
+          <button type="submit" class="inline-flex items-center gap-2 rounded-lg bg-primary-container text-on-primary font-semibold text-sm px-5 py-2.5 hover:bg-primary transition-colors">
+            <span class="material-symbols-outlined text-[18px]" aria-hidden="true">save</span>
+            {{ _("Save") }}
+          </button>
+        </div>
+      </div>
+
+    </form>
+  </section>
+
+  <section class="sub-card">
+    <div class="flex items-center gap-2 mb-5">
+      <span class="material-symbols-outlined text-primary-container" aria-hidden="true">send</span>
+      <h2 class="text-lg font-semibold text-on-surface">{{ _("Connect Telegram") }}</h2>
+    </div>
+
+    <div class="space-y-4">
+      {% if tg_message %}
+      <p class="flex items-center gap-1.5 text-sm text-status-active">
+        <span class="material-symbols-outlined text-[18px]" aria-hidden="true">check_circle</span>
+        {{ tg_message }}
+      </p>
+      {% endif %}
+      {% if tg_error %}
+      <p class="flex items-center gap-1.5 text-sm text-status-expired">
+        <span class="material-symbols-outlined text-[18px]" aria-hidden="true">error</span>
+        {{ tg_error }}
+      </p>
+      {% endif %}
+
+      {% if bot_username %}
+      <p class="text-sm text-on-surface-variant">{{ _("Notifications are sent by the bot") }}
+        <a class="text-primary-container hover:underline" href="https://t.me/{{ bot_username }}" target="_blank" rel="noopener"><strong>@{{ bot_username }}</strong></a>.</p>
+      {% endif %}
+
+      {% if deep_link %}
+      <p class="text-sm text-on-surface-variant">{{ _("Tap the button below, then press Start in Telegram. Your account links automatically.") }}</p>
+      <a href="{{ deep_link }}" target="_blank" rel="noopener" class="btn-brand">
+        <span class="material-symbols-outlined" aria-hidden="true">open_in_new</span>
+        {{ _("Open Telegram") }}
+      </a>
+      {% else %}
+      <p class="text-sm text-on-surface-variant">{{ _("Send this command to the bot:") }}</p>
+      <pre class="rounded-lg border border-outline-variant bg-surface-container-high px-3 py-2 font-mono text-sm text-on-surface overflow-x-auto">/start {{ token }}</pre>
+      {% endif %}
+      <p class="text-xs text-on-surface-variant/70">{{ _("This link expires in 1 hour.") }}</p>
+    </div>
+
+    {% if ov_enabled %}
+    <div class="mt-6 pt-6 border-t border-outline-variant/40 space-y-4">
+      <div class="flex items-center gap-2">
+        <span class="material-symbols-outlined text-primary-container" aria-hidden="true">sync</span>
+        <h3 class="text-base font-semibold text-on-surface">{{ _("Align with Overseerr") }}</h3>
+      </div>
+      <div class="text-sm text-on-surface-variant space-y-1">
+        <p>{{ _("AccessFlow ID:") }} <span class="account-handle">{{ current_user.telegram_id or _("not set") }}</span></p>
+        <p>{{ _("Overseerr ID:") }} <span class="account-handle">{{ ov_chat_id or _("not set") }}</span></p>
+      </div>
+      {% if ov_mismatch %}
+      <p class="flex items-center gap-1.5 text-sm text-status-suspended">
+        <span class="material-symbols-outlined text-[18px]" aria-hidden="true">warning</span>
+        {{ _("The two IDs differ. Choose which one to keep.") }}
+      </p>
+      {% else %}
+      <p class="flex items-center gap-1.5 text-sm text-status-active">
+        <span class="material-symbols-outlined text-[18px]" aria-hidden="true">check_circle</span>
+        {{ _("The two IDs already match.") }}
+      </p>
+      {% endif %}
+      <div class="flex flex-wrap gap-3">
+        <form method="post" action="/telegram/sync-overseerr">
+          <input type="hidden" name="direction" value="to_overseerr">
+          <button type="submit" class="inline-flex items-center gap-1.5 rounded-lg border border-primary-container text-primary-container font-medium text-sm px-4 py-2 hover:bg-primary-container hover:text-on-primary transition-colors">
+            <span class="material-symbols-outlined text-[18px]" aria-hidden="true">upload</span>
+            {{ _("Keep AccessFlow ID") }}
+          </button>
+        </form>
+        <form method="post" action="/telegram/sync-overseerr">
+          <input type="hidden" name="direction" value="from_overseerr">
+          <button type="submit" class="inline-flex items-center gap-1.5 rounded-lg border border-outline-variant text-on-surface-variant font-medium text-sm px-4 py-2 hover:bg-surface-container-high hover:text-on-surface transition-colors">
+            <span class="material-symbols-outlined text-[18px]" aria-hidden="true">download</span>
+            {{ _("Keep Overseerr ID") }}
+          </button>
+        </form>
+      </div>
+    </div>
+    {% endif %}
+  </section>
+
+  {% if current_user.password_hash %}
+  <section class="sub-card">
+    <div class="flex items-center gap-2 mb-5">
+      <span class="material-symbols-outlined text-primary-container" aria-hidden="true">lock</span>
+      <h2 class="text-lg font-semibold text-on-surface">{{ _("Change password") }}</h2>
+    </div>
+
+    {% if pwd_message %}
+    <p class="flex items-center gap-1.5 text-sm text-status-active mb-4">
+      <span class="material-symbols-outlined text-[18px]" aria-hidden="true">check_circle</span>
+      {{ pwd_message }}
+    </p>
+    {% endif %}
+    {% if pwd_error %}
+    <p class="flex items-center gap-1.5 text-sm text-status-expired mb-4">
+      <span class="material-symbols-outlined text-[18px]" aria-hidden="true">error</span>
+      {{ pwd_error }}
+    </p>
+    {% endif %}
+
+    <form method="post" action="/profile/password" class="space-y-4">
+      <div>
+        <label for="current_password" class="form-label mb-1">{{ _("Current password") }}</label>
+        <input id="current_password" type="password" name="current_password" autocomplete="current-password" required
+               class="w-full rounded-lg border border-outline-variant bg-surface-container-high px-3 py-2 text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors">
+      </div>
+      <div>
+        <label for="new_password" class="form-label mb-1">{{ _("New password") }}</label>
+        <input id="new_password" type="password" name="new_password" autocomplete="new-password" minlength="8" required
+               class="w-full rounded-lg border border-outline-variant bg-surface-container-high px-3 py-2 text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors">
+        <p class="mt-1.5 text-xs text-on-surface-variant/75">{{ _("At least 8 characters.") }}</p>
+      </div>
+      <div>
+        <label for="confirm_password" class="form-label mb-1">{{ _("Confirm new password") }}</label>
+        <input id="confirm_password" type="password" name="confirm_password" autocomplete="new-password" minlength="8" required
+               class="w-full rounded-lg border border-outline-variant bg-surface-container-high px-3 py-2 text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors">
+      </div>
+      <div class="pt-2">
+        <button type="submit" class="inline-flex items-center gap-2 rounded-lg border border-outline-variant text-on-surface font-semibold text-sm px-5 py-2.5 hover:bg-surface-container-high transition-colors">
+          <span class="material-symbols-outlined text-[18px]" aria-hidden="true">lock_reset</span>
+          {{ _("Change password") }}
+        </button>
+      </div>
+    </form>
+  </section>
+  {% endif %}
+
+</div>
+{% endblock %}

@@ -1,0 +1,304 @@
+{% extends "base.html" %}
+{% block title %}{{ _("Reports") }}{% endblock %}
+{% block content %}
+<div class="flex flex-wrap items-center justify-between gap-gap-md mb-gap-md">
+  <h1 class="flex items-center gap-gap-sm text-2xl font-bold text-on-surface">
+    <span class="material-symbols-outlined text-primary" aria-hidden="true">bar_chart</span>
+    {{ _("Reports") }}
+  </h1>
+  <a href="/reports/export.csv{% if query %}?{{ query }}{% endif %}" class="inline-flex items-center gap-gap-sm px-4 py-2 rounded-lg border border-outline-variant text-on-surface-variant no-underline transition-colors hover:bg-surface-container hover:text-on-surface">
+    <span class="material-symbols-outlined" aria-hidden="true">download</span>
+    {{ _("Export earnings (CSV)") }}
+  </a>
+</div>
+
+{#- Same shape as the audit filter bar: GET + auto-submit selects, no button.
+   Native <input type="month"> instead of a picker widget. The URL carries the
+   whole view state, so it is bookmarkable and the CSV link just reuses it. -#}
+<form method="get" action="/reports" class="filter-bar items-center">
+  <input type="month" name="month" value="{{ month }}" class="lang-select"
+         onchange="this.form.submit()" aria-label="{{ _('Month') }}">
+  <select name="manager" class="lang-select" onchange="this.form.submit()" aria-label="{{ _('Manager') }}">
+    <option value="">{{ _("All managers") }}</option>
+    {% for m in managers %}
+    <option value="{{ m.id }}" {% if manager == m.id|string %}selected{% endif %}>{{ m.real_name }}</option>
+    {% endfor %}
+    {#- No manager == the superadmin's own book: manager_candidates only ever
+       lists admins and moderators, so a NULL manager_id can mean nothing else. -#}
+    <option value="{{ unassigned_id }}" {% if manager == unassigned_id|string %}selected{% endif %}>{{ _("Superadmin") }}</option>
+  </select>
+  <a href="/reports" class="self-center px-2 text-sm text-on-surface-variant no-underline hover:text-on-surface">{{ _("Reset") }}</a>
+</form>
+
+<section class="mb-gap-lg">
+  <h2 class="mb-gap-sm text-sm font-semibold uppercase tracking-wide text-on-surface-variant">{{ _("Earnings") }} — {{ month }}</h2>
+  {% set collected_trend = ((earnings.current_collected - earnings.prev) / earnings.prev * 100) if earnings.prev else none %}
+  {% set collect_rate = (earnings.current_collected / earnings.current_collectable * 100) if earnings.current_collectable else none %}
+  <div class="grid grid-cols-1 divide-y divide-outline-variant rounded-xl border border-outline-variant bg-surface-container-low md:grid-cols-4 md:divide-y-0 md:divide-x">
+    <div class="p-5">
+      <p class="text-2xl font-bold text-primary">{{ earnings.prev | euros }}</p>
+      <p class="mt-1 text-sm text-on-surface-variant">{{ _("Previous month (collected)") }}</p>
+    </div>
+    <div class="p-5">
+      <p class="text-2xl font-bold text-primary">{{ earnings.current_collected | euros }}</p>
+      <p class="mt-1 text-sm text-on-surface-variant">{{ _("This month — collected") }}</p>
+      {% if collected_trend is not none %}
+      <p class="mt-2 flex items-center gap-1 text-xs font-semibold {{ 'text-status-active' if collected_trend >= 0 else 'text-status-expired' }}">
+        <span class="material-symbols-outlined text-[16px]" aria-hidden="true">{{ 'trending_up' if collected_trend >= 0 else 'trending_down' }}</span>
+        {{ '%+.1f' % collected_trend }}% {{ _("vs previous month") }}
+      </p>
+      {% endif %}
+    </div>
+    <div class="p-5">
+      <p class="text-2xl font-bold text-primary">{{ earnings.current_collectable | euros }}</p>
+      <p class="mt-1 text-sm text-on-surface-variant">{{ _("This month — collectable") }}</p>
+      {% if collect_rate is not none %}
+      <p class="mt-2 text-xs font-semibold text-on-surface-variant">{{ '%.1f' % collect_rate }}% {{ _("already collected") }}</p>
+      {% endif %}
+    </div>
+    <div class="p-5">
+      <p class="text-2xl font-bold text-primary">{{ earnings.next_projected | euros }}</p>
+      <p class="mt-1 text-sm text-on-surface-variant">{{ _("Next month (projected)") }}</p>
+    </div>
+  </div>
+  <div class="mt-gap-md grid grid-cols-1 divide-y divide-outline-variant rounded-xl border border-outline-variant bg-surface-container-low sm:grid-cols-3 sm:divide-y-0 sm:divide-x">
+    <div class="p-4">
+      <p class="text-xl font-bold text-on-surface">{% if earnings.renewal_rate is not none %}{{ '%.0f' % earnings.renewal_rate }}%{% else %}—{% endif %}</p>
+      <p class="mt-1 text-xs text-on-surface-variant">{{ _("Renewal rate (subs due this month)") }}</p>
+    </div>
+    <div class="p-4">
+      <p class="text-xl font-bold text-on-surface">{{ earnings.arpu_cents | euros }}</p>
+      <p class="mt-1 text-xs text-on-surface-variant">{{ _("ARPU (collected / paying user)") }}</p>
+    </div>
+    <div class="p-4">
+      <p class="text-xl font-bold text-on-surface">{{ earnings.paying_users }}</p>
+      <p class="mt-1 text-xs text-on-surface-variant">{{ _("Paying users") }}</p>
+    </div>
+  </div>
+</section>
+
+<div class="mb-gap-lg grid grid-cols-1 gap-gap-md lg:grid-cols-2">
+  <div class="rounded-xl border border-outline-variant bg-surface-container-low p-6">
+    <h3 class="mb-gap-md text-lg font-semibold text-on-surface">{{ _("Active subscriptions by plan") }}</h3>
+    <div class="mx-auto max-w-[260px]">
+      <canvas id="plansChart"></canvas>
+    </div>
+    <ul class="mt-gap-md divide-y divide-outline-variant/50 text-sm">
+      {% for c in counters %}
+      <li class="flex items-center justify-between py-2">
+        <span class="text-on-surface-variant">{{ c.name }}</span>
+        <span class="font-semibold text-on-surface">{{ c.count }}</span>
+      </li>
+      {% endfor %}
+    </ul>
+  </div>
+  <div class="rounded-xl border border-outline-variant bg-surface-container-low p-6">
+    <h3 class="mb-gap-md text-lg font-semibold text-on-surface">{{ _("Collected — last 12 months") }}</h3>
+    <canvas id="trendChart"></canvas>
+  </div>
+</div>
+
+<section class="mb-gap-lg">
+  <h2 class="mb-gap-sm text-sm font-semibold uppercase tracking-wide text-on-surface-variant">{{ _("By manager") }}</h2>
+  <div class="overflow-hidden rounded-xl border border-outline-variant bg-surface-container-low">
+    <div class="overflow-x-auto">
+      <table class="responsive w-full text-left text-sm">
+        <thead>
+          <tr class="border-b border-outline-variant text-on-surface-variant">
+            <th class="px-4 py-3 font-semibold">{{ _("Manager") }}</th>
+            <th class="px-4 py-3 font-semibold">{{ _("Collected") }}</th>
+            <th class="px-4 py-3 font-semibold">{{ _("Collectable") }}</th>
+            <th class="px-4 py-3 font-semibold">{{ _("Paying users") }}</th>
+            <th class="px-4 py-3 font-semibold">{{ _("Renewal rate") }}</th>
+            <th class="px-4 py-3 font-semibold"></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for t in manager_totals %}
+          <tr class="border-b border-outline-variant/50 last:border-0">
+            <td class="px-4 py-3" data-label="{{ _('Manager') }}">{{ t.name or _("Superadmin") }}</td>
+            <td class="px-4 py-3" data-label="{{ _('Collected') }}">{{ t.current_collected | euros }}</td>
+            <td class="px-4 py-3" data-label="{{ _('Collectable') }}">{{ t.current_collectable | euros }}</td>
+            <td class="px-4 py-3" data-label="{{ _('Paying users') }}">{{ t.paying_users }}</td>
+            <td class="px-4 py-3" data-label="{{ _('Renewal rate') }}">{% if t.renewal_rate is not none %}{{ '%.0f' % t.renewal_rate }}%{% else %}—{% endif %}</td>
+            <td class="px-4 py-3" data-label="">
+              <a href="/reports?month={{ month }}&amp;manager={{ t.id }}" class="btn-sm inline-flex items-center gap-1 border border-outline-variant text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-colors" title="{{ _('Filter by this manager') }}">
+                <span class="material-symbols-outlined text-base" aria-hidden="true">filter_alt</span>
+              </a>
+            </td>
+          </tr>
+          {% endfor %}
+          {% if not manager_totals %}
+          <tr><td colspan="6" class="px-4 py-6 text-center text-on-surface-variant" data-label="">{{ _("None") }}</td></tr>
+          {% endif %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<section class="mb-gap-lg">
+  <h2 class="mb-gap-sm text-sm font-semibold uppercase tracking-wide text-on-surface-variant">{{ _("Movements") }} — {{ month }}</h2>
+  <div class="overflow-hidden rounded-xl border border-outline-variant bg-surface-container-low">
+    <div class="overflow-x-auto">
+      <table class="responsive w-full text-left text-sm">
+        <thead>
+          <tr class="border-b border-outline-variant text-on-surface-variant">
+            <th class="px-4 py-3 font-semibold">{{ _("Payment date") }}</th>
+            <th class="px-4 py-3 font-semibold">{{ _("User") }}</th>
+            <th class="px-4 py-3 font-semibold">{{ _("Plan") }}</th>
+            <th class="px-4 py-3 font-semibold">{{ _("Amount") }}</th>
+            <th class="px-4 py-3 font-semibold">{{ _("Manager") }}</th>
+            <th class="px-4 py-3 font-semibold">{{ _("Collected by") }}</th>
+            <th class="px-4 py-3 font-semibold">{{ _("Reference") }}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for m in movements %}
+          <tr class="border-b border-outline-variant/50 last:border-0">
+            <td class="px-4 py-3" data-label="{{ _('Payment date') }}">{{ m.paid_at | date }}</td>
+            <td class="px-4 py-3" data-label="{{ _('User') }}">
+              {% if m.user_id %}<a href="/users/{{ m.user_id }}/subscription" class="text-primary no-underline hover:underline">{{ m.user }}</a>{% else %}{{ m.user }}{% endif %}
+            </td>
+            <td class="px-4 py-3" data-label="{{ _('Plan') }}">{{ m.plan }}</td>
+            <td class="px-4 py-3" data-label="{{ _('Amount') }}">{{ m.amount_cents | euros }}</td>
+            <td class="px-4 py-3" data-label="{{ _('Manager') }}">{{ m.manager or _("Superadmin") }}</td>
+            <td class="px-4 py-3" data-label="{{ _('Collected by') }}">{{ m.collected_by or "—" }}</td>
+            <td class="px-4 py-3" data-label="{{ _('Reference') }}">{{ m.causale or "—" }}</td>
+          </tr>
+          {% endfor %}
+          {% if not movements %}
+          <tr><td colspan="7" class="px-4 py-6 text-center text-on-surface-variant" data-label="">{{ _("No movements in this month") }}</td></tr>
+          {% endif %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2 class="mb-gap-sm text-sm font-semibold uppercase tracking-wide text-on-surface-variant">{{ _("Upcoming expiries (30 days)") }}</h2>
+  <div class="overflow-hidden rounded-xl border border-outline-variant bg-surface-container-low">
+    <div class="overflow-x-auto">
+      <table class="responsive w-full text-left text-sm">
+        <thead>
+          <tr class="border-b border-outline-variant text-on-surface-variant">
+            <th class="px-4 py-3 font-semibold">{{ _("User") }}</th>
+            <th class="px-4 py-3 font-semibold">{{ _("Plan") }}</th>
+            <th class="px-4 py-3 font-semibold">{{ _("Amount") }}</th>
+            <th class="px-4 py-3 font-semibold">{{ _("Expiry") }}</th>
+            <th class="px-4 py-3 font-semibold">{{ _("Days left") }}</th>
+            <th class="px-4 py-3 font-semibold">{{ _("Status") }}</th>
+            <th class="px-4 py-3 font-semibold"></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in upcoming %}
+          <tr class="border-b border-outline-variant/50 last:border-0">
+            <td class="px-4 py-3" data-label="{{ _('User') }}">{{ r.user }}</td>
+            <td class="px-4 py-3" data-label="{{ _('Plan') }}">{{ r.plan }}</td>
+            <td class="px-4 py-3" data-label="{{ _('Amount') }}">{{ r.amount_cents | euros }}</td>
+            <td class="px-4 py-3" data-label="{{ _('Expiry') }}">{{ r.expiry | date }}</td>
+            <td class="px-4 py-3" data-label="{{ _('Days left') }}">{{ r.days_left }}</td>
+            <td class="px-4 py-3" data-label="{{ _('Status') }}">
+              {% if r.pending_renewal %}<span class="badge badge--suspended">{{ _("Awaiting confirmation") }}</span>
+              {% else %}<span class="badge badge--cancelled">{{ _("Not yet renewed") }}</span>{% endif %}
+            </td>
+            <td class="px-4 py-3" data-label="">
+              {% if r.user_id %}
+              <div class="row-actions">
+                <a href="/users/{{ r.user_id }}/subscription" class="btn-sm inline-flex items-center gap-1 border border-outline-variant text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-colors" title="{{ _('View subscription') }}">
+                  <span class="material-symbols-outlined text-base" aria-hidden="true">visibility</span>
+                </a>
+                <form method="post" action="/subscriptions/{{ r.sub_id }}/remind" class="m-0">
+                  <button type="submit" class="btn-sm inline-flex items-center gap-1 border border-outline-variant text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-colors" title="{{ _('Send reminder now') }}">
+                    <span class="material-symbols-outlined text-base" aria-hidden="true">notifications</span>
+                  </button>
+                </form>
+              </div>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+          {% if not upcoming %}
+          <tr><td colspan="7" class="px-4 py-6 text-center text-on-surface-variant" data-label="">{{ _("None") }}</td></tr>
+          {% endif %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<script src="{{ url_for('static', path='vendor/chart.umd.min.js') }}"></script>
+<script>
+  const planLabels = {{ counters | map(attribute='name') | list | tojson }};
+  const planData = {{ counters | map(attribute='count') | list | tojson }};
+  const trendLabels = {{ series | map(attribute='month') | list | tojson }};
+  const trendData = {{ series | map(attribute='collected_cents') | list | tojson }}.map(c => c / 100);
+
+  // Chart.js config isn't scanned by Tailwind and can't consume utility
+  // classes, so colors are read at render time from the active theme's CSS
+  // custom properties (set per [data-theme="..."] in src/input.css, "R G B"
+  // space-separated — see tailwind.config.js) instead of being hardcoded.
+  // This keeps the charts in sync across the Rame/Inchiostro/Muschio themes
+  // instead of staying stuck on one fixed palette.
+  function themeRGB(varName) {
+    return getComputedStyle(document.documentElement).getPropertyValue(varName).trim().split(/\s+/).join(', ');
+  }
+  function themeColor(varName) {
+    return `rgb(${themeRGB(varName)})`;
+  }
+  function themeColorAlpha(varName, alpha) {
+    return `rgba(${themeRGB(varName)}, ${alpha})`;
+  }
+
+  const ON_SURFACE_VARIANT = themeColor('--color-on-surface-variant');
+  const OUTLINE_VARIANT = themeColor('--color-outline-variant');
+  const SURFACE_CONTAINER_LOW = themeColor('--color-surface-container-low');
+  const PRIMARY = themeColor('--color-primary');
+  const PALETTE = [
+    '--color-primary', '--color-tertiary', '--color-secondary',
+    '--color-on-surface-variant', '--color-status-expired', '--color-status-suspended',
+  ].map(themeColor);
+
+  new Chart(document.getElementById('plansChart'), {
+    type: 'doughnut',
+    data: {
+      labels: planLabels,
+      datasets: [{
+        data: planData,
+        backgroundColor: PALETTE,
+        borderColor: SURFACE_CONTAINER_LOW,
+        borderWidth: 2,
+      }]
+    },
+    options: {
+      color: ON_SURFACE_VARIANT,
+      plugins: {
+        legend: { position: 'bottom', labels: { color: ON_SURFACE_VARIANT } }
+      }
+    }
+  });
+  new Chart(document.getElementById('trendChart'), {
+    type: 'line',
+    data: {
+      labels: trendLabels,
+      datasets: [{
+        label: '{{ currency_code() }}', data: trendData,
+        borderColor: PRIMARY, backgroundColor: themeColorAlpha('--color-primary', .18),
+        pointBackgroundColor: PRIMARY, pointRadius: 3, fill: true, tension: .3,
+      }]
+    },
+    options: {
+      color: ON_SURFACE_VARIANT,
+      plugins: {
+        legend: { labels: { color: ON_SURFACE_VARIANT } }
+      },
+      scales: {
+        x: { ticks: { color: ON_SURFACE_VARIANT }, grid: { color: OUTLINE_VARIANT } },
+        y: { beginAtZero: true, ticks: { color: ON_SURFACE_VARIANT }, grid: { color: OUTLINE_VARIANT } }
+      }
+    }
+  });
+</script>
+{% endblock %}

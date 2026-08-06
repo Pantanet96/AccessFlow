@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+{% block title %}{{ _("Collect") }}{% endblock %}
+{% block content %}
+<div class="flex items-center gap-gap-sm mb-gap-lg">
+  <span class="material-symbols-outlined text-primary-container" aria-hidden="true">inventory_2</span>
+  <h2 class="text-2xl font-bold text-on-surface">{{ _("Collect") }}</h2>
+</div>
+
+<section class="mb-gap-lg">
+  <div class="flex items-baseline justify-between gap-gap-md flex-wrap mb-1">
+    <h3 class="flex items-center gap-2 text-lg font-semibold text-on-surface">
+      <span class="material-symbols-outlined text-[20px] text-on-surface-variant" aria-hidden="true">payments</span>
+      {{ _("To collect") }}
+    </h3>
+    {% if collectables %}<strong class="text-lg font-bold text-primary-container">{{ _("Total") }}: {{ collectables_total | money }}</strong>{% endif %}
+  </div>
+  <p class="text-sm text-on-surface-variant mb-gap-md">{{ _("Paid subscriptions expiring within %(n)d days (overdue included) without a pending renewal.") % {'n': lookahead} }}</p>
+
+  {% if not collectables %}
+  <p class="text-on-surface-variant text-center py-8 border border-dashed border-outline-variant rounded-xl">{{ _("Nothing to collect right now. 🎉") }}</p>
+  {% else %}
+  <div class="overflow-x-auto custom-scrollbar">
+  <table class="responsive w-full text-sm">
+    <thead>
+      <tr class="text-left text-xs uppercase tracking-wide text-on-surface-variant border-b border-outline-variant">
+        <th class="py-2 pr-4">{{ _("User") }}</th>
+        <th class="py-2 pr-4">{{ _("Plan") }}</th>
+        <th class="py-2 pr-4">{{ _("Expiry") }}</th>
+        <th class="py-2 pr-4">{{ _("Amount") }}</th>
+        <th class="py-2 pr-4"></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for c in collectables %}
+      <tr class="border-b border-outline-variant/60">
+        <td class="py-3 pr-4" data-label="{{ _('User') }}">{{ c.user_name }}</td>
+        <td class="py-3 pr-4" data-label="{{ _('Plan') }}">{{ c.plan_name }}</td>
+        <td class="py-3 pr-4" data-label="{{ _('Expiry') }}">
+          {{ c.expiry_date }}
+          {% if c.days_left < 0 %}<span class="badge badge--cancelled">{{ _("Overdue %(d)dd") % {'d': -c.days_left} }}</span>
+          {% else %}<span class="badge badge--suspended">{{ _("%(d)dd left") % {'d': c.days_left} }}</span>{% endif %}
+        </td>
+        <td class="py-3 pr-4 font-medium text-on-surface" data-label="{{ _('Amount') }}">{{ c.amount_eur | money }}</td>
+        <td class="py-3" data-label="">
+          <a href="/users/{{ c.user_id }}/subscription" role="button" class="btn-sm inline-flex items-center justify-center border border-primary-container text-primary-container no-underline rounded hover:bg-primary-container hover:text-on-primary transition-colors">{{ _("Collect") }}</a>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% endif %}
+</section>
+
+<hr class="my-8 border-outline-variant">
+
+<section>
+  <h3 class="flex items-center gap-2 text-lg font-semibold text-on-surface mb-gap-md">
+    <span class="material-symbols-outlined text-[20px] text-on-surface-variant" aria-hidden="true">hourglass_top</span>
+    {{ _("Awaiting payment") }}
+  </h3>
+  {% if not rows %}
+  <p class="text-on-surface-variant text-center py-8 border border-dashed border-outline-variant rounded-xl">{{ _("No pending requests.") }}</p>
+  {% else %}
+  <div class="overflow-x-auto custom-scrollbar">
+  <table class="responsive w-full text-sm">
+    <thead>
+      <tr class="text-left text-xs uppercase tracking-wide text-on-surface-variant border-b border-outline-variant">
+        <th class="py-2 pr-4">{{ _("User") }}</th>
+        <th class="py-2 pr-4">{{ _("Plan") }}</th>
+        <th class="py-2 pr-4">{{ _("Amount") }}</th>
+        <th class="py-2 pr-4">{{ _("Requested") }}</th>
+        <th class="py-2 pr-4">{{ _("Note") }}</th>
+        <th class="py-2 pr-4">{{ _("Validate") }}</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in rows %}
+      <tr class="border-b border-outline-variant/60">
+        <td class="py-3 pr-4" data-label="{{ _('User') }}">{{ row.user.real_name }}</td>
+        <td class="py-3 pr-4" data-label="{{ _('Plan') }}">{{ row.plan.name if row.plan else '—' }}</td>
+        <td class="py-3 pr-4" data-label="{{ _('Amount') }}">{{ row.renewal.amount_cents | euros }}</td>
+        <td class="py-3 pr-4" data-label="{{ _('Requested') }}">{{ row.renewal.created_at | date }}</td>
+        <td class="py-3 pr-4" data-label="{{ _('Note') }}">{{ row.renewal.causale or '—' }}</td>
+        <td class="py-3" data-label="{{ _('Validate') }}">
+          <div class="inline-validate flex-wrap">
+            <form method="post" action="/renewals/{{ row.renewal.id }}/pay" class="inline-validate flex-1">
+              <input type="text" name="causale" value="{{ row.renewal.causale or '' }}"
+                     placeholder="{{ _('Transaction text') }}" required
+                     class="flex-1 min-w-0 rounded-lg bg-surface-container-low border border-outline-variant px-3 py-1.5 text-sm text-on-surface placeholder:text-on-surface-variant focus:outline-none focus:ring-1 focus:ring-primary-container focus:border-primary-container">
+              <button type="submit" class="btn-sm bg-primary-container text-on-primary font-semibold rounded border border-primary-container hover:bg-primary hover:border-primary transition-colors">{{ _("Confirm paid") }}</button>
+            </form>
+            <form method="post" action="/renewals/{{ row.renewal.id }}/delete" class="m-0"
+                  onsubmit="return confirm('{{ _("Are you sure you want to delete the renewal request?") }}');">
+              <button type="submit" class="btn-sm btn-red rounded">{{ _("Delete") }}</button>
+            </form>
+          </div>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% endif %}
+</section>
+{% endblock %}

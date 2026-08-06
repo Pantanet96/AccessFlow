@@ -1,0 +1,335 @@
+{% extends "base.html" %}
+{% block title %}{{ _("Settings") }}{% endblock %}
+{% block content %}
+<div class="max-w-3xl mx-auto space-y-6">
+
+  <div class="flex items-center gap-3">
+    <span class="material-symbols-outlined text-primary-container text-3xl" aria-hidden="true">settings</span>
+    <h2 class="text-2xl font-bold text-on-surface m-0">{{ _("Settings") }}</h2>
+  </div>
+
+  <div class="notif-tabs" role="tablist">
+    <a href="/settings?group=plex" class="notif-tab {% if group == 'plex' %}active{% endif %}">{{ _("Plex & Overseerr") }}</a>
+    <a href="/settings?group=notifiche" class="notif-tab {% if group == 'notifiche' %}active{% endif %}">{{ _("Notifications") }}</a>
+    <a href="/settings?group=utenti" class="notif-tab {% if group == 'utenti' %}active{% endif %}">{{ _("Users") }}</a>
+    <a href="/settings?group=sistema" class="notif-tab {% if group == 'sistema' %}active{% endif %}">{{ _("System") }}</a>
+  </div>
+
+  {% if message %}<p class="rounded-lg border border-status-active/30 bg-status-active/10 px-4 py-3 text-status-active font-medium">{{ message }}</p>{% endif %}
+  {% if error %}<p class="rounded-lg border border-status-expired/30 bg-status-expired/10 px-4 py-3 text-status-expired font-medium">{{ error }}</p>{% endif %}
+
+  {% if group == 'plex' %}
+  <article class="settings-card">
+    <div class="flex items-center gap-2 mb-4">
+      <span class="material-symbols-outlined text-primary-container" aria-hidden="true">live_tv</span>
+      <h3 class="text-lg font-semibold text-on-surface m-0">Plex</h3>
+    </div>
+
+    {% if plex_connected %}
+    <p class="flex items-center gap-2 text-on-surface">
+      <span class="material-symbols-outlined text-status-active text-xl" aria-hidden="true">check_circle</span>
+      {{ _("Connected") }} — {{ plex_email or '?' }}
+    </p>
+    <p class="text-on-surface-variant mt-1">{{ _("Server") }}: <strong class="text-on-surface">{{ plex_server or _("not selected") }}</strong></p>
+    <div class="grid gap-3 sm:grid-cols-2 mt-4">
+      <a href="/settings/plex/connect" class="inline-flex items-center justify-center gap-2 rounded-lg border border-outline-variant text-on-surface px-4 py-2.5 font-medium hover:bg-surface-container-high transition-colors no-underline">{{ _("Reconnect / change server") }}</a>
+      <form method="post" action="/settings/plex/disconnect" class="m-0">
+        <button type="submit" class="btn-red w-full rounded-lg px-4 py-2.5 font-medium">{{ _("Disconnect") }}</button>
+      </form>
+    </div>
+    {% else %}
+    <p class="text-on-surface-variant mb-4">{{ _("Not connected. Connect your Plex account, then pick the server.") }}</p>
+    <a href="/settings/plex/connect" class="btn-brand max-w-xs">
+      <span class="material-symbols-outlined" aria-hidden="true">link</span>
+      {{ _("Connect Plex") }}
+    </a>
+    {% endif %}
+
+    {% if plex_connected and sections %}
+    <hr class="border-outline-variant my-5">
+    <h4 class="text-sm font-semibold uppercase tracking-wide text-on-surface-variant mb-3">{{ _("Default shared libraries (new users)") }}</h4>
+    <form method="post" action="/settings/plex/libraries" class="space-y-4">
+      <div class="flex flex-wrap gap-2">
+        {% for s in sections %}
+        <label class="inline-flex items-center gap-2 rounded-lg border border-outline-variant bg-surface-container-low px-3 py-2 text-sm text-on-surface cursor-pointer hover:bg-surface-container-high transition-colors">
+          <input type="checkbox" name="libraries" value="{{ s.title }}" class="w-4 h-4 rounded accent-primary"
+            {% if s.title in default_sections %}checked{% endif %}> {{ s.title }}
+        </label>
+        {% endfor %}
+      </div>
+      <button type="submit" class="rounded-lg border border-outline-variant text-on-surface px-4 py-2 font-medium hover:bg-surface-container-high transition-colors">{{ _("Save default libraries") }}</button>
+    </form>
+    {% endif %}
+  </article>
+
+  <article class="settings-card">
+    <div class="flex items-center gap-2 mb-4">
+      <span class="material-symbols-outlined text-primary-container" aria-hidden="true">movie_filter</span>
+      <h3 class="text-lg font-semibold text-on-surface m-0">Overseerr / Jellyseerr / Seerr</h3>
+    </div>
+    <form method="post" action="/settings/overseerr" class="space-y-4">
+      <label class="toggle-switch gap-3">
+        <input type="checkbox" name="overseerr_enabled" class="toggle-switch__input peer" {% if overseerr_enabled %}checked{% endif %}>
+        <span class="toggle-switch__track"></span>
+        <span class="toggle-switch__thumb"></span>
+        <span class="text-on-surface">{{ _("Enable integration") }}</span>
+      </label>
+      <label class="form-label">
+        {{ _("Base URL") }}
+        <input name="overseerr_url" value="{{ overseerr_url }}" placeholder="http://overseerr:5055" class="form-input">
+        <small class="block mt-1 text-xs font-normal text-on-surface-variant">{{ _("Internal address the app uses to call the Overseerr API.") }}</small>
+      </label>
+      <label class="form-label">
+        {{ _("Public URL (browser link)") }}
+        <input name="overseerr_public_url" value="{{ overseerr_public_url }}" placeholder="https://overseerr.example.com" class="form-input">
+        <small class="block mt-1 text-xs font-normal text-on-surface-variant">{{ _("Link shown to users on the home page. Defaults to Base URL.") }}</small>
+      </label>
+      <label class="form-label">
+        {{ _("API key") }}
+        <input name="overseerr_api_key" type="password" placeholder="{{ '••••• ' + _('(set)') if overseerr_key_set else '' }}" class="form-input">
+      </label>
+      <label class="form-label">
+        {{ _("Default permissions (bitmask for re-enable)") }}
+        <input name="overseerr_default_permissions" type="number" value="{{ overseerr_default_permissions }}" class="form-input">
+      </label>
+      <button type="submit" class="btn-primary">{{ _("Save Overseerr") }}</button>
+    </form>
+    <form method="post" action="/settings/overseerr/test" class="mt-3">
+      <button type="submit" class="rounded-lg border border-outline-variant text-on-surface px-4 py-2 font-medium hover:bg-surface-container-high transition-colors">{{ _("Test Overseerr") }}</button>
+    </form>
+    {% if overseerr_test %}
+    <p class="mt-3 rounded-lg px-4 py-3 font-semibold border-l-4 {{ 'border-status-active text-status-active bg-status-active/10' if overseerr_test.ok else 'border-status-expired text-status-expired bg-status-expired/10' }}">
+      {{ '✓' if overseerr_test.ok else '✗' }} {{ overseerr_test.text }}
+    </p>
+    {% endif %}
+
+    {% if telegram_bot_match and telegram_bot_match.checked %}
+    <div class="mt-4 flex items-start gap-3 flex-wrap">
+      {% if telegram_bot_match.same is sameas true %}
+        <span class="badge badge--active">{{ _("Same Telegram bot") }}</span>
+        <small class="text-sm text-on-surface-variant">{{ _("AccessFlow and Overseerr use the same bot — chat IDs work on both.") }}</small>
+      {% elif telegram_bot_match.same is sameas false %}
+        <span class="badge badge--suspended">{{ _("Different Telegram bot") }}</span>
+        <small class="text-sm text-on-surface-variant">{{ _("AccessFlow (@%(p)s) and Overseerr (@%(o)s) use different bots. A user must press Start on both to receive messages.") % {'p': telegram_bot_match.pum_username or '?', 'o': telegram_bot_match.ov_username or '?'} }}</small>
+      {% elif telegram_bot_match.reason == "insufficient_data" %}
+        <span class="badge badge--suspended">{{ _("AccessFlow Telegram bot not set") }}</span>
+        <small class="text-sm text-on-surface-variant">{{ _("Set the AccessFlow bot below. Bots may differ from Overseerr — each user aligns their Telegram ID from their profile, so chat IDs work on both.") }}</small>
+      {% else %}
+        <span class="badge badge--cancelled">{{ _("Bot match unknown") }}</span>
+        <small class="text-sm text-on-surface-variant">{{ _("Could not compare the Telegram bots (API error).") }}</small>
+      {% endif %}
+    </div>
+    {% endif %}
+  </article>
+  {% endif %}
+
+  {% if group == 'notifiche' %}
+  <article class="settings-card">
+    <div class="flex items-center gap-2 mb-4">
+      <span class="material-symbols-outlined text-primary-container" aria-hidden="true">mail</span>
+      <h3 class="text-lg font-semibold text-on-surface m-0">SMTP</h3>
+    </div>
+    <form method="post" action="/settings/smtp" class="space-y-4">
+      <div class="grid gap-4 sm:grid-cols-2">
+        <label class="form-label">{{ _("Host") }}<input name="smtp_host" value="{{ smtp.host }}" class="form-input"></label>
+        <label class="form-label">{{ _("Port") }}<input name="smtp_port" type="number" value="{{ smtp.port }}" class="form-input"></label>
+      </div>
+      <div class="grid gap-4 sm:grid-cols-2">
+        <label class="form-label">{{ _("Username") }}<input name="smtp_user" value="{{ smtp.user }}" class="form-input"></label>
+        <label class="form-label">
+          {{ _("Password") }}
+          <input name="smtp_pass" type="password" placeholder="{{ '••••• ' + _('(set)') if smtp_pass_set else '' }}" class="form-input">
+        </label>
+      </div>
+      <div class="grid gap-4 sm:grid-cols-2">
+        <label class="form-label">{{ _("From address") }}<input name="smtp_from" type="email" value="{{ smtp.from_addr }}" class="form-input"></label>
+        <label class="form-label">
+          {{ _("From display name") }}
+          <input name="smtp_from_name" value="{{ smtp.from_name }}" placeholder="Plex Manager" class="form-input">
+          <small class="block mt-1 text-xs font-normal text-on-surface-variant">{{ _("Shown as the sender name, e.g. \"Plex Manager\".") }}</small>
+        </label>
+      </div>
+      <label class="toggle-switch gap-3">
+        <input type="checkbox" name="smtp_tls" class="toggle-switch__input peer" {% if smtp.tls %}checked{% endif %}>
+        <span class="toggle-switch__track"></span>
+        <span class="toggle-switch__thumb"></span>
+        <span class="text-on-surface">{{ _("Use STARTTLS") }}</span>
+      </label>
+      <button type="submit" class="btn-primary">{{ _("Save SMTP") }}</button>
+    </form>
+    <form method="post" action="/settings/smtp/test" class="mt-3">
+      <div class="flex flex-wrap gap-3">
+        <input name="to" type="email" placeholder="{{ _('test recipient email') }}" required class="flex-1 min-w-[14rem] rounded-lg border border-outline-variant bg-surface-container-low px-3 py-2 text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary">
+        <button type="submit" class="rounded-lg border border-outline-variant text-on-surface px-4 py-2 font-medium hover:bg-surface-container-high transition-colors whitespace-nowrap">{{ _("Send test email") }}</button>
+      </div>
+    </form>
+  </article>
+
+  <article class="settings-card">
+    <div class="flex items-center gap-2 mb-4">
+      <span class="material-symbols-outlined text-primary-container" aria-hidden="true">send</span>
+      <h3 class="text-lg font-semibold text-on-surface m-0">Telegram</h3>
+    </div>
+    <form method="post" action="/settings/telegram" class="space-y-4">
+      <label class="form-label">
+        {{ _("Bot token") }}
+        <input name="telegram_bot_token" type="password" placeholder="{{ '••••• ' + _('(set)') if telegram_token_set else '' }}" class="form-input">
+      </label>
+      <label class="form-label">
+        {{ _("Bot username (without @)") }}
+        <input name="telegram_bot_username" value="{{ telegram_username }}" class="form-input">
+      </label>
+      <button type="submit" class="btn-primary">{{ _("Save Telegram") }}</button>
+    </form>
+    <form method="post" action="/settings/telegram/test" class="mt-3">
+      <button type="submit" class="rounded-lg border border-outline-variant text-on-surface px-4 py-2 font-medium hover:bg-surface-container-high transition-colors">{{ _("Test bot") }}</button>
+    </form>
+    {% if telegram_test %}
+    <p class="mt-3 rounded-lg px-4 py-3 font-semibold border-l-4 {{ 'border-status-active text-status-active bg-status-active/10' if telegram_test.ok else 'border-status-expired text-status-expired bg-status-expired/10' }}">
+      {{ '✓' if telegram_test.ok else '✗' }} {{ telegram_test.text }}
+    </p>
+    {% endif %}
+  </article>
+
+  <article class="settings-card">
+    <div class="flex items-center gap-2 mb-4">
+      <span class="material-symbols-outlined text-primary-container" aria-hidden="true">edit_note</span>
+      <h3 class="text-lg font-semibold text-on-surface m-0">{{ _("Notification templates") }}</h3>
+    </div>
+    <p class="text-sm text-on-surface-variant mb-4">{{ _("Customize the email and Telegram message text, per language.") }}</p>
+    <a href="/settings/templates" class="inline-flex items-center gap-2 rounded-lg border border-outline-variant text-on-surface px-4 py-2 font-medium hover:bg-surface-container-high transition-colors no-underline">{{ _("Edit notification templates") }}</a>
+  </article>
+
+  <article class="settings-card">
+    <div class="flex items-center gap-2 mb-4">
+      <span class="material-symbols-outlined text-primary-container" aria-hidden="true">auto_delete</span>
+      <h3 class="text-lg font-semibold text-on-surface m-0">{{ _("Notification history retention") }}</h3>
+    </div>
+    <p class="text-sm text-on-surface-variant mb-4">{{ _("Automatically delete sent-notification history older than this. A daily job does the cleanup.") }}</p>
+    <form method="post" action="/settings/notification-retention" class="space-y-4">
+      <label class="form-label max-w-xs">
+        {{ _("Keep notifications for (days)") }}
+        <input name="notification_retention_days" type="number" min="0" max="3650"
+               value="{{ notification_retention_days }}" class="form-input">
+        <small class="block mt-1 text-xs font-normal text-on-surface-variant">{{ _("Minimum 1 day, default 30. Type 0 to keep the history forever. Welcome messages are never deleted.") }}</small>
+      </label>
+      <button type="submit" class="btn-primary">{{ _("Save retention") }}</button>
+    </form>
+  </article>
+  {% endif %}
+
+  {% if group == 'utenti' %}
+  <article class="settings-card">
+    <div class="flex items-center gap-2 mb-4">
+      <span class="material-symbols-outlined text-primary-container" aria-hidden="true">notifications_active</span>
+      <h3 class="text-lg font-semibold text-on-surface m-0">{{ _("Reminder schedule") }}</h3>
+    </div>
+    <form method="post" action="/settings/reminders" class="space-y-4">
+      <div class="grid gap-4 sm:grid-cols-2">
+        <label class="form-label">
+          {{ _("Days before expiry") }}
+          <input name="reminder_days_before" value="{{ reminder_days_before }}" placeholder="7,3,1" class="form-input">
+          <small class="block mt-1 text-xs font-normal text-on-surface-variant">{{ _("Comma-separated days remaining. Empty = no pre-expiry reminders.") }}</small>
+        </label>
+        <label class="form-label">
+          {{ _("Days after expiry") }}
+          <input name="reminder_days_after" value="{{ reminder_days_after }}" placeholder="0,3" class="form-input">
+          <small class="block mt-1 text-xs font-normal text-on-surface-variant">{{ _("Comma-separated overdue days (0 = expiry day). Empty = no dunning.") }}</small>
+        </label>
+      </div>
+      <button type="submit" class="btn-primary">{{ _("Save reminder schedule") }}</button>
+    </form>
+  </article>
+
+  <article class="settings-card">
+    <div class="flex items-center gap-2 mb-4">
+      <span class="material-symbols-outlined text-primary-container" aria-hidden="true">summarize</span>
+      <h3 class="text-lg font-semibold text-on-surface m-0">{{ _("Manager collect digest") }}</h3>
+    </div>
+    <p class="text-sm text-on-surface-variant mb-4">{{ _("Managers get ONE weekly email listing their users to collect from (not a ping per user). Each manager picks the weekday and channels in their profile.") }}</p>
+    <form method="post" action="/settings/digest" class="space-y-4">
+      <label class="form-label max-w-xs">
+        {{ _("Lookahead window (days)") }}
+        <input name="digest_lookahead_days" type="number" min="1" max="90"
+               value="{{ digest_lookahead_days }}" class="form-input">
+        <small class="block mt-1 text-xs font-normal text-on-surface-variant">{{ _("Include subscriptions expiring within this many days (overdue ones always included). Suggested: 7, 14 or 30.") }}</small>
+      </label>
+      <button type="submit" class="btn-primary">{{ _("Save digest window") }}</button>
+    </form>
+  </article>
+
+  <article class="settings-card">
+    <div class="flex items-center gap-2 mb-4">
+      <span class="material-symbols-outlined text-primary-container" aria-hidden="true">payments</span>
+      <h3 class="text-lg font-semibold text-on-surface m-0">{{ _("Display currency") }}</h3>
+    </div>
+    <p class="text-sm text-on-surface-variant mb-4">{{ _("Choose the currency shown next to prices and amounts. Amounts are never converted, only the symbol changes.") }}</p>
+    <form method="post" action="/settings/currency" class="space-y-4">
+      <label class="form-label max-w-xs">
+        {{ _("Currency") }}
+        <select name="currency" class="form-input">
+          {% for code in currencies %}
+          <option value="{{ code }}" {% if code == currency_setting %}selected{% endif %}>{{ _("No currency") if code == 'none' else code }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <button type="submit" class="btn-primary">{{ _("Save currency") }}</button>
+    </form>
+  </article>
+  {% endif %}
+
+  {% if group == 'sistema' %}
+  <article class="settings-card">
+    <div class="flex items-center gap-2 mb-4">
+      <span class="material-symbols-outlined text-primary-container" aria-hidden="true">palette</span>
+      <h3 class="text-lg font-semibold text-on-surface m-0">{{ _("Color theme") }}</h3>
+    </div>
+    <p class="text-sm text-on-surface-variant mb-4">{{ _("Choose the color palette used across the app.") }}</p>
+    <form method="post" action="/settings/color-theme" class="space-y-4">
+      <label class="form-label max-w-xs">
+        {{ _("Theme") }}
+        <select name="color_theme" class="form-input">
+          {% for t in color_themes %}
+          <option value="{{ t }}" {% if t == color_theme_setting %}selected{% endif %}>{{ t | capitalize }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <button type="submit" class="btn-primary">{{ _("Save theme") }}</button>
+    </form>
+  </article>
+
+  <article class="settings-card">
+    <div class="flex items-center gap-2 mb-4">
+      <span class="material-symbols-outlined text-primary-container" aria-hidden="true">admin_panel_settings</span>
+      <h3 class="text-lg font-semibold text-on-surface m-0">{{ _("Local administrator login") }}</h3>
+    </div>
+    <p class="text-sm text-on-surface-variant mb-4">{{ _("Show the local login link on the sign-in page. Usually only needed for first-time setup — the page stays reachable at /login/local either way.") }}</p>
+    <form method="post" action="/settings/local-login">
+      <label class="toggle-switch gap-3">
+        <input type="checkbox" name="local_login_visible" class="toggle-switch__input peer" {% if local_login_visible %}checked{% endif %} onchange="this.form.requestSubmit()">
+        <span class="toggle-switch__track"></span>
+        <span class="toggle-switch__thumb"></span>
+        <span class="text-on-surface">{{ _("Show local login link") }}</span>
+      </label>
+    </form>
+  </article>
+
+  <article class="glass-panel rounded-xl border border-status-expired/40 p-6">
+    <div class="flex items-center gap-2 mb-4">
+      <span class="material-symbols-outlined text-status-expired" aria-hidden="true">key</span>
+      <h3 class="text-lg font-semibold text-on-surface m-0">{{ _("Encryption key (advanced)") }}</h3>
+    </div>
+    <p class="text-sm text-on-surface-variant mb-4">{{ _("Re-encrypts all stored secrets with a new APP_SECRET_KEY. After rotating you MUST update the env var and restart, or the app can't read its settings until you do.") }}</p>
+    <form method="post" action="/settings/rotate-key"
+          onsubmit="return confirm('{{ _("Rotate the encryption key? You will need to update APP_SECRET_KEY and restart immediately afterwards.") }}');" class="space-y-4">
+      <label class="form-label">
+        {{ _("New secret (leave blank to auto-generate)") }}
+        <input name="new_secret" type="text" autocomplete="off" placeholder="{{ _('auto-generate') }}" class="form-input">
+      </label>
+      <button type="submit" class="btn-red rounded-lg px-5 py-2.5 font-semibold">{{ _("Rotate encryption key") }}</button>
+    </form>
+  </article>
+  {% endif %}
+
+</div>
+{% endblock %}

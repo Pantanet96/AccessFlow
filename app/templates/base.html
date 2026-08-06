@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="{{ get_locale() }}" data-theme="{{ color_theme() }}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}{{ _("AccessFlow") }}{% endblock %}</title>
+  {#- ponytail: inline SVG data URI (the AccessFlow person+swoosh mark,
+     hardcoded #B5652E) instead of a favicon.ico asset — no binary in the
+     repo, no extra request, and it stops the browser probing /favicon.ico.
+     Swap for a real file only if a client that ignores <link rel="icon">
+     shows up. -#}
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cg fill='none' stroke='%23B5652E' stroke-width='1.6' stroke-linecap='round'%3E%3Ccircle cx='6' cy='4.6' r='1.8'/%3E%3Cpath d='M2.3 13a4 4 0 0 1 7.3-2.9'/%3E%3Cpath d='M3.2 13.4c3.4 1.4 7.2.1 8.6-3.8' stroke-width='1.5'/%3E%3C/g%3E%3C/svg%3E">
+  <link rel="stylesheet" href="{{ url_for('static', path='app.css') }}?v=36">
+</head>
+<body class="bg-background text-on-surface font-sans min-h-screen">
+
+{#- Single rendering macro shared by the desktop sidebar and the mobile
+   bottom-nav: the role-gating conditions live in nav_items()/nav_primary()/
+   nav_overflow() (app/templating.py), registered as Jinja globals. Only the
+   leaf-level markup (icon+label row vs icon-only tile) differs by `mode`,
+   via the _nav_link helper below. -#}
+{% macro _nav_link(href, icon, label, mode) %}
+  {% set path = request.url.path %}
+  {% set active = path == href or (href != '/' and path.startswith(href)) %}
+  {% if mode == 'bottom' %}
+  <a href="{{ href }}" class="bottomnav-link{% if active %} active{% endif %}">
+    <span class="material-symbols-outlined" aria-hidden="true">{{ icon }}</span>
+  </a>
+  {% else %}
+  <a href="{{ href }}" class="sidebar-link{% if active %} active{% endif %}">
+    <span class="material-symbols-outlined" aria-hidden="true">{{ icon }}</span>
+    <span>{{ label }}</span>
+  </a>
+  {% endif %}
+{% endmacro %}
+
+{% macro _logout_link(mode) %}
+  {% if mode == 'bottom' %}
+  <form action="/logout" method="post" class="logout-form contents"
+        onsubmit="return confirm('{{ _("Sign out?") }}');">
+    <button type="submit" class="logout-btn bottomnav-link">
+      <span class="material-symbols-outlined" aria-hidden="true">logout</span>
+    </button>
+  </form>
+  {% else %}
+  <form action="/logout" method="post" class="logout-form"
+        onsubmit="return confirm('{{ _("Sign out?") }}');">
+    <button type="submit" class="logout-btn sidebar-link w-full text-left">
+      <span class="material-symbols-outlined" aria-hidden="true">logout</span>
+      <span>{{ _("Sign out") }}</span>
+    </button>
+  </form>
+  {% endif %}
+{% endmacro %}
+
+{% macro menu_links(u, mode='sidebar') %}
+  {% if u %}
+    {% set items = nav_items(u) %}
+    {% if mode == 'sidebar' or (items | length + 1) <= 5 %}
+      {% for href, icon, label in items %}
+        {{ _nav_link(href, icon, label, mode) }}
+      {% endfor %}
+      {{ _logout_link(mode) }}
+    {% else %}
+      {% for href, icon, label in nav_primary(u) %}
+        {{ _nav_link(href, icon, label, mode) }}
+      {% endfor %}
+      <details class="bottomnav-more">
+        <summary class="bottomnav-link list-none [&::-webkit-details-marker]:hidden">
+          <span class="material-symbols-outlined" aria-hidden="true">more_horiz</span>
+        </summary>
+        <div class="bottomnav-more-sheet">
+          {% for href, icon, label in nav_overflow(u) %}
+          <a href="{{ href }}" class="sidebar-link">
+            <span class="material-symbols-outlined" aria-hidden="true">{{ icon }}</span>
+            <span>{{ label }}</span>
+          </a>
+          {% endfor %}
+          <form action="/logout" method="post" class="logout-form"
+                onsubmit="return confirm('{{ _("Sign out?") }}');">
+            <button type="submit" class="logout-btn sidebar-link w-full text-left">
+              <span class="material-symbols-outlined" aria-hidden="true">logout</span>
+              <span>{{ _("Sign out") }}</span>
+            </button>
+          </form>
+        </div>
+      </details>
+    {% endif %}
+  {% endif %}
+{% endmacro %}
+
+<div class="flex min-h-screen">
+  {% if current_user %}
+  <!-- Desktop sidebar -->
+  <aside class="hidden md:flex md:flex-col md:w-64 md:fixed md:inset-y-0 md:left-0 bg-surface-container-low border-r border-outline-variant custom-scrollbar overflow-y-auto">
+    <a href="/" class="flex items-center gap-gap-sm px-gap-md py-5 no-underline text-on-surface">
+      <svg viewBox="0 0 32 32" fill="none" class="text-primary-container" aria-hidden="true" style="width:24px;height:24px">
+        <circle cx="12" cy="9" r="3.6" stroke="currentColor" stroke-width="2"/>
+        <path d="M4.5 26.5a8 8 0 0 1 14.8-5.8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        <circle cx="22" cy="11" r="4.2" stroke="currentColor" stroke-width="2" stroke-dasharray="1.8 1.6"/>
+        <circle cx="22" cy="11" r="1" fill="currentColor" stroke="none"/>
+        <path d="M6 27c7 3 15.5.5 18-8" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>
+      </svg>
+      <span class="font-bold text-on-surface">{{ _("AccessFlow") }}</span>
+    </a>
+    <nav class="flex-1 px-gap-sm space-y-1 pb-gap-md" id="sidebar-nav">
+      {{ menu_links(current_user, 'sidebar') }}
+    </nav>
+  </aside>
+  {% endif %}
+
+  <div class="flex-1 flex flex-col min-w-0 {% if current_user %}md:pl-64{% endif %}">
+    <!-- Sticky topbar: title/logo + language switcher only, no nav duplication -->
+    <header class="glass-panel sticky top-0 z-30 flex items-center justify-between gap-gap-md px-gap-md py-3">
+      <a href="/" class="flex items-center gap-gap-sm no-underline text-on-surface">
+        <svg viewBox="0 0 32 32" fill="none" class="text-primary-container md:hidden" aria-hidden="true" style="width:24px;height:24px">
+          <circle cx="12" cy="9" r="3.6" stroke="currentColor" stroke-width="2"/>
+          <path d="M4.5 26.5a8 8 0 0 1 14.8-5.8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+          <circle cx="22" cy="11" r="4.2" stroke="currentColor" stroke-width="2" stroke-dasharray="1.8 1.6"/>
+          <circle cx="22" cy="11" r="1" fill="currentColor" stroke="none"/>
+          <path d="M6 27c7 3 15.5.5 18-8" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>
+        </svg>
+        <strong>{{ _("AccessFlow") }}</strong>
+      </a>
+      {% set LANGNAME = {'it': 'Italiano', 'en': 'English'} %}
+      <select class="lang-select" aria-label="{{ _('Language') }}"
+              onchange="if(this.value){window.location.href='?locale='+this.value;}">
+        {% for loc in locales %}
+        <option value="{{ loc }}" {% if get_locale() == loc %}selected{% endif %}>{{ LANGNAME.get(loc, loc|upper) }}</option>
+        {% endfor %}
+      </select>
+    </header>
+
+    <main class="flex-1 w-full max-w-app mx-auto px-gap-md py-gap-lg {% if current_user %}pb-24 md:pb-gap-lg{% endif %}">
+      {% if current_user %}
+        {% set b = active_broadcast(current_user) %}
+        {% if b %}
+        <div class="flex items-start gap-gap-sm mb-gap-lg rounded-lg py-3 px-4 bg-primary-container/10 border-l-4 border-primary-container text-on-surface">
+          <span class="material-symbols-outlined text-primary-container" aria-hidden="true">campaign</span>
+          <p class="flex-1 whitespace-pre-wrap">{{ b.message }}</p>
+          <form method="post" action="/broadcast/dismiss">
+            <input type="hidden" name="id" value="{{ b.id }}">
+            <input type="hidden" name="next" value="{{ request.url.path }}">
+            <button type="submit" class="material-symbols-outlined text-on-surface-variant hover:text-on-surface" aria-label="{{ _('Dismiss') }}">close</button>
+          </form>
+        </div>
+        {% endif %}
+      {% endif %}
+      {% block content %}{% endblock %}
+    </main>
+
+    <footer class="app-footer">
+      {#- Version only once signed in. /login is public, so printing it there
+         hands an anonymous visitor the exact release to look up CVEs against.
+         The name stays: the page title already gives that away. -#}
+      <small>AccessFlow{% if current_user %} &middot; v{{ app_version }}{% endif %}</small>
+      <p class="text-xs text-on-surface-variant mt-2">{{ _("AccessFlow is an independent project, not affiliated with or endorsed by Plex, Inc.") }}</p>
+    </footer>
+  </div>
+</div>
+
+{% if current_user %}
+<!-- Mobile bottom nav: same role-gated links as the sidebar, icons only -->
+<nav class="md:hidden fixed bottom-0 inset-x-0 z-30 flex items-stretch bg-surface-container-low border-t border-outline-variant" id="bottomnav">
+  {{ menu_links(current_user, 'bottom') }}
+</nav>
+{% endif %}
+
+{#- Onboarding modal: shown once per account (AppUser.tutorial_seen), or
+   replayed on demand via the /profile "Replay the tutorial" link, which
+   appends ?tutorial=1 without touching the stored flag. All 4 roles have
+   content. -#}
+{% if current_user
+      and (not current_user.tutorial_seen or request.query_params.get('tutorial') == '1') %}
+{% set tutorial_content = {
+  'user': [
+    (_("Welcome!"), _("AccessFlow helps you keep track of your Plex subscription: expiry, renewals and notifications, all in one place.")),
+    (_("My subscription"), _("This is where you'll find your active plan, its expiry date and your payment status.")),
+    (_("Profile"), _("Here you can manage your email, Telegram ID and expiry notifications.")),
+  ],
+  'moderator': [
+    (_("Welcome!"), _("AccessFlow helps you manage accounts and collect outstanding payments for your Plex library.")),
+    (_("Users & Collect"), _("\"%(users)s\" manages accounts within your permissions; \"%(collect)s\" tracks payments still to be collected.") % {"users": _("Users"), "collect": _("Collect")}),
+    (_("Sent notifications"), _("Here you can review the renewal and expiry notifications already sent to users.")),
+    (_("Profile"), _("Here you can manage your email, Telegram ID and expiry notifications.")),
+  ],
+  'admin': [
+    (_("Welcome!"), _("AccessFlow centralizes user management, subscriptions and communication for your Plex library.")),
+    (_("Users & Collect"), _("\"%(users)s\" manages every account; \"%(collect)s\" tracks payments still to be collected.") % {"users": _("Users"), "collect": _("Collect")}),
+    (_("Invites & Broadcast"), _("\"%(invites)s\" brings in new members; \"%(broadcast)s\" sends a message to everyone at once.") % {"invites": _("Invites"), "broadcast": _("Broadcast")}),
+    (_("Reports & Audit log"), _("\"%(reports)s\" gives you subscription and revenue stats; \"%(audit)s\" is the full action history.") % {"reports": _("Reports"), "audit": _("Audit log")}),
+    (_("Profile"), _("Here you can manage your email, Telegram ID and expiry notifications.")),
+  ],
+  'superadmin': [
+    (_("Welcome!"), _("AccessFlow centralizes user management, subscriptions and communication for your Plex library.")),
+    (_("Users & Collect"), _("\"%(users)s\" manages every account; \"%(collect)s\" tracks payments still to be collected.") % {"users": _("Users"), "collect": _("Collect")}),
+    (_("Invites & Broadcast"), _("\"%(invites)s\" brings in new members; \"%(broadcast)s\" sends a message to everyone at once.") % {"invites": _("Invites"), "broadcast": _("Broadcast")}),
+    (_("Reports & Audit log"), _("\"%(reports)s\" gives you subscription and revenue stats; \"%(audit)s\" is the full action history.") % {"reports": _("Reports"), "audit": _("Audit log")}),
+    (_("Plans"), _("This is where you configure the subscription plans available to invite users into.")),
+    (_("Settings & Profile"), _("\"%(settings)s\" configures Plex, SMTP and Telegram; \"%(profile)s\" manages your own account.") % {"settings": _("Settings"), "profile": _("Profile")}),
+  ],
+}[current_user.role.value] %}
+<div id="tutorial-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-gap-md">
+  <div class="bg-surface-container-high rounded-xl max-w-md w-full p-6 space-y-4 cinematic-shadow">
+    {% for title, body in tutorial_content %}
+    <div class="tutorial-step {% if not loop.first %}hidden{% endif %}" data-step="{{ loop.index0 }}">
+      <h2 class="text-lg font-bold text-on-surface">{{ title }}</h2>
+      <p class="mt-2 text-sm text-on-surface-variant">{{ body }}</p>
+    </div>
+    {% endfor %}
+
+    <div class="flex items-center justify-center gap-2 pt-2" id="tutorial-dots">
+      {% for _step in tutorial_content %}
+      <span class="w-2 h-2 rounded-full {% if loop.first %}bg-primary{% else %}bg-outline-variant{% endif %}" data-dot="{{ loop.index0 }}"></span>
+      {% endfor %}
+    </div>
+
+    <div class="flex items-center justify-between pt-2">
+      <form method="post" action="/tutorial/dismiss">
+        <input type="hidden" name="next" value="{{ request.url.path }}">
+        <button type="submit" class="text-sm text-on-surface-variant hover:text-on-surface">{{ _("Skip") }}</button>
+      </form>
+      <div class="flex items-center gap-2">
+        <button type="button" id="tutorial-prev" class="hidden px-3 py-1.5 rounded-lg text-sm border border-outline-variant text-on-surface">{{ _("Back") }}</button>
+        <button type="button" id="tutorial-next" data-next="{{ _('Next') }}" data-done="{{ _('Done') }}"
+                class="px-3 py-1.5 rounded-lg text-sm bg-primary text-on-primary font-medium">{{ _("Next") }}</button>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+(function () {
+  var modal = document.getElementById('tutorial-modal');
+  var steps = modal.querySelectorAll('.tutorial-step');
+  var dots = modal.querySelectorAll('#tutorial-dots [data-dot]');
+  var prevBtn = document.getElementById('tutorial-prev');
+  var nextBtn = document.getElementById('tutorial-next');
+  var i = 0;
+  function render() {
+    steps.forEach(function (el, idx) { el.classList.toggle('hidden', idx !== i); });
+    dots.forEach(function (el, idx) {
+      el.classList.toggle('bg-primary', idx === i);
+      el.classList.toggle('bg-outline-variant', idx !== i);
+    });
+    prevBtn.classList.toggle('hidden', i === 0);
+    nextBtn.textContent = (i === steps.length - 1) ? nextBtn.dataset.done : nextBtn.dataset.next;
+  }
+  prevBtn.addEventListener('click', function () { if (i > 0) { i--; render(); } });
+  nextBtn.addEventListener('click', function () {
+    if (i < steps.length - 1) { i++; render(); }
+    else { modal.querySelector('form').requestSubmit(); }
+  });
+  render();
+})();
+</script>
+{% endif %}
+</body>
+</html>

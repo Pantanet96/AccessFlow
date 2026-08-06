@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}{{ _("Local login") }}{% endblock %}
+{% block content %}
+<div class="cinematic-bg rounded-xl flex items-center justify-center min-h-[70vh] px-gap-md">
+  <div class="glass-panel cinematic-shadow border border-outline-variant rounded-xl w-full max-w-md p-8 text-center">
+    <span class="brand-badge w-16 h-16 mb-1">
+      <span class="material-symbols-outlined text-primary-container text-[32px]" aria-hidden="true">admin_panel_settings</span>
+    </span>
+    <h2 class="text-2xl font-bold text-on-surface mt-3 mb-1">{{ _("Local login") }}</h2>
+    <p class="text-on-surface-variant mb-6">{{ _("Administrator login") }}</p>
+
+    {% if error %}
+    <p class="flex items-center justify-center gap-2 text-status-expired bg-status-expired/10 rounded-lg py-2 px-3 mb-4 text-sm" role="alert">
+      <span class="material-symbols-outlined text-[18px]" aria-hidden="true">error</span>
+      {{ error }}
+    </p>
+    {% endif %}
+
+    <form method="post" action="/login" class="text-left space-y-4">
+      <label class="block">
+        <span class="form-label mb-1">{{ _("Username") }}</span>
+        <input type="text" name="username" autocomplete="username" required autofocus
+               class="w-full rounded border border-outline-variant bg-surface-container px-3 py-2 text-on-surface focus:outline-none focus:ring-2 focus:ring-primary-container focus:border-primary-container">
+      </label>
+      <label class="block">
+        <span class="form-label mb-1">{{ _("Password") }}</span>
+        <input type="password" name="password" autocomplete="current-password" required
+               class="w-full rounded border border-outline-variant bg-surface-container px-3 py-2 text-on-surface focus:outline-none focus:ring-2 focus:ring-primary-container focus:border-primary-container">
+      </label>
+      <button type="submit" class="btn-brand">
+        <span class="material-symbols-outlined" aria-hidden="true">login</span>
+        {{ _("Sign in") }}
+      </button>
+    </form>
+
+    <p class="mt-6 text-sm">
+      <a href="/login" class="inline-flex items-center gap-1 text-on-surface-variant hover:text-primary no-underline transition-colors">
+        <span class="material-symbols-outlined text-[16px]" aria-hidden="true">arrow_back</span>
+        {{ _("Sign in with Plex") }}
+      </a>
+    </p>
+  </div>
+</div>
+{% endblock %}

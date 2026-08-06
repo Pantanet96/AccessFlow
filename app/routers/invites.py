@@ -1,0 +1,152 @@
+"""Invite flow: admin invites an email to Plex; a pending Invite is recorded."""
+import json
+import secrets
+
+from fastapi import APIRouter, Depends, Form, Request
+from fastapi.responses import HTMLResponse, RedirectResponse
+from sqlmodel import Session, select
+
+from app.auth.deps import require_capability
+from app.db import get_session
+from app.i18n import gettext as _
+from app.models import AppUser, Invite, InviteStatus, Role, utcnow
+from app.permissions import Capability, outranks
+from app import runtime_config
+from app.services import audit, plex_service
+from app.services import subscriptions as sub_svc
+from app.services import users as users_svc
+from app.templating import templates
+
+router = APIRouter()
+
+_ALLOWED_ROLES = {Role.user, Role.admin, Role.moderator}
+
+
+def _invitable_roles(viewer: AppUser) -> list[Role]:
+    """Roles the viewer may invite: only ranks they strictly outrank. Prevents an
+    admin from minting a peer admin via the invite flow (role assignment proper is
+    superadmin-only via `manage_roles` + `outranks` in users.set_role). Ordered by
+    rank so the dropdown is stable."""
+    return sorted(
+        (r for r in _ALLOWED_ROLES if outranks(viewer.role, r)),
+        key=lambda r: r.value,
+    )
+
+
+def _render(request, viewer, session, error=None, status_code=200):
+    pending = list(
+        session.exec(
+            select(Invite)
+            .where(Invite.status == InviteStatus.pending)
+            .order_by(Invite.created_at.desc())
+        ).all()
+    )
+    return templates.TemplateResponse(
+        request,
+        "invites/list.html",
+        {
+            "current_user": viewer,
+            "pending": pending,
+            "candidates": users_svc.manager_candidates(session),
+            "plans": sub_svc.list_plans(session),
+            "roles": _invitable_roles(viewer),
+            "sections": plex_service.list_sections_safe(),
+            "default_sections": runtime_config.plex_default_sections(),
+            "error": error,
+        },
+        status_code=status_code,
+    )
+
+
+@router.get("/invites", response_class=HTMLResponse)
+def invites_page(
+    request: Request,
+    viewer: AppUser = Depends(require_capability(Capability.invite_user)),
+    session: Session = Depends(get_session),
+):
+    return _render(request, viewer, session)
+
+
+@router.post("/invites")
+def create_invite(
+    request: Request,
+    email: str = Form(...),
+    real_name: str = Form(...),
+    role: str = Form("user"),
+    manager_id: str = Form(""),
+    plan_slug: str = Form(""),
+    trial_days: str = Form(""),
+    libraries: list[str] = Form(default=[]),
+    viewer: AppUser = Depends(require_capability(Capability.invite_user)),
+    session: Session = Depends(get_session),
+):
+    try:
+        intended_role = Role(role)
+    except ValueError:
+        intended_role = Role.user
+    # Never let an inviter mint a role they don't outrank (e.g. an admin inviting
+    # another admin). Fall back to the lowest role, which every inviter outranks.
+    if intended_role not in _invitable_roles(viewer):
+        intended_role = Role.user
+
+    plan = sub_svc.get_plan_by_slug(session, plan_slug) if plan_slug else None
+    # Validate the manager against real candidates (admins/moderators), mirroring
+    # users.set_manager — otherwise an invite could carry a bogus/plain-user id
+    # that corrupts moderator scoping and digests once the account is activated.
+    mid = int(manager_id) if manager_id.isdigit() else None
+    if mid is not None and mid not in {c.id for c in users_svc.manager_candidates(session)}:
+        mid = None
+    days = int(trial_days) if (plan and plan.is_trial and trial_days.isdigit()) else None
+
+    # Chosen libraries, else the global default.
+    titles = libraries or runtime_config.plex_default_sections()
+
+    try:
+        plex_service.invite_friend(email, sections=titles or None)
+    except Exception as exc:  # noqa: BLE001 - surface any Plex error to the admin
+        return _render(
+            request,
+            viewer,
+            session,
+            error=_("Plex invite failed: %s") % exc,
+            status_code=502,
+        )
+
+    invite = Invite(
+        email=email.strip(),
+        real_name=real_name.strip(),
+        intended_role=intended_role,
+        manager_id=mid,
+        plan_id=plan.id if plan else None,
+        trial_days=days,
+        libraries=json.dumps(titles) if titles else None,
+        token=secrets.token_urlsafe(16),
+        status=InviteStatus.pending,
+        plex_invite_sent_at=utcnow(),
+        created_by=viewer.id,
+    )
+    session.add(invite)
+    session.commit()
+    audit.record(session, viewer.id, "create_invite", "invite", invite.id, {"email": email})
+    return RedirectResponse("/invites", status_code=303)
+
+
+@router.post("/invites/{invite_id}/delete")
+def delete_invite(
+    invite_id: int,
+    viewer: AppUser = Depends(require_capability(Capability.invite_user)),
+    session: Session = Depends(get_session),
+):
+    """Withdraw a still-pending invite (wrong email, or never accepted)."""
+    invite = session.get(Invite, invite_id)
+    if invite is None or invite.status != InviteStatus.pending:
+        return RedirectResponse("/invites", status_code=303)
+    email = invite.email
+    try:
+        plex_service.cancel_invite(email)
+    except Exception:  # noqa: BLE001 - Plex withdraw is best-effort
+        pass
+    session.delete(invite)
+    session.commit()
+    audit.record(session, viewer.id, "delete_invite", "invite", invite_id, {"email": email})
+    return RedirectResponse("/invites", status_code=303)

@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+{% block title %}{{ _("Audit log") }}{% endblock %}
+{% block content %}
+<div class="flex items-center gap-gap-sm mb-1">
+  <span class="material-symbols-outlined text-primary-container" aria-hidden="true">history</span>
+  <h2 class="text-2xl font-bold text-on-surface">
+    {% if is_moderator %}{{ _("Sent notifications") }}{% else %}{{ _("Audit log") }}{% endif %}
+  </h2>
+</div>
+
+{# Tabs — moderators only ever see the notifications tab. #}
+{% if not is_moderator %}
+<div class="notif-tabs" role="tablist">
+  <a href="/audit?tab=activity" class="notif-tab {% if tab != 'notifications' %}active{% endif %}">{{ _("Activity") }}</a>
+  <a href="/audit?tab=notifications" class="notif-tab {% if tab == 'notifications' %}active{% endif %}">{{ _("Sent notifications") }}</a>
+</div>
+{% endif %}
+
+{% if tab == 'notifications' %}
+<p class="text-on-surface-variant text-sm mb-gap-md">{{ _("Notifications the system sent (newest first). Failed sends are flagged.") }}</p>
+
+<form method="get" action="/audit" class="filter-bar">
+  <input type="hidden" name="tab" value="notifications">
+  <select name="user" class="lang-select" onchange="this.form.submit()" aria-label="{{ _('Recipient') }}">
+    <option value="">{{ _("All recipients") }}</option>
+    {% for uid, uname in recipients.items() %}
+    <option value="{{ uid }}" {% if f_user == uid %}selected{% endif %}>{{ uname }}</option>
+    {% endfor %}
+  </select>
+  <select name="type" class="lang-select" onchange="this.form.submit()" aria-label="{{ _('Type') }}">
+    <option value="">{{ _("All types") }}</option>
+    {% for val, label in ntypes %}
+    <option value="{{ val }}" {% if f_type == val %}selected{% endif %}>{{ label }}</option>
+    {% endfor %}
+  </select>
+  <select name="status" class="lang-select" onchange="this.form.submit()" aria-label="{{ _('Outcome') }}">
+    <option value="">{{ _("All outcomes") }}</option>
+    <option value="sent" {% if f_status == 'sent' %}selected{% endif %}>{{ _("Sent") }}</option>
+    <option value="failed" {% if f_status == 'failed' %}selected{% endif %}>{{ _("Failed") }}</option>
+  </select>
+</form>
+
+<div class="bg-surface-container-low border border-outline-variant rounded-2xl px-gap-md md:px-gap-lg">
+  <ul class="audit-feed">
+    {% for n in notifications %}
+    <li>
+      <details class="audit-item {% if n.status == 'failed' %}af-failed{% endif %}">
+        <summary>
+          <div class="af-main">
+            {% if n.status == 'failed' %}<span class="badge badge--expired">{{ _("Failed") }}</span> {% endif %}
+            <strong>{{ n.recipient }}</strong>
+            <span class="af-detail">· {{ n.type_label }} · {{ n.channel | capitalize }}{% if n.plan %} · {{ n.plan }}{% endif %}</span>
+          </div>
+          <time class="af-when">{{ n.when | datetime }}</time>
+        </summary>
+        <dl class="af-body">
+          <div><strong>{{ _("Recipient") }}:</strong> {{ n.recipient }}</div>
+          <div><strong>{{ _("Type") }}:</strong> {{ n.type_label }} <code>{{ n.type_key }}</code></div>
+          <div><strong>{{ _("Channel") }}:</strong> {{ n.channel | capitalize }}</div>
+          {% if n.plan %}<div><strong>{{ _("Plan") }}:</strong> {{ n.plan }}</div>{% endif %}
+          <div><strong>{{ _("When") }}:</strong> {{ n.when | datetime }}</div>
+          <div><strong>{{ _("Outcome") }}:</strong> {{ _("Failed") if n.status == 'failed' else _("Sent") }}</div>
+          {% if n.error %}<div class="mt-[.3rem]"><strong>{{ _("Error") }}:</strong> {{ n.error }}</div>{% endif %}
+        </dl>
+      </details>
+    </li>
+    {% endfor %}
+    {% if not notifications %}
+    <li class="flex flex-col items-center gap-2 py-10 text-center">
+      <span class="material-symbols-outlined text-4xl opacity-40" aria-hidden="true">inbox</span>
+      <span class="af-main">{{ _("No notifications recorded yet.") }}</span>
+    </li>
+    {% endif %}
+  </ul>
+</div>
+
+{% else %}
+<p class="text-on-surface-variant text-sm mb-gap-md">{{ _("Recent actions performed in the system (newest first).") }}</p>
+
+<div class="bg-surface-container-low border border-outline-variant rounded-2xl px-gap-md md:px-gap-lg">
+  <ul class="audit-feed">
+    {% for e in entries %}
+    <li>
+      <details class="audit-item">
+        <summary>
+          <div class="af-main">
+            <strong>{{ e.actor }}</strong> {{ e.action }}{% if e.target %} → <span class="af-target">{{ e.target }}</span>{% endif %}{% if e.detail %} <span class="af-detail">· {{ e.detail }}</span>{% endif %}
+          </div>
+          <time class="af-when">{{ e.when | datetime }}</time>
+        </summary>
+        <dl class="af-body">
+          <div><strong>{{ _("Action") }}:</strong> {{ e.action_key }}</div>
+          <div><strong>{{ _("When") }}:</strong> {{ e.when | datetime }}</div>
+          {% if e.target_type %}<div><strong>{{ _("Target") }}:</strong> {{ e.target_type }}{% if e.target_id %} #{{ e.target_id }}{% endif %}{% if e.target %} ({{ e.target }}){% endif %}</div>{% endif %}
+          {% if e.raw %}
+          <div class="mt-[.3rem]"><strong>{{ _("Details") }}:</strong></div>
+          {% for k, v in e.raw.items() %}
+          <div class="ml-4"><code>{{ k }}</code>: {{ v }}</div>
+          {% endfor %}
+          {% else %}
+          <div class="mt-[.3rem] opacity-70">{{ _("No extra details recorded.") }}</div>
+          {% endif %}
+        </dl>
+      </details>
+    </li>
+    {% endfor %}
+    {% if not entries %}
+    <li class="flex flex-col items-center gap-2 py-10 text-center">
+      <span class="material-symbols-outlined text-4xl opacity-40" aria-hidden="true">inbox</span>
+      <span class="af-main">{{ _("No activity recorded yet.") }}</span>
+    </li>
+    {% endif %}
+  </ul>
+</div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,174 @@
+{% extends "base.html" %}
+{% block title %}{{ _("Plans") }}{% endblock %}
+{% block content %}
+<h2 class="text-2xl font-bold text-on-surface flex items-center gap-gap-sm mb-gap-lg">
+  <span class="material-symbols-outlined text-primary" aria-hidden="true">workspace_premium</span>
+  {{ _("Plans") }}
+</h2>
+
+{% if error %}
+<div class="rounded-lg border border-status-expired/40 bg-status-expired/10 text-status-expired px-4 py-3 mb-gap-lg flex items-center gap-gap-sm">
+  <span class="material-symbols-outlined text-[20px]" aria-hidden="true">error</span>
+  <p class="m-0">{{ error }}</p>
+</div>
+{% endif %}
+
+<div class="rounded-xl bg-surface-container-low border border-outline-variant cinematic-shadow p-6 mb-gap-lg">
+  <h3 class="text-lg font-semibold text-on-surface flex items-center gap-gap-sm mb-gap-md">
+    <span class="material-symbols-outlined text-primary-container" aria-hidden="true">add_circle</span>
+    {{ _("New plan") }}
+  </h3>
+  <form method="post" action="/plans" class="flex flex-col gap-gap-md">
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-gap-md">
+      <label class="flex flex-col gap-1 text-sm font-medium text-on-surface-variant">
+        {{ _("Name") }}
+        <input name="name" required
+               class="rounded-lg border border-outline-variant bg-surface-container px-3 py-2 text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-colors">
+      </label>
+      <label class="flex flex-col gap-1 text-sm font-medium text-on-surface-variant">
+        {{ _("Type") }}
+        <select name="plan_type" onchange="pumType(this.value)"
+                class="rounded-lg border border-outline-variant bg-surface-container px-3 py-2 text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-colors">
+          <option value="paid">{{ _("Paid") }}</option>
+          <option value="trial">Trial</option>
+          <option value="family_friends">Family &amp; Friends</option>
+        </select>
+      </label>
+    </div>
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-gap-md">
+      <label data-pum="paid" class="flex flex-col gap-1 text-sm font-medium text-on-surface-variant">
+        {{ _("Price") }}{% if currency_code() %} ({{ currency_code() }}){% endif %}
+        <input name="price" type="number" step="0.01" min="0" value="0"
+               class="rounded-lg border border-outline-variant bg-surface-container px-3 py-2 text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-colors">
+      </label>
+      <label data-pum="paid" class="flex flex-col gap-1 text-sm font-medium text-on-surface-variant">
+        {{ _("Duration — months") }}
+        <input name="duration_months" type="number" min="0" placeholder="0"
+               class="rounded-lg border border-outline-variant bg-surface-container px-3 py-2 text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-colors">
+      </label>
+      <label data-pum="paid trial" class="flex flex-col gap-1 text-sm font-medium text-on-surface-variant">
+        {{ _("Duration — days") }}
+        <input name="duration_days" type="number" min="0" placeholder="0"
+               class="rounded-lg border border-outline-variant bg-surface-container px-3 py-2 text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-colors">
+      </label>
+    </div>
+    {% if sections %}
+    <details>
+      <summary class="lib-sum">{{ _("Libraries for this plan (optional — default if none)") }}</summary>
+      <div class="custom-scrollbar mt-2 flex max-h-[220px] flex-col gap-1 overflow-y-auto rounded-lg border border-outline-variant p-2">
+        {% for s in sections %}
+        <label class="m-0 flex items-center gap-2 whitespace-nowrap rounded px-1.5 py-1 text-sm text-on-surface cursor-pointer hover:bg-surface-container-high/60">
+          <input type="checkbox" name="libraries" value="{{ s.title }}" class="h-4 w-4 flex-none accent-primary"> {{ s.title }}
+        </label>
+        {% endfor %}
+      </div>
+    </details>
+    {% endif %}
+    <button type="submit" class="self-start inline-flex items-center gap-2 rounded-lg bg-primary-container px-5 py-2.5 font-semibold text-on-primary transition-colors hover:bg-primary">
+      <span class="material-symbols-outlined text-[20px]" aria-hidden="true">add</span>
+      {{ _("Create plan") }}
+    </button>
+  </form>
+</div>
+
+<h3 class="text-lg font-semibold text-on-surface flex items-center gap-gap-sm mb-gap-md">
+  <span class="material-symbols-outlined text-on-surface-variant" aria-hidden="true">list_alt</span>
+  {{ _("Existing plans") }}
+</h3>
+<div class="custom-scrollbar overflow-x-auto">
+<table class="responsive w-full border-collapse text-left text-sm">
+  <thead>
+    <tr class="border-b border-outline-variant bg-surface-container-low text-xs uppercase tracking-wide text-on-surface-variant">
+      <th class="whitespace-nowrap px-3 py-2.5 font-semibold">{{ _("Name") }}</th><th class="whitespace-nowrap px-3 py-2.5 font-semibold">{{ _("Type") }}</th><th class="whitespace-nowrap px-3 py-2.5 font-semibold">{{ _("Price") }}{% if currency_code() %} ({{ currency_code() }}){% endif %}</th>
+      <th class="whitespace-nowrap px-3 py-2.5 font-semibold">{{ _("Months") }}</th><th class="whitespace-nowrap px-3 py-2.5 font-semibold">{{ _("Days") }}</th>
+      <th class="whitespace-nowrap px-3 py-2.5 font-semibold">{{ _("Libraries") }}</th><th class="whitespace-nowrap px-3 py-2.5 font-semibold">{{ _("Active") }}</th><th class="px-3 py-2.5"></th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for p in plans %}
+    {% set is_paid = not p.is_unlimited and not p.is_trial %}
+    <tr class="border-b border-outline-variant last:border-0 transition-colors hover:bg-surface-container-high/30">
+      <form method="post" action="/plans/{{ p.id }}/edit" id="edit-{{ p.id }}"></form>
+      <td data-label="{{ _('Name') }}" class="px-3 py-2 align-middle">
+        <input form="edit-{{ p.id }}" name="name" value="{{ p.name }}"
+               class="w-full rounded-md border border-outline-variant bg-surface-container-low px-2 py-1.5 text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-colors">
+      </td>
+      <td data-label="{{ _('Type') }}" class="whitespace-nowrap px-3 py-2 align-middle">
+        {% if p.is_unlimited %}<span class="badge badge--cancelled">F&amp;F</span>
+        {% elif p.is_trial %}<span class="badge badge--suspended">Trial</span>
+        {% else %}<span class="badge badge--active">{{ _("Paid") }}</span>{% endif %}
+      </td>
+      <td data-label="{{ _('Price') }}{% if currency_code() %} ({{ currency_code() }}){% endif %}" class="px-3 py-2 align-middle">
+        <input form="edit-{{ p.id }}" name="price" type="number" step="0.01" min="0"
+                 value="{{ '%.2f' % (p.price_cents / 100) }}" {% if not is_paid %}readonly{% endif %}
+                 class="w-full rounded-md border border-outline-variant bg-surface-container-low px-2 py-1.5 text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-colors {% if not is_paid %}cursor-not-allowed opacity-50{% endif %}">
+      </td>
+      <td data-label="{{ _('Months') }}" class="px-3 py-2 align-middle plan-extra">
+        <input form="edit-{{ p.id }}" name="duration_months" type="number" min="0"
+                 value="{{ p.duration_months or '' }}" {% if not is_paid %}readonly{% endif %}
+                 class="w-full rounded-md border border-outline-variant bg-surface-container-low px-2 py-1.5 text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-colors {% if not is_paid %}cursor-not-allowed opacity-50{% endif %}">
+      </td>
+      <td data-label="{{ _('Days') }}" class="px-3 py-2 align-middle plan-extra">
+        <input form="edit-{{ p.id }}" name="duration_days" type="number" min="0"
+                 value="{{ p.duration_days or '' }}" {% if p.is_unlimited %}readonly{% endif %}
+                 class="w-full rounded-md border border-outline-variant bg-surface-container-low px-2 py-1.5 text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-colors {% if p.is_unlimited %}cursor-not-allowed opacity-50{% endif %}">
+      </td>
+      <td data-label="{{ _('Libraries') }}" class="px-3 py-2 align-middle">
+        {% if sections %}
+        <details>
+          <summary class="lib-sum">{% if plan_libs[p.id] %}{{ plan_libs[p.id]|length }} {{ _("libraries") }}{% else %}{{ _("No libraries") }}{% endif %}</summary>
+          <div class="custom-scrollbar mt-2 flex max-h-[200px] min-w-[160px] flex-col gap-1 overflow-y-auto rounded-lg border border-outline-variant p-2">
+            {% for s in sections %}
+            <label class="m-0 flex items-center gap-2 whitespace-nowrap rounded px-1.5 py-1 text-sm text-on-surface cursor-pointer hover:bg-surface-container-high/60">
+              <input form="edit-{{ p.id }}" type="checkbox" name="libraries" value="{{ s.title }}"
+                {% if s.title in plan_libs[p.id] %}checked{% endif %} class="h-4 w-4 flex-none accent-primary"> {{ s.title }}
+            </label>
+            {% endfor %}
+          </div>
+        </details>
+        {% else %}<span class="text-on-surface-variant">—</span>{% endif %}
+      </td>
+      <td data-label="{{ _('Active') }}" class="px-3 py-2 align-middle">
+        <label class="toggle-switch">
+          <input form="edit-{{ p.id }}" name="active" type="checkbox" {% if p.active %}checked{% endif %} class="toggle-switch__input peer">
+          <span class="toggle-switch__track"></span>
+          <span class="toggle-switch__thumb"></span>
+        </label>
+      </td>
+      <td data-label="" class="row-actions px-3 py-2 align-middle plan-extra">
+        <button form="edit-{{ p.id }}" type="submit" class="btn-sm inline-flex items-center gap-1 rounded-lg bg-primary-container font-semibold text-on-primary transition-colors hover:bg-primary">
+          <span class="material-symbols-outlined text-[16px]" aria-hidden="true">save</span>
+          {{ _("Save") }}
+        </button>
+        {% if not in_use[p.id] %}
+        <form method="post" action="/plans/{{ p.id }}/delete" class="m-0"
+              onsubmit="return confirm('{{ _("Delete this plan?") }}');">
+          <button type="submit" class="btn-sm btn-red inline-flex items-center gap-1 rounded-lg">
+            <span class="material-symbols-outlined text-[16px]" aria-hidden="true">delete</span>
+            {{ _("Delete") }}
+          </button>
+        </form>
+        {% else %}<span class="text-xs italic text-on-surface-variant">{{ _("in use") }}</span>{% endif %}
+      </td>
+      <td class="row-toggle-cell" data-label="">
+        <details class="row-toggle">
+          <summary class="lib-sum" aria-label="{{ _('More fields') }}">
+            <span class="material-symbols-outlined text-sm" aria-hidden="true">tune</span>
+          </summary>
+        </details>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+
+<script>
+  function pumType(t) {
+    document.querySelectorAll('[data-pum]').forEach(function (el) {
+      el.style.display = el.getAttribute('data-pum').split(' ').includes(t) ? '' : 'none';
+    });
+  }
+  pumType('paid');
+</script>
+{% endblock %}

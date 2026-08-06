@@ -1,0 +1,7 @@
+# Development / test dependencies. NOT installed in the production image
+# (the Dockerfile installs only requirements.txt) so test tooling never ships.
+-r requirements.txt
+pytest==8.3.4
+# pybabel (extract/update/compile). Build-time only — the production image
+# compiles catalogs in a throwaway stage, see Dockerfile.
+babel==2.18.0

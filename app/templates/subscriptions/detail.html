@@ -1,0 +1,290 @@
+{% extends "base.html" %}
+{% block title %}{{ _("Subscription") }} — {{ target.real_name }}{% endblock %}
+{% block content %}
+<div class="flex items-center gap-gap-sm mb-1">
+  <span class="material-symbols-outlined text-primary-container" aria-hidden="true">account_circle</span>
+  <h2 class="text-2xl font-bold text-on-surface">{{ _("Subscription") }}</h2>
+</div>
+<p class="text-on-surface-variant text-sm mb-gap-lg">{{ target.real_name }} ({{ target.role.value }})</p>
+
+{% if can_rename or can_manage_roles or can_assign_manager or can_delete %}
+<div class="rounded-xl bg-surface-container border border-outline-variant p-6 cinematic-shadow mb-gap-lg">
+  <h3 class="flex items-center gap-2 text-lg font-semibold text-on-surface mb-gap-md">
+    <span class="material-symbols-outlined text-[20px] text-on-surface-variant" aria-hidden="true">badge</span>
+    {{ _("Account") }}
+  </h3>
+  <div class="flex flex-col gap-gap-md">
+    {% if can_rename %}
+    <form method="post" action="/users/{{ target.id }}/name" class="flex flex-col gap-1">
+      <label class="text-sm font-medium text-on-surface-variant" for="acct-name">{{ _("Real name") }}</label>
+      <input type="hidden" name="next" value="{{ request.url.path }}">
+      <div class="flex gap-gap-sm">
+        <input id="acct-name" name="real_name" value="{{ target.real_name }}"
+               class="flex-1 min-w-0 rounded-lg border border-outline-variant bg-surface-container-low px-3 py-2 text-on-surface focus:outline-none focus:ring-2 focus:ring-primary">
+        <button type="submit" class="btn-sm border border-outline-variant text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors">{{ _("Save") }}</button>
+      </div>
+    </form>
+    {% endif %}
+    {% if can_manage_roles %}
+    <div class="flex flex-col gap-1">
+      <label class="text-sm font-medium text-on-surface-variant" for="acct-role">{{ _("Role") }}</label>
+      <form method="post" action="/users/{{ target.id }}/role">
+        <input type="hidden" name="next" value="{{ request.url.path }}">
+        <select id="acct-role" name="role" onchange="this.form.submit()"
+                class="rounded-lg border border-outline-variant bg-surface-container-low px-3 py-2 text-on-surface focus:outline-none focus:ring-2 focus:ring-primary">
+          {% for r in roles %}
+          <option value="{{ r.value }}" {% if r == target.role %}selected{% endif %}>{{ r.value }}</option>
+          {% endfor %}
+        </select>
+      </form>
+    </div>
+    {% endif %}
+    {% if can_assign_manager %}
+    <div class="flex flex-col gap-1">
+      <label class="text-sm font-medium text-on-surface-variant" for="acct-manager">{{ _("Manager") }}</label>
+      <form method="post" action="/users/{{ target.id }}/manager">
+        <input type="hidden" name="next" value="{{ request.url.path }}">
+        <select id="acct-manager" name="manager_id" onchange="this.form.submit()"
+                class="rounded-lg border border-outline-variant bg-surface-container-low px-3 py-2 text-on-surface focus:outline-none focus:ring-2 focus:ring-primary">
+          <option value="">{{ _("— none —") }}</option>
+          {% for c in manager_candidates %}
+          <option value="{{ c.id }}" {% if c.id == target.manager_id %}selected{% endif %}>{{ c.real_name }}</option>
+          {% endfor %}
+        </select>
+      </form>
+    </div>
+    {% endif %}
+    {% if can_delete %}
+    <form method="post" action="/users/{{ target.id }}/delete"
+          onsubmit="return confirm('{{ _("Delete this user?") }}');">
+      <input type="hidden" name="next" value="/users">
+      <button type="submit" class="btn-sm btn-red inline-flex items-center gap-1">
+        <span class="material-symbols-outlined text-base" aria-hidden="true">delete</span>
+        {{ _("Delete") }}
+      </button>
+    </form>
+    {% endif %}
+  </div>
+</div>
+{% endif %}
+
+{% if sub %}
+<div class="rounded-xl bg-surface-container border border-outline-variant p-6 cinematic-shadow mb-gap-lg">
+  <dl class="grid grid-cols-1 sm:grid-cols-3 gap-gap-md m-0">
+    <div>
+      <dt class="text-xs uppercase tracking-wide text-on-surface-variant mb-1">{{ _("Plan") }}</dt>
+      <dd class="text-on-surface font-semibold m-0">{{ plan.name }} <span class="text-on-surface-variant font-normal">({{ plan.price_cents | euros }})</span></dd>
+    </div>
+    <div>
+      <dt class="text-xs uppercase tracking-wide text-on-surface-variant mb-1">{{ _("Status") }}</dt>
+      <dd class="m-0"><span class="badge badge--{{ sub.status.value }}">{{ _(sub.status.value|capitalize) }}</span></dd>
+    </div>
+    <div>
+      <dt class="text-xs uppercase tracking-wide text-on-surface-variant mb-1">{{ _("Expires") }}</dt>
+      <dd class="text-on-surface font-semibold m-0">{{ sub.expiry_at | date }}</dd>
+    </div>
+  </dl>
+</div>
+{% else %}
+<p class="text-on-surface-variant text-center py-8 border border-dashed border-outline-variant rounded-xl mb-gap-lg">{{ _("No active subscription.") }}</p>
+{% endif %}
+
+{% if can_change_paid or can_change_any %}
+<div class="rounded-xl bg-surface-container border border-outline-variant p-6 cinematic-shadow mb-gap-lg">
+  <h3 class="flex items-center gap-2 text-lg font-semibold text-on-surface mb-gap-md">
+    <span class="material-symbols-outlined text-[20px] text-on-surface-variant" aria-hidden="true">workspace_premium</span>
+    {{ _("Change / assign plan") }}
+  </h3>
+  <form method="post" action="/users/{{ target.id }}/subscription/plan" class="space-y-gap-md">
+    <div class="max-w-sm">
+      <select name="plan_slug" required
+              class="w-full rounded-lg border border-outline-variant bg-surface-container-low px-3 py-2 text-on-surface focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary">
+        {% for p in plans %}
+          {% if can_change_any or p.is_paid %}
+          <option value="{{ p.slug }}">{{ p.name }} ({{ p.price_cents | euros }})</option>
+          {% endif %}
+        {% endfor %}
+      </select>
+    </div>
+    <label class="flex flex-col gap-1 text-sm font-medium text-on-surface-variant max-w-xs">
+      {{ _("Trial days (only for Trial plan, max 30)") }}
+      <input type="number" name="trial_days" min="1" max="30"
+             class="mt-1 w-full rounded-lg border border-outline-variant bg-surface-container-low px-3 py-2 text-on-surface placeholder:text-on-surface-variant focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary">
+    </label>
+    <label class="flex flex-col gap-1 text-sm font-medium text-on-surface-variant max-w-xs">
+      {{ _("Periods (paid plans — pay several up-front)") }}
+      <input type="number" name="periods" min="1" max="60" step="1" value="1"
+             class="mt-1 w-full rounded-lg border border-outline-variant bg-surface-container-low px-3 py-2 text-on-surface placeholder:text-on-surface-variant focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary">
+      <small class="block text-xs text-on-surface-variant mt-1">{{ _("Each period = one plan duration. E.g. a monthly plan with 5 = 5 months. Ignored for Trial/F&F.") }}</small>
+    </label>
+    {% if not sub or plan.is_trial or plan.is_unlimited %}
+    <label class="flex flex-col gap-1 text-sm font-medium text-on-surface-variant max-w-xs">
+      {{ _("Start date (optional — for already-paying users)") }}
+      <input type="date" name="start_date"
+             class="mt-1 w-full rounded-lg border border-outline-variant bg-surface-container-low px-3 py-2 text-on-surface focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary">
+      <small class="block text-xs text-on-surface-variant mt-1">{{ _("Back-date the subscription start; expiry is computed from it. For first assignment or when moving from Trial/F&F to a paid plan.") }}</small>
+    </label>
+    {% endif %}
+    <button type="submit" class="inline-flex items-center justify-center gap-2 rounded-lg bg-primary-container px-5 py-2.5 font-semibold text-on-primary transition-colors hover:bg-primary">{{ _("Apply plan") }}</button>
+  </form>
+</div>
+{% endif %}
+
+{% if can_manage %}
+<div class="rounded-xl bg-surface-container border border-outline-variant p-6 cinematic-shadow mb-gap-lg">
+  <h3 class="flex items-center gap-2 text-lg font-semibold text-on-surface mb-gap-md">
+    <span class="material-symbols-outlined text-[20px] text-on-surface-variant" aria-hidden="true">lock</span>
+    {{ _("Access") }}
+  </h3>
+  <p class="text-on-surface mb-gap-md">{{ _("Plex access") }}:
+    {% if target.access_suspended %}<span class="badge badge--suspended">{{ _("Suspended") }}</span>
+    {% else %}<span class="badge badge--active">{{ _("Active") }}</span>{% endif %}
+  </p>
+  <div class="flex flex-wrap gap-gap-sm mb-gap-md">
+    {% if target.access_suspended %}
+    <form method="post" action="/users/{{ target.id }}/reactivate" class="m-0">
+      <button type="submit" class="inline-flex items-center justify-center gap-2 rounded-lg bg-primary-container px-5 py-2.5 font-semibold text-on-primary transition-colors hover:bg-primary">{{ _("Reactivate access") }}</button>
+    </form>
+    {% else %}
+    <form method="post" action="/users/{{ target.id }}/suspend" class="m-0">
+      <button type="submit" class="inline-flex items-center justify-center gap-2 rounded-lg border border-outline-variant px-5 py-2.5 font-semibold text-on-surface-variant transition-colors hover:bg-surface-container-high hover:text-on-surface">{{ _("Suspend access") }}</button>
+    </form>
+    {% endif %}
+    {% if is_admin %}
+    <form method="post" action="/users/{{ target.id }}/remove-plex" class="m-0"
+          onsubmit="return confirm('{{ _("Remove this user from Plex entirely?") }}');">
+      <button type="submit" class="btn-red inline-flex items-center justify-center gap-2 rounded-lg px-5 py-2.5 font-semibold transition-colors">{{ _("Remove from Plex") }}</button>
+    </form>
+    {% endif %}
+  </div>
+
+  <form method="post" action="/users/{{ target.id }}/grace" class="flex flex-wrap items-end gap-gap-sm pt-gap-md border-t border-outline-variant">
+    <label class="flex flex-col gap-1 text-sm font-medium text-on-surface-variant">
+      {{ _("Grace days after expiry (max 15)") }}
+      <input type="number" name="grace_days" min="0" max="15" value="{{ target.grace_days }}"
+             class="mt-1 w-32 rounded-lg border border-outline-variant bg-surface-container-low px-3 py-2 text-on-surface focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary">
+    </label>
+    <button type="submit" class="inline-flex items-center justify-center gap-2 rounded-lg border border-outline-variant px-5 py-2.5 font-semibold text-on-surface-variant transition-colors hover:bg-surface-container-high hover:text-on-surface">{{ _("Save grace") }}</button>
+  </form>
+
+  {% if is_admin and sub %}
+  <form method="post" action="/users/{{ target.id }}/subscription/expiry" class="flex flex-wrap items-end gap-gap-sm pt-gap-md mt-gap-md border-t border-outline-variant">
+    <label class="flex flex-col gap-1 text-sm font-medium text-on-surface-variant">
+      {{ _("Expiry date (manual override)") }}
+      <input type="date" name="expiry_date" required
+             value="{{ sub.expiry_at.strftime('%Y-%m-%d') if sub.expiry_at else '' }}"
+             class="mt-1 rounded-lg border border-outline-variant bg-surface-container-low px-3 py-2 text-on-surface focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary">
+      <small class="block text-xs text-on-surface-variant mt-1 max-w-xs">{{ _("Force the expiry date for corrections. Access cut/restore still follows the Suspend/Reactivate buttons and the daily job.") }}</small>
+    </label>
+    <button type="submit" class="inline-flex items-center justify-center gap-2 rounded-lg border border-outline-variant px-5 py-2.5 font-semibold text-on-surface-variant transition-colors hover:bg-surface-container-high hover:text-on-surface">{{ _("Save expiry") }}</button>
+  </form>
+  {% endif %}
+
+  {% if is_admin and sections %}
+  <form method="post" action="/users/{{ target.id }}/libraries" class="pt-gap-md mt-gap-md border-t border-outline-variant">
+    <fieldset class="border border-outline-variant rounded-lg p-4">
+      <legend class="text-sm font-semibold text-on-surface-variant px-1">{{ _("Shared libraries (override)") }}</legend>
+      <div class="flex flex-wrap gap-gap-sm mt-2">
+        {% for s in sections %}
+        <label class="inline-flex items-center gap-2 text-sm text-on-surface bg-surface-container-low border border-outline-variant rounded-full px-3 py-1.5 cursor-pointer hover:border-primary-container">
+          <input type="checkbox" name="libraries" value="{{ s.title }}" class="accent-primary-container"
+            {% if s.title in user_libraries %}checked{% endif %}> {{ s.title }}
+        </label>
+        {% endfor %}
+      </div>
+    </fieldset>
+    <button type="submit" class="mt-gap-md inline-flex items-center justify-center gap-2 rounded-lg border border-outline-variant px-5 py-2.5 font-semibold text-on-surface-variant transition-colors hover:bg-surface-container-high hover:text-on-surface">{{ _("Save libraries") }}</button>
+  </form>
+  {% endif %}
+</div>
+{% endif %}
+
+{% if reminder_sent is not none %}
+  {% if reminder_sent|int > 0 %}
+  <p class="flex items-center gap-2 text-status-active bg-status-active/10 rounded-lg py-2 px-3 mb-gap-lg text-sm" role="status">
+    <span class="material-symbols-outlined text-[18px]" aria-hidden="true">check_circle</span>
+    {{ _("Reminder sent.") }}
+  </p>
+  {% else %}
+  <p class="flex items-center gap-2 text-status-suspended bg-status-suspended/10 rounded-lg py-2 px-3 mb-gap-lg text-sm" role="status">
+    <span class="material-symbols-outlined text-[18px]" aria-hidden="true">info</span>
+    {{ _("No reminder sent (user has no enabled channel).") }}
+  </p>
+  {% endif %}
+{% endif %}
+
+{% if can_renew %}
+<div class="rounded-xl bg-surface-container border border-outline-variant p-6 cinematic-shadow mb-gap-lg">
+  <h3 class="flex items-center gap-2 text-lg font-semibold text-on-surface mb-gap-md">
+    <span class="material-symbols-outlined text-[20px] text-on-surface-variant" aria-hidden="true">autorenew</span>
+    {{ _("Renew") }}
+  </h3>
+  <form method="post" action="/subscriptions/{{ sub.id }}/renew" class="flex flex-wrap items-end gap-gap-sm">
+    <label class="flex flex-col gap-1 text-sm font-medium text-on-surface-variant">
+      {{ _("Periods to renew") }}
+      <input type="number" name="periods" min="1" max="60" step="1" value="1"
+             class="mt-1 w-28 rounded-lg border border-outline-variant bg-surface-container-low px-3 py-2 text-on-surface focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary">
+      <small class="block text-xs text-on-surface-variant mt-1">{{ _("Each period = one plan duration; amount = periods × %(p)s.") % {'p': plan.price_cents|euros} }}</small>
+    </label>
+    <button type="submit" class="inline-flex items-center justify-center gap-2 rounded-lg bg-primary-container px-5 py-2.5 font-semibold text-on-primary transition-colors hover:bg-primary">{{ _("Create renewal (pending)") }}</button>
+  </form>
+</div>
+{% endif %}
+
+{% if can_remind %}
+<div class="rounded-xl bg-surface-container border border-outline-variant p-6 cinematic-shadow mb-gap-lg">
+  <h3 class="flex items-center gap-2 text-lg font-semibold text-on-surface mb-gap-md">
+    <span class="material-symbols-outlined text-[20px] text-on-surface-variant" aria-hidden="true">notifications</span>
+    {{ _("Reminder") }}
+  </h3>
+  <form method="post" action="/subscriptions/{{ sub.id }}/remind" class="m-0">
+    <button type="submit" class="inline-flex items-center justify-center gap-2 rounded-lg border border-outline-variant px-5 py-2.5 font-semibold text-on-surface-variant transition-colors hover:bg-surface-container-high hover:text-on-surface">{{ _("Send reminder now") }}</button>
+  </form>
+</div>
+{% endif %}
+
+{% if renewals %}
+<div class="flex items-center gap-gap-sm mb-gap-md">
+  <span class="material-symbols-outlined text-primary-container" aria-hidden="true">receipt_long</span>
+  <h3 class="text-lg font-semibold text-on-surface m-0">{{ _("Renewals") }}</h3>
+</div>
+<div class="bg-surface-container-low rounded-xl border border-outline-variant overflow-x-auto mb-gap-lg">
+<table class="responsive w-full text-left text-sm">
+  <thead>
+    <tr class="border-b border-outline-variant text-on-surface-variant text-xs uppercase tracking-wide">
+      <th class="px-4 py-3">{{ _("Created") }}</th>
+      <th class="px-4 py-3">{{ _("Plan") }}</th>
+      <th class="px-4 py-3">{{ _("Amount") }}</th>
+      <th class="px-4 py-3">{{ _("Status") }}</th>
+      <th class="px-4 py-3">{{ _("Due") }}</th>
+      <th class="px-4 py-3">{{ _("Paid") }}</th>
+      <th class="px-4 py-3">{{ _("Causale") }}</th>
+      <th class="px-4 py-3"></th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for r in renewals %}
+    <tr class="border-b border-outline-variant last:border-0 hover:bg-surface-container/60">
+      <td class="px-4 py-3" data-label="{{ _('Created') }}">{{ r.created_at | date }}</td>
+      <td class="px-4 py-3" data-label="{{ _('Plan') }}">{{ plan_by_id[r.plan_id].name if r.plan_id in plan_by_id else r.plan_id }}{% if r.periods and r.periods > 1 %} <span class="account-handle">×{{ r.periods }}</span>{% endif %}</td>
+      <td class="px-4 py-3" data-label="{{ _('Amount') }}">{{ r.amount_cents | euros }}</td>
+      <td class="px-4 py-3" data-label="{{ _('Status') }}">{{ r.status.value }}</td>
+      <td class="px-4 py-3" data-label="{{ _('Due') }}">{{ r.due_at | date }}</td>
+      <td class="px-4 py-3" data-label="{{ _('Paid') }}">{{ r.paid_at | date if r.paid_at else '—' }}</td>
+      <td class="px-4 py-3" data-label="{{ _('Causale') }}">{{ r.causale or '—' }}</td>
+      <td class="px-4 py-3" data-label="">
+        {% if can_renew and r.status.value == 'pending' %}
+        <form method="post" action="/renewals/{{ r.id }}/pay" class="inline-validate">
+          <input type="text" name="causale" placeholder="{{ _("Transaction text") }}" required
+                 class="flex-1 min-w-0 rounded-lg bg-surface-container-low border border-outline-variant px-3 py-1.5 text-sm text-on-surface placeholder:text-on-surface-variant focus:outline-none focus:ring-1 focus:ring-primary-container focus:border-primary-container">
+          <button type="submit" class="btn-sm bg-primary-container text-on-primary font-semibold hover:bg-primary transition-colors">{{ _("Mark paid") }}</button>
+        </form>
+        {% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endif %}
+{% endblock %}

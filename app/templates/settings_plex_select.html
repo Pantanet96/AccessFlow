@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}{{ _("Select Plex server") }}{% endblock %}
+{% block content %}
+<div class="max-w-lg mx-auto">
+  <div class="sub-card">
+    <div class="flex items-center gap-gap-sm mb-1">
+      <span class="material-symbols-outlined text-primary-container" aria-hidden="true">dns</span>
+      <h2 class="text-2xl font-bold text-on-surface m-0">{{ _("Select Plex server") }}</h2>
+    </div>
+    <p class="text-on-surface-variant mt-2 mb-6">{{ _("Connected as") }} <strong class="text-on-surface">{{ email or '?' }}</strong></p>
+
+    {% if servers %}
+    <form method="post" action="/settings/plex/server" class="space-y-gap-md">
+      <label class="block">
+        <span class="block mb-1.5 text-sm font-medium text-on-surface-variant">{{ _("Server") }}</span>
+        <select name="server" required
+                class="w-full rounded-lg border border-outline-variant bg-surface-container-low px-4 py-2.5 text-on-surface focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-colors">
+          {% for s in servers %}
+          <option value="{{ s.id }}|{{ s.name }}">{{ s.name }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <button type="submit" class="btn-brand">
+        <span class="material-symbols-outlined" aria-hidden="true">save</span>
+        {{ _("Save server") }}
+      </button>
+    </form>
+    {% else %}
+    <div class="flex items-start gap-gap-sm rounded-lg bg-status-suspended/10 border-l-4 border-status-suspended px-4 py-3 mb-6">
+      <span class="material-symbols-outlined text-status-suspended" aria-hidden="true">warning</span>
+      <p class="text-on-surface m-0">{{ _("No owned servers found on this account.") }}</p>
+    </div>
+    <a href="/settings" class="inline-flex items-center gap-gap-sm rounded-lg border border-outline-variant px-4 py-2.5 text-on-surface no-underline hover:bg-surface-container transition-colors">
+      <span class="material-symbols-outlined" aria-hidden="true">arrow_back</span>
+      {{ _("Back") }}
+    </a>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

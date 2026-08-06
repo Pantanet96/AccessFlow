@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block title %}{{ _("Sign in") }}{% endblock %}
+{% block content %}
+<div class="cinematic-bg rounded-xl flex items-center justify-center min-h-[70vh] px-gap-md">
+  <div class="glass-panel cinematic-shadow border border-outline-variant rounded-xl w-full max-w-md p-8 text-center">
+    <span class="brand-badge w-16 h-16 mb-1">
+      <span class="material-symbols-outlined text-primary-container text-[32px]" aria-hidden="true">lock_open</span>
+    </span>
+    <h2 class="text-2xl font-bold text-on-surface mt-3 mb-1">{{ _("Sign in") }}</h2>
+    <p class="text-on-surface-variant mb-6">{{ _("Access your Plex subscription") }}</p>
+    {% if error %}
+    <p class="flex items-center justify-center gap-2 text-status-expired bg-status-expired/10 rounded-lg py-2 px-3 mb-4 text-sm" role="alert">
+      <span class="material-symbols-outlined text-[18px]" aria-hidden="true">error</span>
+      {{ error }}
+    </p>
+    {% endif %}
+    <a href="/login/plex" role="button" class="btn-brand">
+      <span class="material-symbols-outlined" aria-hidden="true">login</span>
+      {{ _("Sign in with Plex") }}
+    </a>
+    {% if local_login_visible %}
+    <div class="flex items-center gap-3 my-5 text-xs uppercase tracking-wide text-on-surface-variant">
+      <span class="h-px flex-1 bg-outline-variant"></span>
+      {{ _("or") }}
+      <span class="h-px flex-1 bg-outline-variant"></span>
+    </div>
+    <a href="/login/local" class="inline-flex items-center gap-1 text-sm text-on-surface-variant hover:text-primary no-underline transition-colors">
+      <span class="material-symbols-outlined text-[16px]" aria-hidden="true">admin_panel_settings</span>
+      {{ _("Local administrator login") }}
+    </a>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

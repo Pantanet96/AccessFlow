@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+{% block title %}{{ _("Invites") }}{% endblock %}
+{% block content %}
+
+<div class="flex items-center gap-gap-sm mb-gap-lg">
+  <span class="material-symbols-outlined text-primary-container" aria-hidden="true">mail</span>
+  <h2 class="text-2xl font-bold text-on-surface m-0">{{ _("Invite a user") }}</h2>
+</div>
+
+{% if error %}
+<div class="flex items-center gap-gap-sm rounded-lg border-l-4 border-status-expired bg-status-expired/10 px-4 py-3 mb-gap-md text-status-expired">
+  <span class="material-symbols-outlined" aria-hidden="true">error</span>
+  <p class="m-0">{{ error }}</p>
+</div>
+{% endif %}
+
+<div class="bg-surface-container-low rounded-xl border border-outline-variant p-6 md:p-8 mb-gap-lg">
+  <form method="post" action="/invites" class="space-y-gap-md">
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-gap-md">
+      <label class="flex flex-col gap-1 text-sm font-medium text-on-surface-variant">
+        {{ _("Email") }}
+        <input type="email" name="email" required
+               class="mt-1 w-full rounded-lg border border-outline-variant bg-surface-container-low px-3 py-2 text-on-surface placeholder:text-on-surface-variant focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary">
+      </label>
+      <label class="flex flex-col gap-1 text-sm font-medium text-on-surface-variant">
+        {{ _("Real name") }}
+        <input type="text" name="real_name" required
+               class="mt-1 w-full rounded-lg border border-outline-variant bg-surface-container-low px-3 py-2 text-on-surface placeholder:text-on-surface-variant focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary">
+      </label>
+    </div>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-gap-md">
+      <label class="flex flex-col gap-1 text-sm font-medium text-on-surface-variant">
+        {{ _("Role") }}
+        <select name="role"
+                class="mt-1 w-full rounded-lg border border-outline-variant bg-surface-container-low px-3 py-2 text-on-surface focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary">
+          {% for r in roles %}<option value="{{ r.value }}">{{ r.value }}</option>{% endfor %}
+        </select>
+      </label>
+      <label class="flex flex-col gap-1 text-sm font-medium text-on-surface-variant">
+        {{ _("Manager") }}
+        <select name="manager_id"
+                class="mt-1 w-full rounded-lg border border-outline-variant bg-surface-container-low px-3 py-2 text-on-surface focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary">
+          <option value="">{{ _("— none —") }}</option>
+          {% for c in candidates %}<option value="{{ c.id }}">{{ c.real_name }}</option>{% endfor %}
+        </select>
+      </label>
+    </div>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-gap-md">
+      <label class="flex flex-col gap-1 text-sm font-medium text-on-surface-variant">
+        {{ _("Plan") }}
+        <select name="plan_slug"
+                class="mt-1 w-full rounded-lg border border-outline-variant bg-surface-container-low px-3 py-2 text-on-surface focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary">
+          <option value="">{{ _("— none —") }}</option>
+          {% for p in plans %}<option value="{{ p.slug }}">{{ p.name }} ({{ p.price_cents | euros }})</option>{% endfor %}
+        </select>
+      </label>
+      <label class="flex flex-col gap-1 text-sm font-medium text-on-surface-variant">
+        {{ _("Trial days (Trial plan only, max 30)") }}
+        <input type="number" name="trial_days" min="1" max="30"
+               class="mt-1 w-full rounded-lg border border-outline-variant bg-surface-container-low px-3 py-2 text-on-surface placeholder:text-on-surface-variant focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary">
+      </label>
+    </div>
+    {% if sections %}
+    <fieldset class="border border-outline-variant rounded-lg p-4">
+      <legend class="text-sm font-semibold text-on-surface-variant px-1">{{ _("Libraries to share (default if none checked)") }}</legend>
+      <div class="flex flex-wrap gap-gap-sm mt-2">
+        {% for s in sections %}
+        <label class="inline-flex items-center gap-2 text-sm text-on-surface bg-surface-container-low border border-outline-variant rounded-full px-3 py-1.5 cursor-pointer hover:border-primary-container">
+          <input type="checkbox" name="libraries" value="{{ s.title }}" class="accent-primary-container"
+            {% if s.title in default_sections %}checked{% endif %}>
+          {{ s.title }}
+        </label>
+        {% endfor %}
+      </div>
+    </fieldset>
+    {% endif %}
+    <button type="submit" class="btn-brand md:w-auto">
+      <span class="material-symbols-outlined" aria-hidden="true">send</span>
+      {{ _("Send Plex invite") }}
+    </button>
+  </form>
+</div>
+
+<div class="flex items-center gap-gap-sm mb-gap-md">
+  <span class="material-symbols-outlined text-primary-container" aria-hidden="true">hourglass_top</span>
+  <h3 class="text-xl font-semibold text-on-surface m-0">{{ _("Pending invites") }} ({{ pending|length }})</h3>
+</div>
+
+<div class="bg-surface-container-low rounded-xl border border-outline-variant overflow-x-auto">
+<table class="responsive w-full text-left border-collapse">
+  <thead>
+    <tr class="border-b border-outline-variant text-on-surface-variant text-xs uppercase tracking-wide">
+      <th class="px-4 py-3">{{ _("Email") }}</th><th class="px-4 py-3">{{ _("Real name") }}</th><th class="px-4 py-3">{{ _("Role") }}</th><th class="px-4 py-3">{{ _("Sent") }}</th><th class="px-4 py-3"></th>
+    </tr>
+  </thead>
+  <tbody>
+    {% set ROLE_BADGE = {'superadmin': 'suspended', 'admin': 'suspended', 'moderator': 'active', 'user': 'cancelled'} %}
+    {% for i in pending %}
+    <tr class="border-b border-outline-variant last:border-0 hover:bg-surface-container/60">
+      <td class="px-4 py-3" data-label="{{ _('Email') }}">{{ i.email }}</td><td class="px-4 py-3" data-label="{{ _('Real name') }}">{{ i.real_name }}</td>
+      <td class="px-4 py-3" data-label="{{ _('Role') }}"><span class="badge badge--{{ ROLE_BADGE.get(i.intended_role.value, 'cancelled') }}">{{ i.intended_role.value }}</span></td><td class="px-4 py-3" data-label="{{ _('Sent') }}">{{ i.plex_invite_sent_at | date }}</td>
+      <td class="px-4 py-3" data-label="">
+        <div class="row-actions">
+          <form method="post" action="/invites/{{ i.id }}/delete"
+                onsubmit="return confirm('{{ _("Withdraw this pending invite? It will be cancelled on Plex too.") }}');">
+            <button type="submit" class="btn-sm btn-red inline-flex items-center gap-1">
+              <span class="material-symbols-outlined text-[16px] leading-none" aria-hidden="true">cancel</span>
+              {{ _("Withdraw") }}
+            </button>
+          </form>
+        </div>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endblock %}

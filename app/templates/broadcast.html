@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}{{ _("Broadcast") }}{% endblock %}
+{% block content %}
+<div class="flex items-center gap-gap-sm mb-gap-lg">
+  <span class="material-symbols-outlined text-primary-container" aria-hidden="true">campaign</span>
+  <h1 class="text-2xl font-bold text-on-surface">{{ _("Broadcast a message") }}</h1>
+</div>
+
+{% if sent is not none %}
+<p class="flex items-center gap-2 rounded-lg py-3 px-4 mb-gap-md bg-status-active/10 border-l-4 border-status-active text-status-active font-medium">
+  <span class="material-symbols-outlined" aria-hidden="true">check_circle</span>
+  {{ _("Sent to %(n)d recipient(s).") % {'n': sent} }}
+</p>
+{% endif %}
+
+<div class="max-w-2xl rounded-xl bg-surface-container border border-outline-variant p-6 cinematic-shadow">
+  <form method="post" action="/broadcast" class="space-y-gap-md">
+    <label class="block text-sm font-medium text-on-surface">
+      {{ _("Message") }}
+      <textarea name="message" rows="5" required
+                class="mt-2 block w-full rounded-lg bg-surface-container-high border border-outline-variant text-on-surface placeholder:text-on-surface-variant px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-colors"></textarea>
+    </label>
+    <label class="block text-sm font-medium text-on-surface">
+      {{ _("Limit to role") }}
+      <select name="only_role"
+              class="mt-2 block w-full rounded-lg bg-surface-container-high border border-outline-variant text-on-surface px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-colors">
+        <option value="">{{ _("All roles") }}</option>
+        {% for r in roles %}<option value="{{ r.value }}">{{ r.value }}</option>{% endfor %}
+      </select>
+    </label>
+    <small class="block text-xs text-on-surface-variant">{{ _("Sent via Telegram and email to all active users with a linked channel.") }}</small>
+    <button type="submit"
+            class="inline-flex items-center gap-2 bg-primary-container text-on-primary font-bold py-2.5 px-5 rounded-lg border border-primary-container hover:bg-primary hover:border-primary transition-colors">
+      <span class="material-symbols-outlined" aria-hidden="true">send</span>
+      {{ _("Send broadcast") }}
+    </button>
+  </form>
+</div>
+{% endblock %}

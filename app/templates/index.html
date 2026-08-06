@@ -1,0 +1,224 @@
+{% extends "base.html" %}
+{% block content %}
+{% if not current_user %}
+<hgroup class="max-w-2xl mb-gap-lg">
+  <h1 class="text-3xl font-bold text-on-surface mb-2">{{ _("AccessFlow") }}</h1>
+  <p class="text-on-surface-variant">{{ _("Manage users, subscriptions and invites for your Plex server.") }}</p>
+</hgroup>
+<a href="/login" class="inline-flex items-center gap-gap-sm rounded bg-primary-container px-6 py-3 font-bold text-on-primary no-underline transition-colors hover:bg-primary">
+  <span class="material-symbols-outlined" aria-hidden="true">login</span>
+  {{ _("Sign in") }}
+</a>
+
+{% else %}
+<hgroup class="mb-gap-lg">
+  <h1 class="text-3xl font-bold text-on-surface">{{ _("Hi, %(name)s") % {'name': current_user.real_name} }}</h1>
+  {% if current_user.role.value == 'user' %}<p class="mt-1 text-on-surface-variant">{{ _("Your subscription overview") }}</p>{% endif %}
+</hgroup>
+
+<section class="launch">
+  <a class="launch-tile launch-tile--brand" href="https://app.plex.tv/" target="_blank" rel="noopener">
+    <span class="material-symbols-outlined text-[2rem] flex-none" aria-hidden="true">movie</span>
+    <span class="launch-tile__txt"><strong>Plex</strong><small>{{ _("Open your media library") }}</small></span>
+  </a>
+  {% if overseerr_url %}
+  <a class="launch-tile launch-tile--seer" href="{{ overseerr_url }}" target="_blank" rel="noopener">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>
+    <span class="launch-tile__txt"><strong>Overseerr</strong><small>{{ _("Request movies & shows") }}</small></span>
+  </a>
+  {% endif %}
+</section>
+
+{% if current_user.role.value == 'user' %}
+{% if sub %}
+{% set status = 'suspended' if current_user.access_suspended else sub.status.value %}
+<article class="sub-card cinematic-shadow">
+  <div class="sub-card__head">
+    <div>
+      <span class="plan-name">{{ plan.name if plan else '—' }}</span>
+      {% if plan and plan.price_cents %}<span class="plan-price">{{ plan.price_cents | euros }}</span>{% endif %}
+    </div>
+    <span class="badge badge--{{ status }}">{{ _(status|capitalize) }}</span>
+  </div>
+
+  <div class="sub-card__body">
+    {% if current_user.access_suspended %}
+    <div class="suspend-banner">
+      <strong class="flex items-center gap-gap-sm"><span class="material-symbols-outlined" aria-hidden="true">warning</span> {{ _("Access suspended") }}</strong>
+      <p>{{ _("Your subscription expired and access is suspended. Renew to restore access immediately.") }}</p>
+      {% if manager %}<p><small>{{ _("Contact your manager") }}: <strong>{{ manager.real_name }}</strong>{% if manager.effective_notify_email %} — {{ manager.effective_notify_email }}{% endif %}</small></p>{% endif %}
+    </div>
+    {% endif %}
+    {% if sub.expiry_at %}
+      <p class="expiry">{{ _("Expires on") }} <strong>{{ sub.expiry_at | date }}</strong></p>
+      {% if days_left is not none %}
+        {% set tone = 'ok' if days_left > 7 else ('warn' if days_left >= 0 else 'late') %}
+        <p class="days days--{{ tone }}">
+          {% if days_left > 0 %}{{ _("%(d)d day(s) left") % {'d': days_left} }}
+          {% elif days_left == 0 %}{{ _("Expires today") }}
+          {% else %}{{ _("Expired %(d)d day(s) ago") % {'d': -days_left} }}{% endif %}
+        </p>
+      {% endif %}
+    {% else %}
+      <p class="expiry">{{ _("No expiry — unlimited") }}</p>
+    {% endif %}
+
+    {% if manager %}
+    <p class="manager">{{ _("Your manager") }}: <strong>{{ manager.real_name }}</strong>
+      {% if manager.effective_notify_email %}<br><small>{{ manager.effective_notify_email }}</small>{% endif %}
+    </p>
+    {% endif %}
+  </div>
+
+  {% if plan and plan.is_paid and not plan.is_trial and not plan.is_unlimited %}
+  <div class="sub-card__foot">
+    {% if pending_renewal %}
+      <p class="pending flex items-center gap-gap-sm"><span class="material-symbols-outlined" aria-hidden="true">hourglass_top</span> {{ _("Renewal request sent — awaiting confirmation from your manager.") }}</p>
+      <form method="post" action="/renewals/{{ pending_renewal.id }}/delete" class="m-0"
+            onsubmit="return confirm('{{ _("Are you sure you want to delete the renewal request?") }}');">
+        <button type="submit" class="btn-sm btn-red rounded">{{ _("Cancel request") }}</button>
+      </form>
+    {% else %}
+      <details class="renew-box">
+        <summary class="inline-flex w-fit list-none items-center gap-gap-sm rounded bg-primary-container px-4 py-2 font-bold text-on-primary transition-colors hover:bg-primary [&::-webkit-details-marker]:hidden">
+          <span class="material-symbols-outlined" aria-hidden="true">autorenew</span>
+          {{ _("Request renewal") }}
+        </summary>
+        <form method="post" action="/subscriptions/{{ sub.id }}/request-renewal" class="mt-gap-md space-y-gap-md">
+          <label class="block">
+            <span class="mb-1 block text-sm text-on-surface-variant">{{ _("Periods to renew") }}</span>
+            <input type="number" name="periods" min="1" max="60" step="1" value="1"
+                   class="w-full rounded border border-outline-variant bg-surface-container-low px-3 py-2 text-on-surface focus:outline-none focus:ring-2 focus:ring-primary">
+            <small class="mt-1 block text-on-surface-variant">{{ _("Each period = one plan duration (e.g. one month).") }}</small>
+          </label>
+          <label class="block">
+            <span class="mb-1 block text-sm text-on-surface-variant">{{ _("Transaction note / causale (optional)") }}</span>
+            <input type="text" name="causale" placeholder="{{ _('e.g. PayPal F&F — 15/06') }}"
+                   class="w-full rounded border border-outline-variant bg-surface-container-low px-3 py-2 text-on-surface placeholder:text-on-surface-variant focus:outline-none focus:ring-2 focus:ring-primary">
+          </label>
+          <small class="block text-on-surface-variant">{{ _("Pay your manager, then send the request with the transaction note.") }}</small>
+          <button type="submit" class="inline-flex items-center gap-gap-sm rounded bg-primary-container px-4 py-2 font-bold text-on-primary transition-colors hover:bg-primary">
+            {{ _("Send renewal request") }}
+          </button>
+        </form>
+      </details>
+    {% endif %}
+  </div>
+  {% endif %}
+</article>
+{% if renewals %}
+<details class="pay-history">
+  <summary>{{ _("Payment history") }}</summary>
+  <div class="overflow-x-auto">
+  <table class="responsive">
+    <thead>
+      <tr><th>{{ _("Created") }}</th><th>{{ _("Amount") }}</th>
+          <th>{{ _("Status") }}</th><th>{{ _("Paid") }}</th><th>{{ _("Causale") }}</th></tr>
+    </thead>
+    <tbody>
+      {% for r in renewals %}
+      <tr>
+        <td data-label="{{ _('Created') }}">{{ r.created_at | date }}</td>
+        <td data-label="{{ _('Amount') }}">{{ r.amount_cents | euros }}</td>
+        <td data-label="{{ _('Status') }}">{{ _(r.status.value | capitalize) }}</td>
+        <td data-label="{{ _('Paid') }}">{{ r.paid_at | date if r.paid_at else '—' }}</td>
+        <td data-label="{{ _('Causale') }}">{{ r.causale or '—' }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</details>
+{% endif %}
+{% else %}
+<article class="cinematic-shadow rounded-xl bg-surface-container p-6 text-on-surface-variant">
+  <p>{{ _("You have no active subscription. Contact your manager.") }}</p>
+  {% if manager %}<p>{{ _("Your manager") }}: <strong class="text-on-surface">{{ manager.real_name }}</strong></p>{% endif %}
+</article>
+{% endif %}
+{% endif %}{# end role == user #}
+
+{% if current_user.role.value != 'user' and worklist %}
+<section class="worklist mt-gap-lg">
+  <h2 class="mb-gap-md flex items-center gap-gap-sm text-xl font-bold text-on-surface">
+    <span class="material-symbols-outlined text-primary-container" aria-hidden="true">checklist</span>
+    {{ _("To do") }}
+  </h2>
+  {% if not (worklist.pending or worklist.to_collect or worklist.paid_suspended or worklist.no_sub) %}
+  <p class="flex items-center gap-gap-sm text-on-surface-variant">
+    <span class="material-symbols-outlined text-status-active" aria-hidden="true">task_alt</span>
+    {{ _("All clear — nothing needs attention.") }}
+  </p>
+  {% endif %}
+
+  {% if worklist.pending %}
+  <article class="cinematic-shadow mb-gap-md rounded-xl bg-surface-container p-gap-md">
+    <h3 class="mb-gap-sm flex items-center gap-gap-sm text-base font-semibold text-on-surface">
+      <span class="material-symbols-outlined text-status-suspended" aria-hidden="true">hourglass_top</span>
+      {{ _("Pending payment confirmations") }} ({{ worklist.pending|length }})
+    </h3>
+    <ul class="m-0 list-none divide-y divide-outline-variant p-0">
+      {% for it in worklist.pending %}
+      <li class="py-2"><a class="text-primary no-underline hover:underline" href="/users/{{ it.user.id }}/subscription">{{ it.user.real_name }}</a>
+        — {{ it.plan.name if it.plan else '—' }} · {{ it.renewal.amount_cents | euros }}
+        {% if it.renewal.causale %}<small class="text-on-surface-variant">({{ it.renewal.causale }})</small>{% endif %}</li>
+      {% endfor %}
+    </ul>
+  </article>
+  {% endif %}
+
+  {% if worklist.to_collect %}
+  <article class="cinematic-shadow mb-gap-md rounded-xl bg-surface-container p-gap-md">
+    <h3 class="mb-gap-sm flex items-center gap-gap-sm text-base font-semibold text-on-surface">
+      <span class="material-symbols-outlined text-status-suspended" aria-hidden="true">payments</span>
+      {{ _("To collect (expiring or overdue)") }} ({{ worklist.to_collect|length }})
+    </h3>
+    <ul class="m-0 list-none divide-y divide-outline-variant p-0">
+      {% for it in worklist.to_collect %}
+      <li class="py-2"><a class="text-primary no-underline hover:underline" href="/users/{{ it.user.id }}/subscription">{{ it.user.real_name }}</a> —
+        {% if it.days_left > 0 %}{{ _("%(d)d day(s) left") % {'d': it.days_left} }}
+        {% elif it.days_left == 0 %}{{ _("Expires today") }}
+        {% else %}{{ _("Expired %(d)d day(s) ago") % {'d': -it.days_left} }}{% endif %}</li>
+      {% endfor %}
+    </ul>
+  </article>
+  {% endif %}
+
+  {% if worklist.paid_suspended %}
+  <article class="cinematic-shadow mb-gap-md rounded-xl border-l-4 border-status-expired bg-surface-container p-gap-md">
+    <h3 class="mb-gap-sm flex items-center gap-gap-sm text-base font-semibold text-on-surface">
+      <span class="material-symbols-outlined text-status-expired" aria-hidden="true">error</span>
+      {{ _("Paid but still suspended") }} ({{ worklist.paid_suspended|length }})
+    </h3>
+    <ul class="m-0 list-none divide-y divide-outline-variant p-0">
+      {% for it in worklist.paid_suspended %}
+      <li class="py-2"><a class="text-primary no-underline hover:underline" href="/users/{{ it.user.id }}/subscription">{{ it.user.real_name }}</a></li>
+      {% endfor %}
+    </ul>
+  </article>
+  {% endif %}
+
+  {% if worklist.no_sub %}
+  <article class="cinematic-shadow mb-gap-md rounded-xl bg-surface-container p-gap-md">
+    <h3 class="mb-gap-sm flex items-center gap-gap-sm text-base font-semibold text-on-surface">
+      <span class="material-symbols-outlined text-on-surface-variant" aria-hidden="true">person_off</span>
+      {{ _("Without active subscription") }} ({{ worklist.no_sub|length }})
+    </h3>
+    <ul class="m-0 list-none divide-y divide-outline-variant p-0">
+      {% for u in worklist.no_sub %}
+      <li class="py-2"><a class="text-primary no-underline hover:underline" href="/users/{{ u.id }}/subscription">{{ u.real_name }}</a></li>
+      {% endfor %}
+    </ul>
+  </article>
+  {% endif %}
+
+  <p>
+    <a href="/users" class="inline-flex items-center gap-gap-sm rounded border border-outline-variant px-4 py-2 font-semibold text-on-surface-variant no-underline transition-colors hover:bg-surface-container hover:text-on-surface">
+      <span class="material-symbols-outlined" aria-hidden="true">manage_accounts</span>
+      {{ _("Go to management") }}
+    </a>
+  </p>
+</section>
+{% endif %}
+{% endif %}
+{% endblock %}

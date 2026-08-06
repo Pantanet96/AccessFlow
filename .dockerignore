@@ -1,0 +1,28 @@
+# VCS / tooling
+.git
+.gitignore
+.claude/
+*.md
+
+# Secrets & dati reali — MAI nell'immagine
+.env
+.env.*
+!.env.example
+data/
+*.db
+
+# Ambienti / cache / test
+.venv/
+# Lo stage "assets" fa il proprio `npm install`: le node_modules locali servono
+# solo qui sul portatile e, senza questa riga, il `COPY . .` finale se le
+# portava dentro l'immagine di produzione (~16MB di dipendenze di build).
+node_modules/
+docs/
+__pycache__/
+**/__pycache__/
+*.pyc
+.pytest_cache/
+tests/
+
+# Cataloghi compilati: li rigenera il Dockerfile (pybabel compile)
+**/*.mo
