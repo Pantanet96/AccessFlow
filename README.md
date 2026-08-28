@@ -177,6 +177,27 @@ pytest
 
 Everything via environment / `.env` — see [.env.example](.env.example).
 
+### Identity shown to Plex
+
+Every request the app makes to Plex carries `AccessFlow` as product, device and
+device name, so `plex.tv` → Settings → Authorized Devices and Tautulli's logs
+name the app instead of `Linux` + the container hostname. The platform *version*
+is left alone and reports the host kernel release (a container shares the host
+kernel), so you end up with e.g. `AccessFlow / 6.6.78-Unraid`.
+
+Running more than one instance against the same Plex account? Give each a
+distinct device name so you can tell their tokens apart when revoking one:
+
+```yaml
+services:
+  app:
+    environment:
+      PLEXAPI_HEADER_DEVICE_NAME: "AccessFlow-staging"
+```
+
+Leave `PLEXAPI_HEADER_PRODUCT` as is — Plex and Tautulli group activity by
+product, and changing it splits your own history in their dashboards.
+
 ## i18n
 
 Source strings are in English. Translations live in `app/translations/<locale>/LC_MESSAGES/messages.po`.
