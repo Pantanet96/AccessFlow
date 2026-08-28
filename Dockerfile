@@ -31,6 +31,15 @@ ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     DATABASE_PATH=/data/app.db
 
+# plexapi defaults these to uname() (platform "Linux", device name = container
+# hostname) for every request it makes, so Plex/Tautulli logs show "Linux" +
+# a random hostname instead of the app. Override at the process level so it
+# applies to MyPlexAccount/PlexServer too, not just the manual httpx calls in
+# plex_oauth.py.
+ENV PLEXAPI_HEADER_PRODUCT=AccessFlow \
+    PLEXAPI_HEADER_DEVICE_NAME=AccessFlow \
+    PLEXAPI_HEADER_PLATFORM=AccessFlow
+
 WORKDIR /app
 
 COPY requirements.txt .
