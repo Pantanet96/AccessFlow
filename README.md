@@ -12,6 +12,20 @@ FastAPI + Jinja2/HTMX + SQLite, shipped as a single Docker container that sits b
 ![FastAPI](https://img.shields.io/badge/FastAPI-async-009688?logo=fastapi&logoColor=white)
 [![License: MIT](https://img.shields.io/badge/license-MIT-brightgreen)](LICENSE)
 
+## Star history
+
+<div align="center">
+
+<a href="https://www.star-history.com/?repos=Pantanet96%2FAccessFlow&type=date&legend=bottom-right">
+ <picture>
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=Pantanet96/AccessFlow&type=date&theme=dark&legend=bottom-right&sealed_token=7pn5QW3-5HwuMjENDf7dMNWBS8PY8uTXvGhJQ-SqfBR5y37WqTlzXtoDCCdQpn035pmW3NYFrWwnCydotXrVlKqCSSBB0pkojtaMoHExQ_bRn2HdnYm4lVUjmQ85VwEb2du3HQfyMUMJc5nrC9VIrGIaGkDulFKtyv4gFPlQAgoKwsJGIos4MS8l0tbi" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=Pantanet96/AccessFlow&type=date&legend=bottom-right&sealed_token=7pn5QW3-5HwuMjENDf7dMNWBS8PY8uTXvGhJQ-SqfBR5y37WqTlzXtoDCCdQpn035pmW3NYFrWwnCydotXrVlKqCSSBB0pkojtaMoHExQ_bRn2HdnYm4lVUjmQ85VwEb2du3HQfyMUMJc5nrC9VIrGIaGkDulFKtyv4gFPlQAgoKwsJGIos4MS8l0tbi" />
+   <img width="600" alt="Star History Chart" src="https://api.star-history.com/chart?repos=Pantanet96/AccessFlow&type=date&legend=bottom-right&sealed_token=7pn5QW3-5HwuMjENDf7dMNWBS8PY8uTXvGhJQ-SqfBR5y37WqTlzXtoDCCdQpn035pmW3NYFrWwnCydotXrVlKqCSSBB0pkojtaMoHExQ_bRn2HdnYm4lVUjmQ85VwEb2du3HQfyMUMJc5nrC9VIrGIaGkDulFKtyv4gFPlQAgoKwsJGIos4MS8l0tbi" />
+ </picture>
+</a>
+
+</div>
+
 ## Screenshots
 
 | Dashboard | Users |
@@ -36,7 +50,6 @@ Rame (copper) theme by default; Inchiostro and Muschio variants also available f
 - [Configuration](#configuration)
 - [i18n](#i18n)
 - [Background workers](#background-workers)
-- [Star history](#star-history)
 
 ## Features
 
@@ -218,13 +231,3 @@ The Docker build compiles the catalogs automatically.
 The web container also runs, in-process: a daily APScheduler job (expiration scan
 at the `NOTIFY_HOUR` hour, nightly DB backup) and the Telegram bot in polling mode.
 They're toggled with `ENABLE_SCHEDULER` / `ENABLE_BOT`.
-
-## Star history
-
-<a href="https://www.star-history.com/?repos=Pantanet96%2FAccessFlow&type=date&legend=bottom-right">
- <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=Pantanet96/AccessFlow&type=date&theme=dark&legend=bottom-right&sealed_token=7pn5QW3-5HwuMjENDf7dMNWBS8PY8uTXvGhJQ-SqfBR5y37WqTlzXtoDCCdQpn035pmW3NYFrWwnCydotXrVlKqCSSBB0pkojtaMoHExQ_bRn2HdnYm4lVUjmQ85VwEb2du3HQfyMUMJc5nrC9VIrGIaGkDulFKtyv4gFPlQAgoKwsJGIos4MS8l0tbi" />
-   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=Pantanet96/AccessFlow&type=date&legend=bottom-right&sealed_token=7pn5QW3-5HwuMjENDf7dMNWBS8PY8uTXvGhJQ-SqfBR5y37WqTlzXtoDCCdQpn035pmW3NYFrWwnCydotXrVlKqCSSBB0pkojtaMoHExQ_bRn2HdnYm4lVUjmQ85VwEb2du3HQfyMUMJc5nrC9VIrGIaGkDulFKtyv4gFPlQAgoKwsJGIos4MS8l0tbi" />
-   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=Pantanet96/AccessFlow&type=date&legend=bottom-right&sealed_token=7pn5QW3-5HwuMjENDf7dMNWBS8PY8uTXvGhJQ-SqfBR5y37WqTlzXtoDCCdQpn035pmW3NYFrWwnCydotXrVlKqCSSBB0pkojtaMoHExQ_bRn2HdnYm4lVUjmQ85VwEb2du3HQfyMUMJc5nrC9VIrGIaGkDulFKtyv4gFPlQAgoKwsJGIos4MS8l0tbi" />
- </picture>
-</a>
