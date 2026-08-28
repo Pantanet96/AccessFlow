@@ -221,10 +221,10 @@ They're toggled with `ENABLE_SCHEDULER` / `ENABLE_BOT`.
 
 ## Star history
 
-<a href="https://www.star-history.com/#Pantanet96/AccessFlow&Date">
+<a href="https://www.star-history.com/?repos=Pantanet96%2FAccessFlow&type=date&legend=bottom-right">
  <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=Pantanet96/AccessFlow&type=Date&theme=dark" />
-   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=Pantanet96/AccessFlow&type=Date" />
-   <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=Pantanet96/AccessFlow&type=Date" />
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=Pantanet96/AccessFlow&type=date&theme=dark&legend=bottom-right&sealed_token=7pn5QW3-5HwuMjENDf7dMNWBS8PY8uTXvGhJQ-SqfBR5y37WqTlzXtoDCCdQpn035pmW3NYFrWwnCydotXrVlKqCSSBB0pkojtaMoHExQ_bRn2HdnYm4lVUjmQ85VwEb2du3HQfyMUMJc5nrC9VIrGIaGkDulFKtyv4gFPlQAgoKwsJGIos4MS8l0tbi" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=Pantanet96/AccessFlow&type=date&legend=bottom-right&sealed_token=7pn5QW3-5HwuMjENDf7dMNWBS8PY8uTXvGhJQ-SqfBR5y37WqTlzXtoDCCdQpn035pmW3NYFrWwnCydotXrVlKqCSSBB0pkojtaMoHExQ_bRn2HdnYm4lVUjmQ85VwEb2du3HQfyMUMJc5nrC9VIrGIaGkDulFKtyv4gFPlQAgoKwsJGIos4MS8l0tbi" />
+   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=Pantanet96/AccessFlow&type=date&legend=bottom-right&sealed_token=7pn5QW3-5HwuMjENDf7dMNWBS8PY8uTXvGhJQ-SqfBR5y37WqTlzXtoDCCdQpn035pmW3NYFrWwnCydotXrVlKqCSSBB0pkojtaMoHExQ_bRn2HdnYm4lVUjmQ85VwEb2du3HQfyMUMJc5nrC9VIrGIaGkDulFKtyv4gFPlQAgoKwsJGIos4MS8l0tbi" />
  </picture>
 </a>
