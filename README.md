@@ -36,6 +36,7 @@ Rame (copper) theme by default; Inchiostro and Muschio variants also available f
 - [Configuration](#configuration)
 - [i18n](#i18n)
 - [Background workers](#background-workers)
+- [Star history](#star-history)
 
 ## Features
 
@@ -217,3 +218,13 @@ The Docker build compiles the catalogs automatically.
 The web container also runs, in-process: a daily APScheduler job (expiration scan
 at the `NOTIFY_HOUR` hour, nightly DB backup) and the Telegram bot in polling mode.
 They're toggled with `ENABLE_SCHEDULER` / `ENABLE_BOT`.
+
+## Star history
+
+<a href="https://www.star-history.com/#Pantanet96/AccessFlow&Date">
+ <picture>
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=Pantanet96/AccessFlow&type=Date&theme=dark" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=Pantanet96/AccessFlow&type=Date" />
+   <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=Pantanet96/AccessFlow&type=Date" />
+ </picture>
+</a>
