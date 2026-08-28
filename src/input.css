@@ -100,6 +100,14 @@
    BASE LAYER — fonts (vendored, no CDN/network) + document defaults
    ========================================================================= */
 @layer base {
+  /* An element carrying BOTH the `hidden` attribute and a display utility
+     (e.g. `<p id="noUsers" class="flex" hidden>`) stayed visible: preflight's
+     `[hidden]{display:none}` and `.flex{display:flex}` have the same
+     specificity, and `.flex` wins on source order. `!important` is what the
+     HTML spec's own suggested rendering uses for [hidden]; anything that
+     really must override it can set `display` inline. */
+  [hidden] { display: none !important; }
+
   /* ---- Inter (variable, weights 100-900) — copied verbatim from
      app/static/vendor/fonts/inter.css. Tailwind CLI has no postcss-import,
      so the @font-face rules are inlined here rather than @import'd. ---- */

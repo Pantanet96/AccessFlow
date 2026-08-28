@@ -10,7 +10,7 @@
      Swap for a real file only if a client that ignores <link rel="icon">
      shows up. -#}
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cg fill='none' stroke='%23B5652E' stroke-width='1.6' stroke-linecap='round'%3E%3Ccircle cx='6' cy='4.6' r='1.8'/%3E%3Cpath d='M2.3 13a4 4 0 0 1 7.3-2.9'/%3E%3Cpath d='M3.2 13.4c3.4 1.4 7.2.1 8.6-3.8' stroke-width='1.5'/%3E%3C/g%3E%3C/svg%3E">
-  <link rel="stylesheet" href="{{ url_for('static', path='app.css') }}?v=36">
+  <link rel="stylesheet" href="{{ url_for('static', path='app.css') }}?v=38">
 </head>
 <body class="bg-background text-on-surface font-sans min-h-screen">
 
@@ -109,7 +109,10 @@
   </aside>
   {% endif %}
 
-  <div class="flex-1 flex flex-col min-w-0 {% if current_user %}md:pl-64{% endif %}">
+  {#- The bottom padding that clears the fixed mobile nav belongs here, not on
+     <main>: the footer is a sibling of <main>, so padding on <main> alone left
+     the footer underneath the nav bar. -#}
+  <div class="flex-1 flex flex-col min-w-0 {% if current_user %}md:pl-64 pb-24 md:pb-0{% endif %}">
     <!-- Sticky topbar: title/logo + language switcher only, no nav duplication -->
     <header class="glass-panel sticky top-0 z-30 flex items-center justify-between gap-gap-md px-gap-md py-3">
       <a href="/" class="flex items-center gap-gap-sm no-underline text-on-surface">
@@ -131,7 +134,7 @@
       </select>
     </header>
 
-    <main class="flex-1 w-full max-w-app mx-auto px-gap-md py-gap-lg {% if current_user %}pb-24 md:pb-gap-lg{% endif %}">
+    <main class="flex-1 w-full max-w-app mx-auto px-gap-md py-gap-lg">
       {% if current_user %}
         {% set b = active_broadcast(current_user) %}
         {% if b %}

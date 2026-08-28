@@ -74,7 +74,10 @@ module.exports = {
         "gap-lg": "24px",
       },
       maxWidth: {
-        app: "1440px",
+        // 1760, not 1440: the users table is the widest page and at 1440 it
+        // overflowed into a horizontal scrollbar on a 1920px display once the
+        // sidebar (256px) was subtracted. 1760 still leaves gutters on 1920.
+        app: "1760px",
       },
       fontFamily: {
         sans: ["Inter", "ui-sans-serif", "system-ui", "-apple-system", "sans-serif"],
