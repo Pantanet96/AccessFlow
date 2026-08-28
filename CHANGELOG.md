@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.1.0] - 2026-08-28
 
+### Added
+
+- [Unraid Community Applications](unraid/accessflow.xml) template, plus the
+  `ca_profile.xml` needed to submit the app to the CA repository.
+- MIT [LICENSE](LICENSE).
+
 ### Changed
 
 - **Users table: 10 columns down to 8, no more horizontal scrolling.** On a
@@ -35,6 +41,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Plex and Tautulli showed "Linux" and the container hostname instead of
+  "AccessFlow".** plexapi defaults its identifying headers to `uname()`, so every
+  admin call made through `plex_service.py` reported the container rather than
+  the app. The `PLEXAPI_HEADER_*` variables are now set at the image level, which
+  covers `MyPlexAccount` and `PlexServer` too — not only the manual httpx calls
+  in `plex_oauth.py`, which were already correct.
 - **Elements with the `hidden` attribute stayed visible when they also carried a
   display utility class.** Tailwind's preflight `[hidden]{display:none}` and
   `.flex{display:flex}` have equal specificity, so `.flex` won on source order —
@@ -54,12 +66,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.0.1]
 
-- Plex/Tautulli now show "AccessFlow" instead of "Linux" plus the container
-  hostname. plexapi defaults its identifying headers to `uname()`, so every
-  admin call made through `plex_service.py` was reporting the container rather
-  than the app; the `PLEXAPI_HEADER_*` environment variables are now set at the
-  image level, which covers `MyPlexAccount` and `PlexServer` too.
+### Added
+
+- OCI image labels (`title`, `description`, `source`) on the Docker image, so
+  registries and tooling can identify and link back to the project.
+- README screenshots, including the selectable color themes.
+
+### Changed
+
+- The application version reported in the footer is now kept in sync with the
+  release tag.
 
 ## [1.0.0]
 
-- First release.
+First public release. Self-hosted Plex access and subscription manager:
+user and library management, subscription plans with expiry and renewals,
+payment collection, email and Telegram notifications, invites, broadcasts,
+reports and an audit log.
+
+[1.1.0]: https://github.com/Pantanet96/AccessFlow/releases/tag/v1.1.0
+[1.0.1]: https://github.com/Pantanet96/AccessFlow/releases/tag/v1.0.1
+[1.0.0]: https://github.com/Pantanet96/AccessFlow/releases/tag/v1.0.0
