@@ -141,26 +141,28 @@
 </div>
 <p id="userCount" class="users-count" data-tpl="{{ _('{shown} of {total} users') }}"></p>
 
+{#- No `responsive` class / data-label here, unlike the other tables: this one
+   is `hidden md:block` and the mobile viewport gets the card list below
+   instead, so the stacked-card CSS would never fire. -#}
 <div class="hidden md:block rounded-xl border border-outline-variant bg-surface-container-low overflow-x-auto">
-<table class="responsive w-full text-sm text-left" id="usersTable">
+<table class="w-full text-sm text-left" id="usersTable">
   <thead>
     <tr class="border-b border-outline-variant text-on-surface-variant text-xs uppercase tracking-wide">
-      <th class="py-3 px-4 font-semibold min-w-[11rem]">{{ _("Real name") }}</th>
-      <th class="py-3 px-4 font-semibold min-w-[8rem]">{{ _("Username") }}</th>
-      <th class="py-3 px-4 font-semibold">{{ _("Role") }}</th>
-      <th class="py-3 px-4 font-semibold min-w-[12rem]">{{ _("Contact") }}</th>
-      <th class="py-3 px-4 font-semibold min-w-[9rem]">{{ _("Manager") }}</th>
-      <th class="py-3 px-4 font-semibold min-w-[7rem]">{{ _("Plan") }}</th>
-      <th class="py-3 px-4 font-semibold">{{ _("Expiry") }}</th>
-      <th class="py-3 px-4 font-semibold">{{ _("Subscription") }}</th>
-      <th class="py-3 px-4 font-semibold">{{ _("Access") }}</th>
-      <th class="py-3 px-4 font-semibold">{{ _("Actions") }}</th>
+      <th class="py-3 px-3 font-semibold min-w-[14rem]">{{ _("Real name") }}</th>
+      <th class="py-3 px-3 font-semibold">{{ _("Role") }}</th>
+      <th class="py-3 px-3 font-semibold min-w-[12rem]">{{ _("Contact") }}</th>
+      <th class="py-3 px-3 font-semibold min-w-[9rem]">{{ _("Manager") }}</th>
+      <th class="py-3 px-3 font-semibold min-w-[7rem]">{{ _("Plan") }}</th>
+      <th class="py-3 px-3 font-semibold min-w-[6rem] text-center">{{ _("Subscription") }}</th>
+      <th class="py-3 px-3 font-semibold text-center">{{ _("Access") }}</th>
+      <th class="py-3 px-3 font-semibold">{{ _("Actions") }}</th>
     </tr>
   </thead>
   <tbody>
     {% for u in users %}
     {% set info = sub_info.get(u.id) %}
-    <tr class="border-b border-outline-variant last:border-0 hover:bg-surface-container-high/40 transition-colors"
+    <tr class="border-b border-outline-variant last:border-0 hover:bg-surface-container-high/40 transition-colors cursor-pointer"
+        data-href="/users/{{ u.id }}/subscription"
         data-name="{{ u.real_name|lower }}"
         data-email="{{ (u.plex_email or '')|lower }} {{ (u.effective_notify_email or '')|lower }} {{ (u.plex_username or '')|lower }}"
         data-role="{{ u.role.value }}"
@@ -170,17 +172,20 @@
         data-plan="{{ (info.plan if info else '')|lower }}"
         data-expcat="{{ info.cat if info else 'none' }}"
         data-expts="{{ info.expiry.strftime('%Y-%m-%d') if (info and info.expiry) else ('9999' if (info and info.cat == 'unlimited') else '') }}">
-      <td class="py-3 px-4 font-medium text-on-surface" data-label="{{ _('Real name') }}">
+      {# Username sits under the name instead of owning a column: same pairing
+         the mobile card already uses, and it buys the name field the width it
+         needs to show a full "Firstname Lastname" without clipping. #}
+      <td class="py-3 px-3 font-medium text-on-surface">
         {% if can_rename %}
         <form method="post" action="/users/{{ u.id }}/name">
           <input name="real_name" value="{{ u.real_name }}"
-                 class="w-full min-w-[9rem] bg-transparent border border-transparent hover:border-outline-variant focus:bg-surface-container rounded px-2 py-1 -mx-2 text-on-surface focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-colors"
+                 class="w-full bg-transparent border border-transparent hover:border-outline-variant focus:bg-surface-container rounded px-2 py-1 -mx-2 text-on-surface focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-colors"
                  onchange="this.form.submit()" aria-label="{{ _('Real name') }}">
         </form>
         {% else %}{{ u.real_name }}{% endif %}
+        <span class="account-handle block truncate" title="{{ u.plex_username or '' }}">{{ u.plex_username or '—' }}</span>
       </td>
-      <td class="py-3 px-4" data-label="{{ _('Username') }}"><span class="account-handle">{{ u.plex_username or '—' }}</span></td>
-      <td class="py-3 px-4" data-label="{{ _('Role') }}">
+      <td class="py-3 px-3">
         {% if can_manage_roles and u.role.value != 'superadmin' %}
         <form method="post" action="/users/{{ u.id }}/role">
           <select name="role" onchange="this.form.submit()"
@@ -192,7 +197,7 @@
         </form>
         {% else %}<span class="text-on-surface-variant">{{ u.role.value }}</span>{% endif %}
       </td>
-      <td class="py-3 px-4" data-label="{{ _('Contact') }}">
+      <td class="py-3 px-3">
         <div class="contact-cell">
           <span>{{ u.plex_email or '—' }}</span>
           {% if u.effective_notify_email and u.effective_notify_email != u.plex_email %}
@@ -205,7 +210,7 @@
           </small>{% endif %}
         </div>
       </td>
-      <td class="py-3 px-4" data-label="{{ _('Manager') }}">
+      <td class="py-3 px-3">
         {% if can_assign_manager and u.role.value == 'user' %}
         <form method="post" action="/users/{{ u.id }}/manager">
           <select name="manager_id" onchange="this.form.submit()"
@@ -218,27 +223,35 @@
         </form>
         {% else %}<span class="text-on-surface-variant">{{ managers_by_id.get(u.manager_id, '—') }}</span>{% endif %}
       </td>
-      <td class="py-3 px-4 text-on-surface-variant" data-label="{{ _('Plan') }}">{{ info.plan if info else '—' }}</td>
-      <td class="py-3 px-4 text-on-surface-variant" data-label="{{ _('Expiry') }}">
-        {% if not info %}—
-        {% elif info.cat == 'unlimited' %}∞
+      <td class="py-3 px-3 text-on-surface-variant">{{ info.plan if info else '—' }}</td>
+      {# Expiry + Subscription were two columns saying the same thing twice (an
+         expired subscription is an expired date). One cell: the date, plus the
+         badge that qualifies it. #}
+      {# Date over badge, not side by side: stacked, the column only has to be
+         as wide as the wider of the two (~6rem) instead of their sum. #}
+      <td class="py-3 px-3 text-on-surface-variant text-center">
+        {% if not info %}<span class="text-on-surface-variant">—</span>
         {% else %}
-          {{ info.expiry | date }}
-          {% if info.cat == 'expired' %}<span class="badge badge--cancelled">{{ _("Expired") }}</span>
-          {% elif info.cat == 'soon' %}<span class="badge badge--suspended">{{ _("Soon") }}</span>{% endif %}
+        <span class="flex flex-col items-center gap-1 whitespace-nowrap">
+          <span>{% if info.cat == 'unlimited' %}∞{% else %}{{ info.expiry | date }}{% endif %}</span>
+          {# One badge, not two: a non-active subscription reads "Expired"
+             whatever the date says, so the status wins over the date category. #}
+          {% if not info['_active'] or info.cat == 'expired' %}
+            <span class="badge badge--cancelled">{{ _("Expired") }}</span>
+          {% elif info.cat == 'soon' %}
+            <span class="badge badge--suspended">{{ _("Soon") }}</span>
+          {% else %}
+            <span class="badge badge--active">{{ _("Active") }}</span>
+          {% endif %}
+        </span>
         {% endif %}
       </td>
-      <td class="py-3 px-4" data-label="{{ _('Subscription') }}">
-        {% if info and info['_active'] %}<span class="badge badge--active">{{ _("Active") }}</span>
-        {% elif info %}<span class="badge badge--cancelled">{{ _("Expired") }}</span>
-        {% else %}<span class="text-on-surface-variant">—</span>{% endif %}
-      </td>
-      <td class="py-3 px-4" data-label="{{ _('Access') }}">
+      <td class="py-3 px-3 text-center">
         {% if not u.is_active %}<span class="badge badge--cancelled">{{ _("Off") }}</span>
         {% elif u.access_suspended %}<span class="badge badge--suspended">{{ _("Suspended") }}</span>
         {% else %}<span class="badge badge--active">{{ _("Active") }}</span>{% endif %}
       </td>
-      <td class="py-3 px-4" data-label="{{ _('Actions') }}">
+      <td class="py-3 px-3">
         <div class="row-actions">
           {% if can_rename %}
           <button type="button"
@@ -248,16 +261,19 @@
             <span class="material-symbols-outlined text-base" aria-hidden="true">edit</span>
           </button>
           {% endif %}
+          {# Icon-only: the labels cost ~180px of table width per row and the
+             icons are already paired with title + aria-label. #}
           <a href="/users/{{ u.id }}/subscription" role="button"
              class="btn-sm inline-flex items-center gap-1 border border-outline-variant text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-colors"
-             title="{{ _('Subscription') }}">
-            <span class="material-symbols-outlined text-base" aria-hidden="true">credit_card</span>{{ _("Subscription") }}
+             title="{{ _('Subscription') }}" aria-label="{{ _('Subscription') }}">
+            <span class="material-symbols-outlined text-base" aria-hidden="true">credit_card</span>
           </a>
           {% if can_delete and u.id != current_user.id and u.is_active and RANK[u.role.value] < RANK[current_user.role.value] %}
           <form method="post" action="/users/{{ u.id }}/delete"
                 onsubmit="return confirm('{{ _("Delete this user?") }}');">
-            <button type="submit" class="btn-sm btn-red inline-flex items-center gap-1" title="{{ _('Delete') }}">
-              <span class="material-symbols-outlined text-base" aria-hidden="true">delete</span>{{ _("Delete") }}
+            <button type="submit" class="btn-sm btn-red inline-flex items-center gap-1"
+                    title="{{ _('Delete') }}" aria-label="{{ _('Delete') }}">
+              <span class="material-symbols-outlined text-base" aria-hidden="true">delete</span>
             </button>
           </form>
           {% endif %}
@@ -302,7 +318,10 @@
       <span class="w-9 h-9 flex-none rounded-full bg-surface-container-high border border-outline-variant flex items-center justify-center text-xs font-bold text-on-surface-variant">{{ initials }}</span>
       <span class="flex-1 min-w-0">
         <span class="block font-medium text-on-surface truncate">{{ u.real_name }}</span>
-        <span class="block text-xs text-on-surface-variant">{{ u.role.value }}</span>
+        {# Role and Plex handle share one line so the card keeps its height.
+           No "—" when there's no handle (local accounts): the separator and the
+           dash would cost a third of the line to say nothing. #}
+        <span class="block text-xs text-on-surface-variant truncate">{{ u.role.value }}{% if u.plex_username %} · <span class="font-mono">{{ u.plex_username }}</span>{% endif %}</span>
       </span>
       <span class="badge {{ card_cls }} flex-none">{{ card_badge }}</span>
     </a>
@@ -413,6 +432,17 @@
       if (card && cardsList) cardsList.appendChild(card);
     });
   }
+  // Click anywhere on a row -> subscription page, same as the mobile card.
+  // Delegated on tbody so it survives the sort() re-append. The credit_card
+  // link in the actions cell stays: it's the keyboard-reachable path, and a
+  // row is not focusable.
+  tbody.addEventListener('click', (e) => {
+    if (e.target.closest('a, button, input, select, textarea, label, form')) return;
+    if (window.getSelection().toString()) return;  // don't hijack text selection
+    const tr = e.target.closest('tr[data-href]');
+    if (tr) window.location.href = tr.dataset.href;
+  });
+
   pagePrev.addEventListener('click', () => { page--; paginate(); });
   pageNext.addEventListener('click', () => { page++; paginate(); });
   perPage.addEventListener('change', () => {
