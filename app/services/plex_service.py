@@ -14,6 +14,10 @@ class PlexNotConnected(RuntimeError):
     pass
 
 
+class PlexShareNotFound(RuntimeError):
+    """No pending invite / share on plex.tv for the given address."""
+
+
 def _account() -> MyPlexAccount:
     token = runtime_config.plex_config()["token"]
     if not token:
@@ -99,10 +103,84 @@ def list_sections_safe() -> list[dict]:
         return []
 
 
+def _machine_id(server=None) -> str:
+    """machineIdentifier of the connected server (config first: no connect())."""
+    mid = runtime_config.plex_config().get("server_id") or ""
+    if mid:
+        return mid
+    if server is None:
+        _acct, server = _account_and_server()
+    return server.machineIdentifier
+
+
+def _find_share_id(account, machine_id: str, email: str) -> str | None:
+    """Id of the plex.tv `shared_servers` row for `email`, if one exists.
+
+    Reads the share list directly instead of `account.users()`: a withdrawn
+    invite can leave the share row behind after the user record is gone, and
+    that orphan is exactly what makes the next invite 400."""
+    try:
+        data = account.query(MyPlexAccount.FRIENDINVITE.format(machineId=machine_id))
+    except Exception:  # noqa: BLE001 - no share list, nothing to reconcile
+        return None
+    for elem in data if data is not None else []:
+        attrib = elem.attrib
+        candidates = {
+            (attrib.get("email") or "").lower(),
+            (attrib.get("username") or "").lower(),
+            (attrib.get("invitedEmail") or "").lower(),
+        }
+        if email.lower() in candidates - {""}:
+            return attrib.get("id")
+    return None
+
+
+def _delete_share(account, machine_id: str, share_id: str) -> None:
+    """DELETE the `shared_servers` row (plexapi has no wrapper for it)."""
+    url = MyPlexAccount.FRIENDSERVERS.format(machineId=machine_id, serverId=share_id)
+    account.query(url, account._session.delete)
+
+
 def invite_friend(email: str, sections: list[str] | None = None) -> None:
-    """Share the connected server with `email` (given library titles, or all)."""
+    """Share the connected server with `email` (given library titles, or all).
+
+    Self-healing on re-invite: plex.tv can keep the `shared_servers` row when an
+    invite is withdrawn, and a fresh POST then fails with 400 "You're already
+    sharing this server with <email>. Please edit your existing share." Rather
+    than dead-ending the admin, edit that share (or drop the stale row and
+    invite again) so the address is left shared with exactly `sections`."""
     account, server = _account_and_server()
+    _invite(account, server, email, sections)
+
+
+def _invite(account, server, email: str, sections) -> None:
+    """`inviteFriend`, recovering from plex.tv's "already sharing" 400."""
+    try:
+        account.inviteFriend(email, server, sections=sections or None)
+    except Exception as exc:  # noqa: BLE001
+        if "already sharing" not in str(exc).lower():
+            raise
+        if not _resolve_existing_share(account, server, email, sections):
+            raise
+
+
+def _resolve_existing_share(account, server, email: str, sections) -> bool:
+    """Point the share plex.tv already holds for `email` at `sections`.
+    Returns False if no existing share could be found/repaired."""
+    if sections and _is_friend(account, email):
+        # Still a known user (invite accepted, or pending but still listed):
+        # editing the share is what the plex.tv error asks for.
+        account.updateFriend(email, server, sections=sections)
+        return True
+    # Orphan share, or "all libraries" (which updateFriend can't express):
+    # drop the row and invite again from scratch.
+    machine_id = _machine_id(server)
+    share_id = _find_share_id(account, machine_id, email)
+    if share_id is None:
+        return False
+    _delete_share(account, machine_id, share_id)
     account.inviteFriend(email, server, sections=sections or None)
+    return True
 
 
 def share(email: str, sections: list[str]) -> None:
@@ -116,7 +194,7 @@ def share(email: str, sections: list[str]) -> None:
     if _is_friend(account, email):
         account.updateFriend(email, server, sections=sections)
     else:
-        account.inviteFriend(email, server, sections=sections or None)
+        _invite(account, server, email, sections)
 
 
 def unshare(email: str) -> None:
@@ -147,12 +225,33 @@ def get_user_sections(email: str) -> list[str]:
 def cancel_invite(email: str) -> None:
     """Withdraw a pending Plex invite for `email`. If it was already accepted on
     Plex (now a friend) but not yet recorded here, revoke that access instead.
-    Best-effort: raises only if `email` is neither pending nor a friend."""
+
+    Cancelling the friend request is not enough on its own: plex.tv can keep the
+    server's `shared_servers` row, and the next invite for that address then
+    fails with 400 "You're already sharing this server with ...". So sweep the
+    share list too, and only raise if nothing at all matched `email`."""
     account = _account()
+    done = False
     try:
         account.cancelInvite(email)
+        done = True
     except Exception:  # noqa: BLE001 - not pending; maybe already a friend
+        pass
+    try:
         account.removeFriend(email)
+        done = True
+    except Exception:  # noqa: BLE001 - not a friend either
+        pass
+    try:
+        machine_id = _machine_id()
+        share_id = _find_share_id(account, machine_id, email)
+        if share_id is not None:
+            _delete_share(account, machine_id, share_id)
+            done = True
+    except Exception:  # noqa: BLE001 - share sweep is best-effort
+        pass
+    if not done:
+        raise PlexShareNotFound(f"No pending invite or share found for {email}")
 
 
 def remove_friend(email: str) -> None:
