@@ -100,6 +100,11 @@ msgstr ""
 msgid "Plex invite failed: %s"
 msgstr ""
 
+#: app/routers/invites.py:172
+#, python-format
+msgid "Invite withdrawn here, but Plex did not confirm it: %s"
+msgstr ""
+
 #: app/routers/plans.py:129
 msgid "Cannot delete a plan in use. Deactivate it instead."
 msgstr ""

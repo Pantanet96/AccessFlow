@@ -1,5 +1,6 @@
 """Invite flow: admin invites an email to Plex; a pending Invite is recorded."""
 import json
+import logging
 import secrets
 
 from fastapi import APIRouter, Depends, Form, Request
@@ -18,6 +19,8 @@ from app.services import users as users_svc
 from app.templating import templates
 
 router = APIRouter()
+
+log = logging.getLogger("pum.invites")
 
 _ALLOWED_ROLES = {Role.user, Role.admin, Role.moderator}
 
@@ -133,6 +136,7 @@ def create_invite(
 
 @router.post("/invites/{invite_id}/delete")
 def delete_invite(
+    request: Request,
     invite_id: int,
     viewer: AppUser = Depends(require_capability(Capability.invite_user)),
     session: Session = Depends(get_session),
@@ -142,11 +146,30 @@ def delete_invite(
     if invite is None or invite.status != InviteStatus.pending:
         return RedirectResponse("/invites", status_code=303)
     email = invite.email
+    plex_error = None
     try:
         plex_service.cancel_invite(email)
-    except Exception:  # noqa: BLE001 - Plex withdraw is best-effort
+    except plex_service.PlexShareNotFound:
+        # Nothing left on plex.tv (withdrawn there already, or never created):
+        # dropping the local row is the whole job.
         pass
+    except Exception as exc:  # noqa: BLE001 - don't strand the invite here
+        # Withdraw locally anyway, but say so: the share may still exist on
+        # plex.tv, and swallowing this is what let the two sides drift apart.
+        log.warning("Plex withdraw failed for %s", email, exc_info=True)
+        plex_error = str(exc)
     session.delete(invite)
     session.commit()
-    audit.record(session, viewer.id, "delete_invite", "invite", invite_id, {"email": email})
+    detail = {"email": email}
+    if plex_error:
+        detail["plex_error"] = plex_error
+    audit.record(session, viewer.id, "delete_invite", "invite", invite_id, detail)
+    if plex_error:
+        return _render(
+            request,
+            viewer,
+            session,
+            error=_("Invite withdrawn here, but Plex did not confirm it: %s")
+            % plex_error,
+        )
     return RedirectResponse("/invites", status_code=303)

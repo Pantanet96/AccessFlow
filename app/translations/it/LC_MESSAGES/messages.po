@@ -97,6 +97,11 @@ msgstr "Questo account Plex non è stato invitato."
 msgid "Plex invite failed: %s"
 msgstr "Invito Plex fallito: %s"
 
+#: app/routers/invites.py:172
+#, python-format
+msgid "Invite withdrawn here, but Plex did not confirm it: %s"
+msgstr "Invito ritirato qui, ma Plex non lo ha confermato: %s"
+
 #: app/routers/plans.py:129
 msgid "Cannot delete a plan in use. Deactivate it instead."
 msgstr "Impossibile eliminare un piano in uso. Disattivalo invece."

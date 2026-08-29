@@ -202,3 +202,62 @@ def test_activation_ff_no_renewal(client, db_session, monkeypatch):
         ).first()
         is None
     )
+
+
+def test_withdraw_reports_plex_failure_but_drops_invite(
+    client, db_session, login_as, monkeypatch
+):
+    """A Plex withdraw that errors must not pass silently: the local invite goes
+    (so the admin isn't stuck) but the page says Plex didn't confirm."""
+
+    def _boom(email):
+        raise RuntimeError("(401) unauthorized")
+
+    monkeypatch.setattr(plex_service, "cancel_invite", _boom)
+    monkeypatch.setattr(
+        plex_service, "invite_friend", lambda email, sections=None: None
+    )
+    admin = _mk(db_session, Role.admin, "WdAdmin")
+    login_as(client, admin.id)
+    client.post(
+        "/invites",
+        data={"email": "wd@example.com", "real_name": "Wd", "role": "user"},
+    )
+    inv = db_session.exec(
+        select(Invite).where(Invite.email == "wd@example.com")
+    ).one()
+    resp = client.post(f"/invites/{inv.id}/delete")
+    assert resp.status_code == 200
+    assert "401" in resp.text
+    db_session.expire_all()
+    assert (
+        db_session.exec(
+            select(Invite).where(Invite.email == "wd@example.com")
+        ).first()
+        is None
+    )
+
+
+def test_withdraw_is_clean_when_plex_has_nothing(
+    client, db_session, login_as, monkeypatch
+):
+    """PlexShareNotFound just means the share was already gone -- not an error."""
+
+    def _gone(email):
+        raise plex_service.PlexShareNotFound(email)
+
+    monkeypatch.setattr(plex_service, "cancel_invite", _gone)
+    monkeypatch.setattr(
+        plex_service, "invite_friend", lambda email, sections=None: None
+    )
+    admin = _mk(db_session, Role.admin, "GoneAdmin")
+    login_as(client, admin.id)
+    client.post(
+        "/invites",
+        data={"email": "gone@example.com", "real_name": "Gone", "role": "user"},
+    )
+    inv = db_session.exec(
+        select(Invite).where(Invite.email == "gone@example.com")
+    ).one()
+    resp = client.post(f"/invites/{inv.id}/delete", follow_redirects=False)
+    assert resp.status_code == 303

@@ -5,6 +5,22 @@ All notable changes to AccessFlow are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+- **Re-inviting an address whose invite was withdrawn no longer dead-ends.** A
+  share lives in two places on plex.tv — the friend invite and the server's
+  `shared_servers` row — and withdrawing an invite only removed the first, with
+  any failure swallowed silently. The local invite disappeared while plex.tv
+  still held the share, so the next invite for that address came back
+  `400 You're already sharing this server with <email>`. Withdrawing now sweeps
+  the share list too, and inviting recovers from that 400 by editing the
+  existing share (or dropping the stale row and inviting again).
+- **A Plex withdrawal that fails is now reported.** The invite is still removed
+  locally, but the page says Plex did not confirm it and the reason is recorded
+  in the audit log, instead of the two sides drifting apart in silence.
+
 ## [1.1.0] - 2026-08-28
 
 ### Added
