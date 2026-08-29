@@ -14,7 +14,7 @@ from datetime import datetime, timedelta
 from sqlmodel import Session, select
 
 from app import runtime_config
-from app.models import AppUser, Plan, SubscriptionStatus, utcnow
+from app.models import AppUser, Plan, utcnow
 from app.services import overseerr_service, plex_service, settings_store
 from app.services.subscriptions import (
     get_active_subscription,
