@@ -31,6 +31,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **The audit log and the notification history now render in Italian.** Their
+  labels are stored in a dict and translated at render (`_(LABELS[key])`), and
+  `pybabel extract` only sees string literals sitting inside a gettext call — so
+  56 of them never reached the catalog and fell back to English regardless of
+  the chosen language. The same held for the subscription and renewal statuses
+  templates translate as `_(value|capitalize)`. Marking each literal with the
+  new `N_()` at its definition puts them in `messages.pot`; a test now fails if
+  any of them goes missing from the Italian catalog again.
 - **Re-inviting an address whose invite was withdrawn no longer dead-ends.** A
   share lives in two places on plex.tv — the friend invite and the server's
   `shared_servers` row — and withdrawing an invite only removed the first, with

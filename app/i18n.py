@@ -58,6 +58,34 @@ def gettext(message: str) -> str:
     return _load(get_current_locale()).gettext(message)
 
 
+def N_(message: str) -> str:
+    """Mark a literal for extraction without translating it here.
+
+    `pybabel extract` only sees string literals sitting inside a gettext call.
+    Copy that is stored first and translated later -- a label dict keyed by
+    action, an enum value rendered as `_(value|capitalize)` -- is invisible to
+    it, so those strings never reach the catalog and fall back to English
+    forever. Wrapping the literal at its definition puts it in messages.pot;
+    the `_()` at the point of use still does the actual lookup, once the
+    request's locale is known. `N_` is one of Babel's default keywords, so no
+    extra flag is needed on the extract command.
+    """
+    return message
+
+
+# Enum values the templates translate dynamically -- `_(status|capitalize)` in
+# index.html and subscriptions/detail.html. Nothing reads this tuple: it exists
+# so the extractor can see the literals.
+STATUS_LABELS = (
+    N_("Active"),
+    N_("Suspended"),
+    N_("Expired"),
+    N_("Cancelled"),
+    N_("Pending"),
+    N_("Paid"),
+)
+
+
 def install_jinja_i18n(templates) -> None:
     templates.env.globals["_"] = gettext
     templates.env.globals["get_locale"] = get_current_locale

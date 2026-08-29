@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-08-29 06:39+0000\n"
+"POT-Creation-Date: 2026-08-29 06:50+0000\n"
 "PO-Revision-Date: 2026-06-19 09:11+0200\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: en\n"
@@ -17,6 +17,40 @@ msgstr ""
 "Content-Type: text/plain; charset=utf-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Generated-By: Babel 2.18.0\n"
+
+#: app/i18n.py:80 app/templates/plans.html:84 app/templates/plans.html:131
+#: app/templates/subscriptions/detail.html:141 app/templates/users/list.html:99
+#: app/templates/users/list.html:106 app/templates/users/list.html:244
+#: app/templates/users/list.html:252 app/templates/users/list.html:305
+msgid "Active"
+msgstr ""
+
+#: app/i18n.py:81 app/templates/subscriptions/detail.html:140
+#: app/templates/users/list.html:100 app/templates/users/list.html:251
+#: app/templates/users/list.html:296
+msgid "Suspended"
+msgstr ""
+
+#: app/i18n.py:82 app/templates/users/list.html:107
+#: app/templates/users/list.html:126 app/templates/users/list.html:240
+#: app/templates/users/list.html:299
+msgid "Expired"
+msgstr ""
+
+#: app/i18n.py:83
+msgid "Cancelled"
+msgstr ""
+
+#: app/i18n.py:84
+msgid "Pending"
+msgstr ""
+
+#: app/i18n.py:85 app/templates/index.html:116 app/templates/index.html:124
+#: app/templates/plans.html:32 app/templates/plans.html:99
+#: app/templates/subscriptions/detail.html:260
+#: app/templates/subscriptions/detail.html:273
+msgid "Paid"
+msgstr ""
 
 #: app/templates/base.html:186 app/templates/base.html:192
 #: app/templates/base.html:199 app/templates/settings.html:14
@@ -375,21 +409,224 @@ msgstr ""
 msgid "Cannot delete a manager with assigned users. Reassign them first."
 msgstr ""
 
-#: app/services/audit.py:93
+#: app/services/audit.py:20
+msgid "signed in"
+msgstr ""
+
+#: app/services/audit.py:21
+msgid "login locked out (too many failed attempts)"
+msgstr ""
+
+#: app/services/audit.py:22
+msgid "manually sent an expiry reminder"
+msgstr ""
+
+#: app/services/audit.py:23
+msgid "updated their profile"
+msgstr ""
+
+#: app/services/audit.py:24
+msgid "changed their password"
+msgstr ""
+
+#: app/services/audit.py:25
+msgid "synced Telegram ID with Overseerr"
+msgstr ""
+
+#: app/services/audit.py:26
+msgid "assigned a plan"
+msgstr ""
+
+#: app/services/audit.py:27
+msgid "changed the plan"
+msgstr ""
+
+#: app/services/audit.py:28
+msgid "created a renewal"
+msgstr ""
+
+#: app/services/audit.py:29
+msgid "confirmed a payment / renewal"
+msgstr ""
+
+#: app/services/audit.py:30
+msgid "requested a renewal"
+msgstr ""
+
+#: app/services/audit.py:31
+msgid "deleted a renewal request"
+msgstr ""
+
+#: app/services/audit.py:32
+msgid "suspended access"
+msgstr ""
+
+#: app/services/audit.py:33
+msgid "reactivated access"
+msgstr ""
+
+#: app/services/audit.py:34
+msgid "removed from Plex"
+msgstr ""
+
+#: app/services/audit.py:35
+msgid "changed shared libraries"
+msgstr ""
+
+#: app/services/audit.py:36
+msgid "changed grace days"
+msgstr ""
+
+#: app/services/audit.py:37
+msgid "assigned a manager"
+msgstr ""
+
+#: app/services/audit.py:38
+msgid "changed the role"
+msgstr ""
+
+#: app/services/audit.py:39
+msgid "deleted a user"
+msgstr ""
+
+#: app/services/audit.py:40
+msgid "created an invite"
+msgstr ""
+
+#: app/services/audit.py:41
+msgid "withdrew an invite"
+msgstr ""
+
+#: app/services/audit.py:42
+msgid "resent an invite email"
+msgstr ""
+
+#: app/services/audit.py:43
+msgid "imported users from Plex"
+msgstr ""
+
+#: app/services/audit.py:44
+msgid "created a plan"
+msgstr ""
+
+#: app/services/audit.py:45
+msgid "edited a plan"
+msgstr ""
+
+#: app/services/audit.py:46
+msgid "deleted a plan"
+msgstr ""
+
+#: app/services/audit.py:47
+msgid "sent a broadcast"
+msgstr ""
+
+#: app/services/audit.py:48
+msgid "updated SMTP settings"
+msgstr ""
+
+#: app/services/audit.py:49
+msgid "updated Telegram settings"
+msgstr ""
+
+#: app/services/audit.py:50
+msgid "updated Overseerr settings"
+msgstr ""
+
+#: app/services/audit.py:51
+msgid "updated the public address"
+msgstr ""
+
+#: app/services/audit.py:52
+msgid "updated the reminder schedule"
+msgstr ""
+
+#: app/services/audit.py:53
+msgid "updated the manager digest window"
+msgstr ""
+
+#: app/services/audit.py:54
+msgid "updated the notification retention window"
+msgstr ""
+
+#: app/services/audit.py:55
+msgid "changed the color theme"
+msgstr ""
+
+#: app/services/audit.py:56
+msgid "edited a notification template"
+msgstr ""
+
+#: app/services/audit.py:57
+msgid "rotated the encryption key"
+msgstr ""
+
+#: app/services/audit.py:58
+msgid "renamed a user"
+msgstr ""
+
+#: app/services/audit.py:59
+msgid "connected Plex"
+msgstr ""
+
+#: app/services/audit.py:60
+msgid "selected the Plex server"
+msgstr ""
+
+#: app/services/audit.py:61
+msgid "disconnected Plex"
+msgstr ""
+
+#: app/services/audit.py:62
+msgid "set the default libraries"
+msgstr ""
+
+#: app/services/audit.py:94
 #, python-format
 msgid "sent %(n)s message(s)"
 msgstr ""
 
-#: app/services/audit.py:111
+#: app/services/audit.py:112
 #, python-format
 msgid "created %(c)s, skipped %(s)s"
 msgstr ""
 
-#: app/services/audit.py:141
+#: app/services/audit.py:142
 msgid "system"
 msgstr ""
 
-#: app/services/audit.py:232
+#: app/services/audit.py:167 app/services/audit.py:174
+#: app/services/audit.py:175 app/services/audit.py:176
+#: app/services/audit.py:177
+msgid "expiry reminder"
+msgstr ""
+
+#: app/services/audit.py:168 app/services/audit.py:178
+#: app/services/audit.py:179
+msgid "overdue notice"
+msgstr ""
+
+#: app/services/audit.py:169
+msgid "welcome"
+msgstr ""
+
+#: app/services/audit.py:170
+msgid "manager digest"
+msgstr ""
+
+#: app/services/audit.py:171
+msgid "manager collect"
+msgstr ""
+
+#: app/services/audit.py:172
+msgid "broadcast"
+msgstr ""
+
+#: app/services/audit.py:173
+msgid "invite"
+msgstr ""
+
+#: app/services/audit.py:233
 msgid "invite no longer pending"
 msgstr ""
 
@@ -772,13 +1009,6 @@ msgstr ""
 msgid "Status"
 msgstr ""
 
-#: app/templates/index.html:116 app/templates/index.html:124
-#: app/templates/plans.html:32 app/templates/plans.html:99
-#: app/templates/subscriptions/detail.html:260
-#: app/templates/subscriptions/detail.html:273
-msgid "Paid"
-msgstr ""
-
 #: app/templates/index.html:116 app/templates/index.html:125
 #: app/templates/subscriptions/detail.html:261
 #: app/templates/subscriptions/detail.html:274
@@ -893,13 +1123,6 @@ msgstr ""
 
 #: app/templates/plans.html:84 app/templates/plans.html:116
 msgid "Libraries"
-msgstr ""
-
-#: app/templates/plans.html:84 app/templates/plans.html:131
-#: app/templates/subscriptions/detail.html:141 app/templates/users/list.html:99
-#: app/templates/users/list.html:106 app/templates/users/list.html:244
-#: app/templates/users/list.html:252 app/templates/users/list.html:305
-msgid "Active"
 msgstr ""
 
 #: app/templates/plans.html:119
@@ -1927,12 +2150,6 @@ msgstr ""
 msgid "Plex access"
 msgstr ""
 
-#: app/templates/subscriptions/detail.html:140
-#: app/templates/users/list.html:100 app/templates/users/list.html:251
-#: app/templates/users/list.html:296
-msgid "Suspended"
-msgstr ""
-
 #: app/templates/subscriptions/detail.html:146
 msgid "Reactivate access"
 msgstr ""
@@ -2094,11 +2311,6 @@ msgstr ""
 #: app/templates/users/list.html:101 app/templates/users/list.html:250
 #: app/templates/users/list.html:293
 msgid "Off"
-msgstr ""
-
-#: app/templates/users/list.html:107 app/templates/users/list.html:126
-#: app/templates/users/list.html:240 app/templates/users/list.html:299
-msgid "Expired"
 msgstr ""
 
 #: app/templates/users/list.html:108 app/templates/users/list.html:130
