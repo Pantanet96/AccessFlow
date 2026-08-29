@@ -281,6 +281,28 @@
   {% if group == 'sistema' %}
   <article class="settings-card">
     <div class="flex items-center gap-2 mb-4">
+      <span class="material-symbols-outlined text-primary-container" aria-hidden="true">public</span>
+      <h3 class="text-lg font-semibold text-on-surface m-0">{{ _("Public address") }}</h3>
+    </div>
+    <p class="text-sm text-on-surface-variant mb-4">{{ _("The address users reach AccessFlow at, from outside your network. Plex sign-in and the links in outgoing email are built from it, so behind a reverse proxy it must be set here — the app cannot guess it.") }}</p>
+    {% if 'localhost' in public_base_url or '127.0.0.1' in public_base_url %}
+    <div class="flex items-start gap-2 rounded-lg border-l-4 border-status-suspended bg-status-suspended/10 px-4 py-3 mb-4 text-status-suspended">
+      <span class="material-symbols-outlined" aria-hidden="true">warning</span>
+      <p class="m-0 text-sm">{{ _("Still set to a local address: Plex sign-in and invite links will not work for anyone but you.") }}</p>
+    </div>
+    {% endif %}
+    <form method="post" action="/settings/public-url" class="space-y-4">
+      <label class="form-label">
+        {{ _("Public URL") }}
+        <input name="public_base_url" type="text" value="{{ public_base_url }}"
+               placeholder="https://accessflow.example.com" class="form-input">
+      </label>
+      <button type="submit" class="btn-primary">{{ _("Save address") }}</button>
+    </form>
+  </article>
+
+  <article class="settings-card">
+    <div class="flex items-center gap-2 mb-4">
       <span class="material-symbols-outlined text-primary-container" aria-hidden="true">palette</span>
       <h3 class="text-lg font-semibold text-on-surface m-0">{{ _("Color theme") }}</h3>
     </div>

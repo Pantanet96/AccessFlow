@@ -7,6 +7,7 @@ from app.i18n import gettext as _
 from app.models import (
     AppUser,
     AuditLog,
+    Invite,
     NotificationLog,
     NotificationType,
     Plan,
@@ -36,6 +37,8 @@ _ACTION_LABELS = {
     "change_role": "changed the role",
     "delete_user": "deleted a user",
     "create_invite": "created an invite",
+    "delete_invite": "withdrew an invite",
+    "resend_invite": "resent an invite email",
     "import_plex_users": "imported users from Plex",
     "create_plan": "created a plan",
     "edit_plan": "edited a plan",
@@ -44,6 +47,7 @@ _ACTION_LABELS = {
     "settings_smtp": "updated SMTP settings",
     "settings_telegram": "updated Telegram settings",
     "settings_overseerr": "updated Overseerr settings",
+    "settings_public_url": "updated the public address",
     "settings_reminders": "updated the reminder schedule",
     "settings_digest": "updated the manager digest window",
     "settings_notification_retention": "updated the notification retention window",
@@ -97,7 +101,7 @@ def _detail_summary(action: str, detail: dict | None) -> str:
         return str(detail.get("grace_days", ""))
     if action == "change_role":
         return detail.get("role", "")
-    if action == "create_invite":
+    if action in ("create_invite", "delete_invite", "resend_invite"):
         return detail.get("email", "")
     if action in ("create_plan", "edit_plan"):
         return detail.get("name") or detail.get("type") or ""
@@ -165,6 +169,7 @@ _NTYPE_LABELS = {
     "manager_digest": "manager digest",
     "manager_collect": "manager collect",
     "broadcast": "broadcast",
+    "invite": "invite",
     "expiry_7d": "expiry reminder",
     "expiry_3d": "expiry reminder",
     "expiry_1d": "expiry reminder",
@@ -182,6 +187,7 @@ _FILTER_NTYPES = (
     NotificationType.welcome,
     NotificationType.manager_digest,
     NotificationType.broadcast,
+    NotificationType.invite,
 )
 
 
@@ -204,7 +210,11 @@ def notification_recipients(
 ) -> dict[int, str]:
     """{user_id: real_name} for users who appear in the notification log — powers the
     recipient filter dropdown. Scoped to a manager's users (+ self) when set."""
-    ids = set(session.exec(select(NotificationLog.user_id).distinct()).all())
+    ids = {
+        uid
+        for uid in session.exec(select(NotificationLog.user_id).distinct()).all()
+        if uid is not None  # invite emails predate the AppUser
+    }
     if for_manager_id is not None:
         ids &= _managed_ids(session, for_manager_id)
     if not ids:
@@ -213,6 +223,14 @@ def notification_recipients(
     return dict(
         sorted(((u.id, u.real_name) for u in users), key=lambda kv: kv[1].lower())
     )
+
+
+def _recipient_label(row, names: dict, invite_names: dict) -> str:
+    if row.user_id is not None:
+        return names.get(row.user_id) or f"#{row.user_id}"
+    if row.invite_id is not None:
+        return invite_names.get(row.invite_id) or _("invite no longer pending")
+    return "—"
 
 
 def list_notifications(
@@ -244,10 +262,17 @@ def list_notifications(
 
     # Resolve recipient names + plan names in one pass each.
     names: dict[int, str] = {}
-    uids = {r.user_id for r in rows}
+    uids = {r.user_id for r in rows if r.user_id is not None}
     if uids:
         for u in session.exec(select(AppUser).where(AppUser.id.in_(uids))).all():
             names[u.id] = u.real_name
+    # Invite emails have no AppUser: name them by the address invited. The invite
+    # row is gone once withdrawn or accepted, hence the fallback.
+    invite_names: dict[int, str] = {}
+    inv_ids = {r.invite_id for r in rows if r.invite_id is not None}
+    if inv_ids:
+        for inv in session.exec(select(Invite).where(Invite.id.in_(inv_ids))).all():
+            invite_names[inv.id] = inv.email
     plan_by_sub: dict[int, str | None] = {}
     sub_ids = {r.subscription_id for r in rows if r.subscription_id is not None}
     if sub_ids:
@@ -266,7 +291,7 @@ def list_notifications(
         out.append({
             "id": r.id,
             "when": r.sent_at,
-            "recipient": names.get(r.user_id) or f"#{r.user_id}",
+            "recipient": _recipient_label(r, names, invite_names),
             "type_label": _(_NTYPE_LABELS.get(r.type.value, r.type.value)),
             "type_key": r.type.value,
             "channel": r.channel.value,

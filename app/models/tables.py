@@ -122,7 +122,12 @@ class NotificationLog(SQLModel, table=True):
     __tablename__ = "notification_log"
 
     id: int | None = Field(default=None, primary_key=True)
-    user_id: int = Field(foreign_key="app_user.id", index=True)
+    # Null for invite emails: the invitee has no AppUser until they first sign
+    # in with Plex. Exactly one of user_id / invite_id is set.
+    user_id: int | None = Field(default=None, foreign_key="app_user.id", index=True)
+    # Plain column, not a FK: withdrawing an invite deletes the invite row and
+    # the send history must survive that (see migration bab6915f4e8c).
+    invite_id: int | None = Field(default=None, index=True)
     subscription_id: int | None = Field(
         default=None, foreign_key="subscription.id"
     )

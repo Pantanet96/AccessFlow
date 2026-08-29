@@ -5,6 +5,7 @@ from sqlmodel import Session
 
 import json
 import secrets
+from urllib.parse import urlparse
 
 from app import runtime_config
 from app.auth.deps import require_role
@@ -61,6 +62,7 @@ def _context(session: Session, viewer: AppUser, group: str = "plex", **extra) ->
         "currency_setting": runtime_config.currency()["setting"],
         "currencies": list(runtime_config.CURRENCIES),
         "local_login_visible": runtime_config.local_login_visible(),
+        "public_base_url": runtime_config.public_base_url(),
         "color_theme_setting": runtime_config.color_theme(),
         "color_themes": list(runtime_config.COLOR_THEMES),
         "smtp": smtp,
@@ -194,7 +196,7 @@ def test_telegram(
 @router.get("/settings/plex/connect")
 def plex_connect(viewer: AppUser = Depends(_admin)):
     pin = plex_oauth.create_pin()
-    forward = get_settings().public_base_url.rstrip("/") + "/settings/plex/callback"
+    forward = runtime_config.public_base_url() + "/settings/plex/callback"
     url = plex_oauth.build_auth_url(pin["code"], forward)
     response = RedirectResponse(url, status_code=303)
     response.set_cookie(
@@ -203,7 +205,7 @@ def plex_connect(viewer: AppUser = Depends(_admin)):
         max_age=600,
         httponly=True,
         samesite="lax",
-        secure=get_settings().cookies_secure(),
+        secure=runtime_config.cookies_secure(),
     )
     return response
 
@@ -458,6 +460,53 @@ def reset_template(
         detail={"type": tpl_type, "part": part, "locale": locale, "reset": True},
     )
     return RedirectResponse("/settings/templates", status_code=303)
+
+
+# ---- Public base URL ----
+
+def _clean_base_url(raw: str) -> str:
+    """Normalize an admin-typed base URL, or "" if it isn't usable.
+    A bare host gets https:// (the common paste); trailing slashes go, because
+    every caller concatenates a path straight onto this."""
+    url = raw.strip()
+    if not url:
+        return ""
+    if "://" in url:
+        scheme, _sep, rest = url.partition("://")
+        if scheme.lower() not in ("http", "https") or not rest.strip("/"):
+            return ""
+    else:
+        url = "https://" + url
+    url = url.rstrip("/")
+    # hostname, not netloc: "https://http:" has a netloc but nothing to reach.
+    if not urlparse(url).hostname:
+        return ""
+    return url
+
+
+@router.post("/settings/public-url")
+def save_public_url(
+    request: Request,
+    public_base_url: str = Form(""),
+    viewer: AppUser = Depends(_admin),
+    session: Session = Depends(get_session),
+):
+    raw = public_base_url.strip()
+    url = _clean_base_url(raw)
+    if raw and not url:
+        return templates.TemplateResponse(
+            request,
+            "settings.html",
+            _context(
+                session, viewer, group="sistema",
+                error=_("That doesn't look like a valid URL: %s") % raw,
+            ),
+            status_code=400,
+        )
+    # Blank clears the override and falls back to the PUBLIC_BASE_URL env var.
+    settings_store.set_value(session, "public_base_url", url)
+    audit.record(session, viewer.id, "settings_public_url", detail={"url": url})
+    return RedirectResponse("/settings?group=sistema", status_code=303)
 
 
 # ---- Overseerr ----

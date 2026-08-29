@@ -12,6 +12,7 @@ from sqlalchemy import delete
 from sqlmodel import Session, select
 
 from app import runtime_config
+from app.config import get_settings
 from app.models import (
     AppUser,
     NotificationChannel,
@@ -44,17 +45,19 @@ def _amount_eur(plan: Plan) -> str:
 
 def _log_failure(
     session: Session,
-    recipient_id: int,
+    recipient_id: int | None,
     sub_id: int | None,
     ntype: NotificationType,
     channel: NotificationChannel,
     error: str,
+    invite_id: int | None = None,
 ) -> None:
     """Record a failed send for the history view. Uses a synthetic dedup_key so it
     never collides and never blocks the real send's retry on the next run."""
     session.add(
         NotificationLog(
             user_id=recipient_id,
+            invite_id=invite_id,
             subscription_id=sub_id,
             type=ntype,
             channel=channel,
@@ -69,12 +72,13 @@ def _log_failure(
 def _send_deduped(
     session: Session,
     *,
-    recipient_id: int,
-    sub_id: int,
+    recipient_id: int | None,
+    sub_id: int | None,
     ntype: NotificationType,
     channel: NotificationChannel,
     dedup_key: str,
     sender,
+    invite_id: int | None = None,
 ) -> bool:
     existing = session.exec(
         select(NotificationLog).where(NotificationLog.dedup_key == dedup_key)
@@ -90,7 +94,7 @@ def _send_deduped(
         log.warning("notification send failed (recipient=%s, key=%s): %s",
                     recipient_id, dedup_key, exc)
         _log_failure(session, recipient_id, sub_id, ntype, channel,
-                     f"{type(exc).__name__}: {exc}")
+                     f"{type(exc).__name__}: {exc}", invite_id=invite_id)
         return False
     if not sent:
         # Telegram never raises; it returns False on any failure (bot blocked,
@@ -100,11 +104,13 @@ def _send_deduped(
         # fault) -> no failure row.
         if channel == NotificationChannel.telegram:
             _log_failure(session, recipient_id, sub_id, ntype, channel,
-                         "Telegram: invio rifiutato (bot bloccato, rete o token)")
+                         "Telegram: invio rifiutato (bot bloccato, rete o token)",
+                         invite_id=invite_id)
         return False  # retry next run
     session.add(
         NotificationLog(
             user_id=recipient_id,
+            invite_id=invite_id,
             subscription_id=sub_id,
             type=ntype,
             channel=channel,
@@ -299,6 +305,59 @@ def run_manager_digests(session, today=None) -> int:
             dedup_key=f"digest:{mid}:{period}:telegram", ctx=ctx,
         )
     return sent
+
+
+# ---- Invite email (no AppUser yet: the invitee signs up on Plex first) ----
+
+def notify_invite(session: Session, invite, *, resend: bool = False) -> bool:
+    """Email an invitee the two ways in to the shared server. Returns True if the
+    message went out.
+
+    Not routed through `_send_email`: that needs an AppUser for the recipient's
+    locale and channel preferences, and an invitee has neither yet. Locale is the
+    instance default; the log row carries `invite_id` instead of `user_id`.
+    `resend` gives the send its own dedup key so an admin can retry a bounced
+    invite without the original log row swallowing it.
+
+    The dedup key is built from `invite.token`, not `invite.id`: SQLite reuses
+    row ids after a DELETE, and withdrawing an invite deletes it — an id-keyed
+    send would be silently deduped away for whoever inherited the id next."""
+    import json
+
+    base = runtime_config.public_base_url()
+    try:
+        libraries = json.loads(invite.libraries) if invite.libraries else []
+    except (ValueError, TypeError):
+        libraries = []
+    if not libraries:
+        libraries = runtime_config.plex_default_sections()
+    plan = session.get(Plan, invite.plan_id) if invite.plan_id else None
+    inviter = session.get(AppUser, invite.created_by) if invite.created_by else None
+    ctx = {
+        "name": invite.real_name,
+        "email": invite.email,
+        "login_url": f"{base}/login" if base else "",
+        "libraries": libraries,
+        "plan_name": plan.name if plan else "",
+        "inviter_name": (inviter.real_name if inviter else "") or "AccessFlow",
+    }
+    locale = get_settings().default_locale
+    subject, html, text = render_email(session, "invite", locale, ctx)
+    if not (subject or html or text):
+        return False  # template blanked out by an admin -> nothing to send
+    attempt = f":resend:{uuid.uuid4().hex}" if resend else ""
+    return _send_deduped(
+        session,
+        recipient_id=None,
+        invite_id=invite.id,
+        sub_id=None,
+        ntype=NotificationType.invite,
+        channel=NotificationChannel.email,
+        dedup_key=f"invite:{invite.token}:email{attempt}",
+        sender=lambda: mail_service.send_email(
+            invite.email, subject, text, html=html or None
+        ),
+    )
 
 
 # ---- Welcome / onboarding (one-time, on activation) ----

@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Invite email.** Inviting someone now emails them as well as sharing the
+  server on Plex, spelling out both ways in: accept the share and sign in
+  (existing Plex account), or create a free Plex account with the invited
+  address first (the common case for a new user). The copy warns that signing
+  up under a different address breaks activation, since first sign-in matches
+  the invite by email. It is a `invite` notification template like every other
+  message — editable per language from Settings → Notification templates — and
+  email-only, because an invitee has no Telegram link until after first sign-in.
+- **"Resend email" on a pending invite**, for a message that bounced or landed
+  in spam. It re-sends only the email; the Plex share is left alone.
+- **The public address is configurable** in Settings → System, instead of being
+  reachable only through the `PUBLIC_BASE_URL` env var. Plex sign-in and the
+  invite link are built from it, so a deploy behind a reverse proxy needs it
+  right; the page warns when it is still pointing at localhost. A blank value
+  falls back to the env var, and cookies stay `Secure` when either says https,
+  so a typo can't downgrade a working HTTPS deploy.
+- **Invite emails appear in the notification history** with their send status,
+  like every other message. `notification_log.user_id` is now nullable and
+  carries `invite_id` instead — the invitee has no user account yet.
+
 ### Fixed
 
 - **Re-inviting an address whose invite was withdrawn no longer dead-ends.** A

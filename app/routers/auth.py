@@ -13,7 +13,6 @@ from app.auth.session import (
     set_session_cookie,
     sign_value,
 )
-from app.config import get_settings
 from app.db import get_session
 from app.i18n import gettext as _
 from app.models import AppUser
@@ -126,7 +125,7 @@ def logout(
 @router.get("/login/plex")
 def plex_start():
     pin = plex_oauth.create_pin()
-    forward = get_settings().public_base_url.rstrip("/") + "/login/plex/callback"
+    forward = runtime_config.public_base_url() + "/login/plex/callback"
     url = plex_oauth.build_auth_url(pin["code"], forward)
     response = RedirectResponse(url, status_code=303)
     response.set_cookie(
@@ -135,7 +134,7 @@ def plex_start():
         max_age=600,
         httponly=True,
         samesite="lax",
-        secure=get_settings().cookies_secure(),
+        secure=runtime_config.cookies_secure(),
     )
     return response
 

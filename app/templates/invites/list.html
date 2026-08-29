@@ -14,6 +14,20 @@
 </div>
 {% endif %}
 
+{% if not smtp_configured %}
+<div class="flex items-start gap-gap-sm rounded-lg border-l-4 border-status-suspended bg-status-suspended/10 px-4 py-3 mb-gap-md text-status-suspended">
+  <span class="material-symbols-outlined" aria-hidden="true">mark_email_unread</span>
+  <p class="m-0 text-sm">{{ _("SMTP is not configured, so no invite email will be sent — the invitee only gets Plex's own share notice. Set it up in Settings → Notifications.") }}</p>
+</div>
+{% endif %}
+
+{% if message %}
+<div class="flex items-center gap-gap-sm rounded-lg border-l-4 border-status-active bg-status-active/10 px-4 py-3 mb-gap-md text-status-active">
+  <span class="material-symbols-outlined" aria-hidden="true">check_circle</span>
+  <p class="m-0">{{ message }}</p>
+</div>
+{% endif %}
+
 <div class="bg-surface-container-low rounded-xl border border-outline-variant p-6 md:p-8 mb-gap-lg">
   <form method="post" action="/invites" class="space-y-gap-md">
     <div class="grid grid-cols-1 md:grid-cols-2 gap-gap-md">
@@ -101,6 +115,13 @@
       <td class="px-4 py-3" data-label="{{ _('Role') }}"><span class="badge badge--{{ ROLE_BADGE.get(i.intended_role.value, 'cancelled') }}">{{ i.intended_role.value }}</span></td><td class="px-4 py-3" data-label="{{ _('Sent') }}">{{ i.plex_invite_sent_at | date }}</td>
       <td class="px-4 py-3" data-label="">
         <div class="row-actions">
+          <form method="post" action="/invites/{{ i.id }}/resend">
+            <button type="submit" class="btn-sm inline-flex items-center gap-1"
+                    title="{{ _("Send the invite email again. The Plex share is left as it is.") }}">
+              <span class="material-symbols-outlined text-[16px] leading-none" aria-hidden="true">forward_to_inbox</span>
+              {{ _("Resend email") }}
+            </button>
+          </form>
           <form method="post" action="/invites/{{ i.id }}/delete"
                 onsubmit="return confirm('{{ _("Withdraw this pending invite? It will be cancelled on Plex too.") }}');">
             <button type="submit" class="btn-sm btn-red inline-flex items-center gap-1">

@@ -33,6 +33,7 @@ class NotificationType(str, enum.Enum):
     overdue_3d = "overdue_3d"
     manager_collect = "manager_collect"
     manager_digest = "manager_digest"  # weekly cumulative collect digest
+    invite = "invite"                  # invite email (no AppUser yet)
     broadcast = "broadcast"
     welcome = "welcome"
 
