@@ -5,6 +5,19 @@ All notable changes to AccessFlow are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Security
+
+- Bumped `postcss` and `nanoid` (build-time only) past two high-severity advisories.
+- Bumped `pytest` to 9.1.1, which fixes CVE-2025-71176 in its tmp_path handling.
+- Dropped the unused `aiosmtplib` from local environments, where two of its CVEs still applied.
+
+### Changed
+
+- The asset stage now builds on Node 22 (Node 20 stopped getting security patches) and installs from the lockfile with `npm ci`, so the image no longer resolves a different transitive tree on every build.
+- Bumped `cryptography`, `alembic`, `uvicorn`, `sqlmodel` and `pydantic-settings` to their current patch releases.
+
 ## [1.2.2] - 2026-09-01
 
 ### Fixed
