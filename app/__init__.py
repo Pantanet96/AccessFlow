@@ -5,4 +5,4 @@ PATCH = bugfix/security, MINOR = new feature, MAJOR = breaking change.
 Keep in lockstep with the git tag (vX.Y.Z) and the Docker Hub image tag.
 """
 
-__version__ = "1.2.1"
+__version__ = "1.2.2"
