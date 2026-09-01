@@ -16,8 +16,8 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           # Same minor as the runtime image, not whatever the runner defaults to.
           python-version: "3.12"
@@ -32,15 +32,15 @@ jobs:
   audit:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
       # Unpinned on purpose: the point of the tool is to know about today's
       # advisories, and it only ever runs in CI.
       - run: pip install pip-audit
       - run: pip-audit -r requirements.txt
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: "22"
           cache: npm
@@ -50,6 +50,6 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       # Catch a broken multi-stage build here, not at release time.
       - run: docker build -t accessflow:ci .
