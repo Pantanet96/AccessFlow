@@ -5,7 +5,7 @@ All notable changes to AccessFlow are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.2.0] - 2026-09-01
 
 ### Added
 
@@ -50,6 +50,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **A Plex withdrawal that fails is now reported.** The invite is still removed
   locally, but the page says Plex did not confirm it and the reason is recorded
   in the audit log, instead of the two sides drifting apart in silence.
+- **List items no longer run together in the plain-text part of an email.** The
+  HTML-to-text fallback only translated `<br>` and `</p>`, so stripping the tags
+  glued every `<li>` to the next one. It shows worst on the new invite mail,
+  whose numbered steps are the instructions the invitee has to follow, and it
+  had been affecting the manager digest's per-user rows all along.
 
 ## [1.1.0] - 2026-08-28
 
@@ -130,6 +135,7 @@ user and library management, subscription plans with expiry and renewals,
 payment collection, email and Telegram notifications, invites, broadcasts,
 reports and an audit log.
 
+[1.2.0]: https://github.com/Pantanet96/AccessFlow/releases/tag/v1.2.0
 [1.1.0]: https://github.com/Pantanet96/AccessFlow/releases/tag/v1.1.0
 [1.0.1]: https://github.com/Pantanet96/AccessFlow/releases/tag/v1.0.1
 [1.0.0]: https://github.com/Pantanet96/AccessFlow/releases/tag/v1.0.0
