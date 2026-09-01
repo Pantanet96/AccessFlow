@@ -261,3 +261,18 @@ def test_withdraw_is_clean_when_plex_has_nothing(
     ).one()
     resp = client.post(f"/invites/{inv.id}/delete", follow_redirects=False)
     assert resp.status_code == 303
+
+
+def test_invitable_roles_least_privilege_first(db_session):
+    """The dropdown's first (pre-selected) option must be the safest role."""
+    from app.routers.invites import _invitable_roles
+
+    assert _invitable_roles(_mk(db_session, Role.superadmin, "OrderSuper")) == [
+        Role.user,
+        Role.moderator,
+        Role.admin,
+    ]
+    assert _invitable_roles(_mk(db_session, Role.admin, "OrderAdmin")) == [
+        Role.user,
+        Role.moderator,
+    ]
