@@ -5,6 +5,12 @@ All notable changes to AccessFlow are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.4] - 2026-09-01
+
+### Fixed
+
+- The invite role dropdown now starts at `user` instead of `admin`, so nobody is invited as an administrator by accident.
+
 ## [1.2.3] - 2026-09-01
 
 ### Security
@@ -168,6 +174,7 @@ user and library management, subscription plans with expiry and renewals,
 payment collection, email and Telegram notifications, invites, broadcasts,
 reports and an audit log.
 
+[1.2.4]: https://github.com/Pantanet96/AccessFlow/releases/tag/v1.2.4
 [1.2.3]: https://github.com/Pantanet96/AccessFlow/releases/tag/v1.2.3
 [1.2.2]: https://github.com/Pantanet96/AccessFlow/releases/tag/v1.2.2
 [1.2.1]: https://github.com/Pantanet96/AccessFlow/releases/tag/v1.2.1

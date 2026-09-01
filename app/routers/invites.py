@@ -22,18 +22,16 @@ router = APIRouter()
 
 log = logging.getLogger("pum.invites")
 
-_ALLOWED_ROLES = {Role.user, Role.admin, Role.moderator}
+# Least-privilege first: the dropdown's default pick is the safest role.
+_ALLOWED_ROLES = (Role.user, Role.moderator, Role.admin)
 
 
 def _invitable_roles(viewer: AppUser) -> list[Role]:
     """Roles the viewer may invite: only ranks they strictly outrank. Prevents an
     admin from minting a peer admin via the invite flow (role assignment proper is
-    superadmin-only via `manage_roles` + `outranks` in users.set_role). Ordered by
-    rank so the dropdown is stable."""
-    return sorted(
-        (r for r in _ALLOWED_ROLES if outranks(viewer.role, r)),
-        key=lambda r: r.value,
-    )
+    superadmin-only via `manage_roles` + `outranks` in users.set_role). Ordered
+    least-privilege first so the pre-selected option is never admin."""
+    return [r for r in _ALLOWED_ROLES if outranks(viewer.role, r)]
 
 
 def _render(request, viewer, session, error=None, message=None, status_code=200):
