@@ -3,10 +3,12 @@ import json
 
 from sqlmodel import Session, select
 
+from app.i18n import N_
 from app.i18n import gettext as _
 from app.models import (
     AppUser,
     AuditLog,
+    Invite,
     NotificationLog,
     NotificationType,
     Plan,
@@ -15,46 +17,49 @@ from app.models import (
 
 # Human-readable templates (English source strings; translated at render time).
 _ACTION_LABELS = {
-    "login": "signed in",
-    "login_lockout": "login locked out (too many failed attempts)",
-    "send_reminder": "manually sent an expiry reminder",
-    "update_profile": "updated their profile",
-    "change_password": "changed their password",
-    "telegram_sync_overseerr": "synced Telegram ID with Overseerr",
-    "create_subscription": "assigned a plan",
-    "change_plan": "changed the plan",
-    "create_renewal": "created a renewal",
-    "pay_renewal": "confirmed a payment / renewal",
-    "request_renewal": "requested a renewal",
-    "delete_renewal": "deleted a renewal request",
-    "suspend_access": "suspended access",
-    "reactivate_access": "reactivated access",
-    "remove_from_plex": "removed from Plex",
-    "set_libraries": "changed shared libraries",
-    "set_grace": "changed grace days",
-    "assign_manager": "assigned a manager",
-    "change_role": "changed the role",
-    "delete_user": "deleted a user",
-    "create_invite": "created an invite",
-    "import_plex_users": "imported users from Plex",
-    "create_plan": "created a plan",
-    "edit_plan": "edited a plan",
-    "delete_plan": "deleted a plan",
-    "broadcast": "sent a broadcast",
-    "settings_smtp": "updated SMTP settings",
-    "settings_telegram": "updated Telegram settings",
-    "settings_overseerr": "updated Overseerr settings",
-    "settings_reminders": "updated the reminder schedule",
-    "settings_digest": "updated the manager digest window",
-    "settings_notification_retention": "updated the notification retention window",
-    "settings_color_theme": "changed the color theme",
-    "settings_template": "edited a notification template",
-    "settings_rotate_key": "rotated the encryption key",
-    "rename_user": "renamed a user",
-    "plex_connect": "connected Plex",
-    "plex_select_server": "selected the Plex server",
-    "plex_disconnect": "disconnected Plex",
-    "set_default_libraries": "set the default libraries",
+    "login": N_("signed in"),
+    "login_lockout": N_("login locked out (too many failed attempts)"),
+    "send_reminder": N_("manually sent an expiry reminder"),
+    "update_profile": N_("updated their profile"),
+    "change_password": N_("changed their password"),
+    "telegram_sync_overseerr": N_("synced Telegram ID with Overseerr"),
+    "create_subscription": N_("assigned a plan"),
+    "change_plan": N_("changed the plan"),
+    "create_renewal": N_("created a renewal"),
+    "pay_renewal": N_("confirmed a payment / renewal"),
+    "request_renewal": N_("requested a renewal"),
+    "delete_renewal": N_("deleted a renewal request"),
+    "suspend_access": N_("suspended access"),
+    "reactivate_access": N_("reactivated access"),
+    "remove_from_plex": N_("removed from Plex"),
+    "set_libraries": N_("changed shared libraries"),
+    "set_grace": N_("changed grace days"),
+    "assign_manager": N_("assigned a manager"),
+    "change_role": N_("changed the role"),
+    "delete_user": N_("deleted a user"),
+    "create_invite": N_("created an invite"),
+    "delete_invite": N_("withdrew an invite"),
+    "resend_invite": N_("resent an invite email"),
+    "import_plex_users": N_("imported users from Plex"),
+    "create_plan": N_("created a plan"),
+    "edit_plan": N_("edited a plan"),
+    "delete_plan": N_("deleted a plan"),
+    "broadcast": N_("sent a broadcast"),
+    "settings_smtp": N_("updated SMTP settings"),
+    "settings_telegram": N_("updated Telegram settings"),
+    "settings_overseerr": N_("updated Overseerr settings"),
+    "settings_public_url": N_("updated the public address"),
+    "settings_reminders": N_("updated the reminder schedule"),
+    "settings_digest": N_("updated the manager digest window"),
+    "settings_notification_retention": N_("updated the notification retention window"),
+    "settings_color_theme": N_("changed the color theme"),
+    "settings_template": N_("edited a notification template"),
+    "settings_rotate_key": N_("rotated the encryption key"),
+    "rename_user": N_("renamed a user"),
+    "plex_connect": N_("connected Plex"),
+    "plex_select_server": N_("selected the Plex server"),
+    "plex_disconnect": N_("disconnected Plex"),
+    "set_default_libraries": N_("set the default libraries"),
 }
 
 
@@ -97,7 +102,7 @@ def _detail_summary(action: str, detail: dict | None) -> str:
         return str(detail.get("grace_days", ""))
     if action == "change_role":
         return detail.get("role", "")
-    if action == "create_invite":
+    if action in ("create_invite", "delete_invite", "resend_invite"):
         return detail.get("email", "")
     if action in ("create_plan", "edit_plan"):
         return detail.get("name") or detail.get("type") or ""
@@ -159,18 +164,19 @@ def list_recent(session: Session, limit: int = 200, actor_id: int | None = None)
 # English source strings; translated at render time. Legacy day-specific types map
 # onto the same two human labels as the current generic ones.
 _NTYPE_LABELS = {
-    "expiry_reminder": "expiry reminder",
-    "overdue_reminder": "overdue notice",
-    "welcome": "welcome",
-    "manager_digest": "manager digest",
-    "manager_collect": "manager collect",
-    "broadcast": "broadcast",
-    "expiry_7d": "expiry reminder",
-    "expiry_3d": "expiry reminder",
-    "expiry_1d": "expiry reminder",
-    "expiry_0d": "expiry reminder",
-    "overdue_1d": "overdue notice",
-    "overdue_3d": "overdue notice",
+    "expiry_reminder": N_("expiry reminder"),
+    "overdue_reminder": N_("overdue notice"),
+    "welcome": N_("welcome"),
+    "manager_digest": N_("manager digest"),
+    "manager_collect": N_("manager collect"),
+    "broadcast": N_("broadcast"),
+    "invite": N_("invite"),
+    "expiry_7d": N_("expiry reminder"),
+    "expiry_3d": N_("expiry reminder"),
+    "expiry_1d": N_("expiry reminder"),
+    "expiry_0d": N_("expiry reminder"),
+    "overdue_1d": N_("overdue notice"),
+    "overdue_3d": N_("overdue notice"),
 }
 
 
@@ -182,6 +188,7 @@ _FILTER_NTYPES = (
     NotificationType.welcome,
     NotificationType.manager_digest,
     NotificationType.broadcast,
+    NotificationType.invite,
 )
 
 
@@ -204,7 +211,11 @@ def notification_recipients(
 ) -> dict[int, str]:
     """{user_id: real_name} for users who appear in the notification log — powers the
     recipient filter dropdown. Scoped to a manager's users (+ self) when set."""
-    ids = set(session.exec(select(NotificationLog.user_id).distinct()).all())
+    ids = {
+        uid
+        for uid in session.exec(select(NotificationLog.user_id).distinct()).all()
+        if uid is not None  # invite emails predate the AppUser
+    }
     if for_manager_id is not None:
         ids &= _managed_ids(session, for_manager_id)
     if not ids:
@@ -213,6 +224,14 @@ def notification_recipients(
     return dict(
         sorted(((u.id, u.real_name) for u in users), key=lambda kv: kv[1].lower())
     )
+
+
+def _recipient_label(row, names: dict, invite_names: dict) -> str:
+    if row.user_id is not None:
+        return names.get(row.user_id) or f"#{row.user_id}"
+    if row.invite_id is not None:
+        return invite_names.get(row.invite_id) or _("invite no longer pending")
+    return "—"
 
 
 def list_notifications(
@@ -244,10 +263,17 @@ def list_notifications(
 
     # Resolve recipient names + plan names in one pass each.
     names: dict[int, str] = {}
-    uids = {r.user_id for r in rows}
+    uids = {r.user_id for r in rows if r.user_id is not None}
     if uids:
         for u in session.exec(select(AppUser).where(AppUser.id.in_(uids))).all():
             names[u.id] = u.real_name
+    # Invite emails have no AppUser: name them by the address invited. The invite
+    # row is gone once withdrawn or accepted, hence the fallback.
+    invite_names: dict[int, str] = {}
+    inv_ids = {r.invite_id for r in rows if r.invite_id is not None}
+    if inv_ids:
+        for inv in session.exec(select(Invite).where(Invite.id.in_(inv_ids))).all():
+            invite_names[inv.id] = inv.email
     plan_by_sub: dict[int, str | None] = {}
     sub_ids = {r.subscription_id for r in rows if r.subscription_id is not None}
     if sub_ids:
@@ -266,7 +292,7 @@ def list_notifications(
         out.append({
             "id": r.id,
             "when": r.sent_at,
-            "recipient": names.get(r.user_id) or f"#{r.user_id}",
+            "recipient": _recipient_label(r, names, invite_names),
             "type_label": _(_NTYPE_LABELS.get(r.type.value, r.type.value)),
             "type_key": r.type.value,
             "channel": r.channel.value,

@@ -7,6 +7,7 @@ from fastapi.responses import HTMLResponse, PlainTextResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from sqlmodel import Session
 
+from app import runtime_config
 from app.auth.deps import get_current_user
 from app.config import get_settings
 from app.db import get_session
@@ -31,7 +32,7 @@ def _allowed_origins(request: Request) -> set[str]:
     """Origins accepted for same-origin state-changing requests: the configured
     public base URL and the request's own scheme+host (proxy headers resolved)."""
     allowed: set[str] = set()
-    base = get_settings().public_base_url.rstrip("/")
+    base = runtime_config.public_base_url()
     if base:
         allowed.add(base)
     host = request.headers.get("host")
@@ -202,7 +203,7 @@ def create_app() -> FastAPI:
         if request.query_params.get("locale") == locale:
             response.set_cookie(
                 "locale", locale, max_age=31536000, httponly=False,
-                secure=get_settings().cookies_secure(),
+                secure=runtime_config.cookies_secure(),
             )
         return response
 

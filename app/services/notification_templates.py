@@ -30,7 +30,19 @@ TYPES: dict[str, list[str]] = {
     "manager_overdue": ["name", "user_name", "plan_name", "expiry_date", "amount_eur"],
     "manager_digest": ["name", "items", "count", "window_days", "total_eur"],
     "welcome": ["name", "plan_name", "expiry_date", "public_url", "telegram_link"],
+    "invite": ["name", "email", "login_url", "libraries", "plan_name", "inviter_name"],
 }
+
+# Types that don't use every channel. An invitee has no AppUser and no Telegram
+# link yet -- the bot is connected from the profile page after first sign-in --
+# so the invite mail is email-only and the editor shouldn't offer a dead part.
+TYPE_PARTS: dict[str, tuple[str, ...]] = {
+    "invite": ("email_subject", "email_html"),
+}
+
+
+def parts_for(type_: str) -> tuple[str, ...]:
+    return TYPE_PARTS.get(type_, PARTS)
 
 # Sample context to validate/preview a template without real data.
 SAMPLE_CTX = {
@@ -53,6 +65,10 @@ SAMPLE_CTX = {
     "count": 2,
     "window_days": 14,
     "total_eur": "55.00",
+    "email": "mario.rossi@example.com",
+    "login_url": "https://accessflow.example.com/login",
+    "libraries": ["Film", "Serie TV"],
+    "inviter_name": "Admin",
 }
 
 
@@ -96,7 +112,11 @@ _env.filters["tgmoney"] = _tgmoney
 def _html_to_text(html: str) -> str:
     """Cheap plain-text fallback for the multipart email."""
     text = re.sub(r"(?i)<br\s*/?>", "\n", html)
-    text = re.sub(r"(?i)</p\s*>", "\n\n", text)
+    # <li> carries the invite's step-by-step instructions and the digest's
+    # per-user rows; without these the items run together into one long line.
+    text = re.sub(r"(?i)<li\s*>", "- ", text)
+    text = re.sub(r"(?i)</li\s*>", "\n", text)
+    text = re.sub(r"(?i)</(p|ul|ol)\s*>", "\n\n", text)
     text = re.sub(r"<[^>]+>", "", text)
     return _htmlmod.unescape(text).strip()
 
@@ -271,6 +291,57 @@ DEFAULTS: dict[tuple[str, str], dict[str, str]] = {
         "\\(expires: {{ expiry_date|tg }}\\)\\."
         "{% if public_url %}\nRequests: {{ public_url|tg }}{% endif %}",
     ),
+    # ---- invite (email only: the invitee has no account on either side yet) ----
+    ("invite", "email_subject"): _d(
+        "Invito ad accedere al server Plex di {{ inviter_name }}",
+        "You have been invited to {{ inviter_name }}'s Plex server",
+    ),
+    ("invite", "email_html"): _d(
+        "<p>Ciao {{ name|e }},</p>"
+        "<p>{{ inviter_name|e }} ti ha invitato a condividere il suo server Plex"
+        "{% if libraries %} (librerie: {{ libraries|join(', ')|e }}){% endif %}"
+        "{% if plan_name %}, piano <strong>{{ plan_name|e }}</strong>{% endif %}.</p>"
+        "<p>L'invito è stato inviato a <strong>{{ email|e }}</strong>: usa "
+        "<strong>questo stesso indirizzo</strong> in ogni passaggio, altrimenti "
+        "l'accesso non verrà riconosciuto.</p>"
+        "<p><strong>Se hai già un account Plex</strong></p>"
+        "<ol>"
+        "<li>Apri la mail di Plex e accetta la condivisione "
+        "(oppure vai su <a href=\"https://app.plex.tv\">app.plex.tv</a>).</li>"
+        "<li>Accedi qui con il tuo account Plex: "
+        "<a href=\"{{ login_url }}\">{{ login_url }}</a></li>"
+        "</ol>"
+        "<p><strong>Se non hai ancora un account Plex</strong></p>"
+        "<ol>"
+        "<li>Crea un account gratuito su <a href=\"https://www.plex.tv\">plex.tv</a>, "
+        "usando l'indirizzo {{ email|e }}.</li>"
+        "<li>Apri la mail di Plex e accetta la condivisione.</li>"
+        "<li>Accedi qui con il tuo account Plex: "
+        "<a href=\"{{ login_url }}\">{{ login_url }}</a></li>"
+        "</ol>",
+        "<p>Hello {{ name|e }},</p>"
+        "<p>{{ inviter_name|e }} has invited you to their Plex server"
+        "{% if libraries %} (libraries: {{ libraries|join(', ')|e }}){% endif %}"
+        "{% if plan_name %}, plan <strong>{{ plan_name|e }}</strong>{% endif %}.</p>"
+        "<p>The invite was sent to <strong>{{ email|e }}</strong>: use "
+        "<strong>that same address</strong> at every step, or your access "
+        "will not be recognised.</p>"
+        "<p><strong>If you already have a Plex account</strong></p>"
+        "<ol>"
+        "<li>Open the email from Plex and accept the share "
+        "(or go to <a href=\"https://app.plex.tv\">app.plex.tv</a>).</li>"
+        "<li>Sign in here with your Plex account: "
+        "<a href=\"{{ login_url }}\">{{ login_url }}</a></li>"
+        "</ol>"
+        "<p><strong>If you do not have a Plex account yet</strong></p>"
+        "<ol>"
+        "<li>Create a free account at <a href=\"https://www.plex.tv\">plex.tv</a>, "
+        "using the address {{ email|e }}.</li>"
+        "<li>Open the email from Plex and accept the share.</li>"
+        "<li>Sign in here with your Plex account: "
+        "<a href=\"{{ login_url }}\">{{ login_url }}</a></li>"
+        "</ol>",
+    ),
 }
 
 
@@ -332,7 +403,7 @@ def editor_entries(session: Session) -> list[dict]:
     out = []
     for type_, variables in TYPES.items():
         rows = []
-        for part in PARTS:
+        for part in parts_for(type_):
             for loc in LOCALES:
                 override = settings_store.get_value(session, _override_key(type_, part, loc))
                 rows.append({

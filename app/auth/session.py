@@ -1,6 +1,7 @@
 """Signed session cookie (itsdangerous) holding the user id."""
 from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 
+from app import runtime_config
 from app.config import get_settings
 
 COOKIE_NAME = "pum_session"
@@ -44,7 +45,7 @@ def set_session_cookie(response, user) -> None:
         max_age=MAX_AGE,
         httponly=True,
         samesite="lax",
-        secure=get_settings().cookies_secure(),
+        secure=runtime_config.cookies_secure(),
     )
 
 

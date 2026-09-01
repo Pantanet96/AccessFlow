@@ -5,6 +5,52 @@ All notable changes to AccessFlow are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **Invite email.** Inviting someone now emails them as well as sharing the
+  server on Plex, spelling out both ways in: accept the share and sign in
+  (existing Plex account), or create a free Plex account with the invited
+  address first (the common case for a new user). The copy warns that signing
+  up under a different address breaks activation, since first sign-in matches
+  the invite by email. It is a `invite` notification template like every other
+  message — editable per language from Settings → Notification templates — and
+  email-only, because an invitee has no Telegram link until after first sign-in.
+- **"Resend email" on a pending invite**, for a message that bounced or landed
+  in spam. It re-sends only the email; the Plex share is left alone.
+- **The public address is configurable** in Settings → System, instead of being
+  reachable only through the `PUBLIC_BASE_URL` env var. Plex sign-in and the
+  invite link are built from it, so a deploy behind a reverse proxy needs it
+  right; the page warns when it is still pointing at localhost. A blank value
+  falls back to the env var, and cookies stay `Secure` when either says https,
+  so a typo can't downgrade a working HTTPS deploy.
+- **Invite emails appear in the notification history** with their send status,
+  like every other message. `notification_log.user_id` is now nullable and
+  carries `invite_id` instead — the invitee has no user account yet.
+
+### Fixed
+
+- **The audit log and the notification history now render in Italian.** Their
+  labels are stored in a dict and translated at render (`_(LABELS[key])`), and
+  `pybabel extract` only sees string literals sitting inside a gettext call — so
+  56 of them never reached the catalog and fell back to English regardless of
+  the chosen language. The same held for the subscription and renewal statuses
+  templates translate as `_(value|capitalize)`. Marking each literal with the
+  new `N_()` at its definition puts them in `messages.pot`; a test now fails if
+  any of them goes missing from the Italian catalog again.
+- **Re-inviting an address whose invite was withdrawn no longer dead-ends.** A
+  share lives in two places on plex.tv — the friend invite and the server's
+  `shared_servers` row — and withdrawing an invite only removed the first, with
+  any failure swallowed silently. The local invite disappeared while plex.tv
+  still held the share, so the next invite for that address came back
+  `400 You're already sharing this server with <email>`. Withdrawing now sweeps
+  the share list too, and inviting recovers from that 400 by editing the
+  existing share (or dropping the stale row and inviting again).
+- **A Plex withdrawal that fails is now reported.** The invite is still removed
+  locally, but the page says Plex did not confirm it and the reason is recorded
+  in the audit log, instead of the two sides drifting apart in silence.
+
 ## [1.1.0] - 2026-08-28
 
 ### Added

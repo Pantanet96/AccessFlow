@@ -44,3 +44,15 @@ def test_render_manager_digest_lists_items(db_session):
 def test_locale_fallback_never_empty(db_session):
     # Unknown locale -> falls back to default_locale / en, not empty.
     assert nt.render_telegram(db_session, "welcome", "fr", CTX)
+
+
+def test_plain_text_keeps_list_items_apart(db_session):
+    """The invite mail carries its instructions as <ol><li> steps. _html_to_text
+    only handled <br> and </p>, so every step ran into the next one -- the plain
+    part of the multipart mail read as a single unbroken line."""
+    _, html, text = nt.render_email(db_session, "invite", "it", CTX)
+    assert html.count("<li>") >= 2, "template should still use list items"
+    for line in text.splitlines():
+        assert line.count("- ") <= 1, f"steps merged onto one line: {line!r}"
+    # Each step is its own line, bulleted.
+    assert sum(line.startswith("- ") for line in text.splitlines()) == html.count("<li>")

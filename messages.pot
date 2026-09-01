@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-08-06 12:05+0200\n"
+"POT-Creation-Date: 2026-08-29 06:50+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -17,87 +17,149 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Generated-By: Babel 2.18.0\n"
 
-#: app/templates/base.html:183 app/templates/base.html:189
-#: app/templates/base.html:196 app/templates/settings.html:14
+#: app/i18n.py:80 app/templates/plans.html:84 app/templates/plans.html:131
+#: app/templates/subscriptions/detail.html:141 app/templates/users/list.html:99
+#: app/templates/users/list.html:106 app/templates/users/list.html:244
+#: app/templates/users/list.html:252 app/templates/users/list.html:305
+msgid "Active"
+msgstr ""
+
+#: app/i18n.py:81 app/templates/subscriptions/detail.html:140
+#: app/templates/users/list.html:100 app/templates/users/list.html:251
+#: app/templates/users/list.html:296
+msgid "Suspended"
+msgstr ""
+
+#: app/i18n.py:82 app/templates/users/list.html:107
+#: app/templates/users/list.html:126 app/templates/users/list.html:240
+#: app/templates/users/list.html:299
+msgid "Expired"
+msgstr ""
+
+#: app/i18n.py:83
+msgid "Cancelled"
+msgstr ""
+
+#: app/i18n.py:84
+msgid "Pending"
+msgstr ""
+
+#: app/i18n.py:85 app/templates/index.html:116 app/templates/index.html:124
+#: app/templates/plans.html:32 app/templates/plans.html:99
+#: app/templates/subscriptions/detail.html:260
+#: app/templates/subscriptions/detail.html:273
+msgid "Paid"
+msgstr ""
+
+#: app/templates/base.html:186 app/templates/base.html:192
+#: app/templates/base.html:199 app/templates/settings.html:14
 #: app/templates/users/list.html:2 app/templates/users/list.html:7
 #: app/templating.py:93
 msgid "Users"
 msgstr ""
 
-#: app/templates/base.html:183 app/templates/base.html:189
-#: app/templates/base.html:196 app/templates/requests.html:2
+#: app/templates/base.html:186 app/templates/base.html:192
+#: app/templates/base.html:199 app/templates/requests.html:2
 #: app/templates/requests.html:6 app/templates/requests.html:45
 #: app/templating.py:94
 msgid "Collect"
 msgstr ""
 
-#: app/templates/base.html:190 app/templates/base.html:197
+#: app/templates/base.html:193 app/templates/base.html:200
 #: app/templates/invites/list.html:2 app/templating.py:97
 msgid "Invites"
 msgstr ""
 
-#: app/templates/base.html:190 app/templates/base.html:197
+#: app/templates/base.html:193 app/templates/base.html:200
 #: app/templates/broadcast.html:2 app/templating.py:98
 msgid "Broadcast"
 msgstr ""
 
-#: app/templates/base.html:191 app/templates/base.html:198
+#: app/templates/base.html:194 app/templates/base.html:201
 #: app/templates/reports.html:2 app/templates/reports.html:7
 #: app/templating.py:99
 msgid "Reports"
 msgstr ""
 
 #: app/templates/audit.html:2 app/templates/audit.html:7
-#: app/templates/base.html:191 app/templates/base.html:198
+#: app/templates/base.html:194 app/templates/base.html:201
 #: app/templating.py:100
 msgid "Audit log"
 msgstr ""
 
-#: app/templates/base.html:199 app/templates/plans.html:2
+#: app/templates/base.html:202 app/templates/plans.html:2
 #: app/templates/plans.html:6 app/templating.py:103
 msgid "Plans"
 msgstr ""
 
 #: app/templates/audit.html:7 app/templates/audit.html:15
-#: app/templates/base.html:184 app/templating.py:105
+#: app/templates/base.html:187 app/templating.py:105
 msgid "Sent notifications"
 msgstr ""
 
-#: app/templates/base.html:178 app/templating.py:107
+#: app/templates/base.html:181 app/templating.py:107
 msgid "My subscription"
 msgstr ""
 
-#: app/templates/base.html:179 app/templates/base.html:185
-#: app/templates/base.html:192 app/templates/base.html:200
+#: app/templates/base.html:182 app/templates/base.html:188
+#: app/templates/base.html:195 app/templates/base.html:203
 #: app/templating.py:108
 msgid "Profile"
 msgstr ""
 
-#: app/templates/base.html:200 app/templates/settings.html:2
+#: app/templates/base.html:203 app/templates/settings.html:2
 #: app/templates/settings.html:8 app/templating.py:110
 msgid "Settings"
 msgstr ""
 
-#: app/routers/auth.py:57
+#: app/routers/auth.py:56
 #, python-format
 msgid "Too many failed attempts. Try again in about %(minutes)d minute(s)."
 msgstr ""
 
-#: app/routers/auth.py:98
+#: app/routers/auth.py:97
 msgid "Invalid username or password"
 msgstr ""
 
-#: app/routers/auth.py:157
+#: app/routers/auth.py:156
 msgid "Plex sign-in was not completed. Please try again."
 msgstr ""
 
-#: app/routers/auth.py:170
+#: app/routers/auth.py:169
 msgid "This Plex account is not invited."
 msgstr ""
 
-#: app/routers/invites.py:111
+#: app/routers/invites.py:116
 #, python-format
 msgid "Plex invite failed: %s"
+msgstr ""
+
+#: app/routers/invites.py:147
+#, python-format
+msgid "Invited on Plex, but the email could not be sent: %s"
+msgstr ""
+
+#: app/routers/invites.py:157
+msgid "Invited on Plex, but no email was sent — check the SMTP settings."
+msgstr ""
+
+#: app/routers/invites.py:181
+#, python-format
+msgid "Email could not be sent: %s"
+msgstr ""
+
+#: app/routers/invites.py:190
+msgid "No email was sent — check the SMTP settings."
+msgstr ""
+
+#: app/routers/invites.py:194
+#, python-format
+msgid "Invite email sent again to %s."
+msgstr ""
+
+#: app/routers/invites.py:233
+#, python-format
+msgid "Invite withdrawn here, but Plex did not confirm it: %s"
 msgstr ""
 
 #: app/routers/plans.py:129
@@ -200,15 +262,14 @@ msgid "User"
 msgstr ""
 
 #: app/routers/reports.py:93 app/templates/audit.html:60
-#: app/templates/invites/list.html:50 app/templates/reports.html:149
+#: app/templates/invites/list.html:64 app/templates/reports.html:149
 #: app/templates/reports.html:163 app/templates/reports.html:187
 #: app/templates/reports.html:199 app/templates/requests.html:27
 #: app/templates/requests.html:37 app/templates/requests.html:70
 #: app/templates/requests.html:81 app/templates/subscriptions/detail.html:75
 #: app/templates/subscriptions/detail.html:256
 #: app/templates/subscriptions/detail.html:269
-#: app/templates/users/list.html:118 app/templates/users/list.html:153
-#: app/templates/users/list.html:221
+#: app/templates/users/list.html:118 app/templates/users/list.html:155
 msgid "Plan"
 msgstr ""
 
@@ -222,12 +283,12 @@ msgstr ""
 msgid "Collected by"
 msgstr ""
 
-#: app/routers/reports.py:94 app/templates/invites/list.html:40
+#: app/routers/reports.py:94 app/templates/invites/list.html:54
 #: app/templates/reports.html:21 app/templates/reports.html:108
 #: app/templates/reports.html:119 app/templates/reports.html:151
 #: app/templates/reports.html:165 app/templates/subscriptions/detail.html:44
 #: app/templates/users/list.html:111 app/templates/users/list.html:137
-#: app/templates/users/list.html:152 app/templates/users/list.html:208
+#: app/templates/users/list.html:154
 msgid "Manager"
 msgstr ""
 
@@ -236,88 +297,93 @@ msgstr ""
 msgid "Superadmin"
 msgstr ""
 
-#: app/routers/settings.py:137
+#: app/routers/settings.py:139
 msgid "AccessFlow — test email"
 msgstr ""
 
-#: app/routers/settings.py:137
+#: app/routers/settings.py:139
 msgid "SMTP is configured correctly."
 msgstr ""
 
-#: app/routers/settings.py:140
+#: app/routers/settings.py:142
 #, python-format
 msgid "Test email sent to %s"
 msgstr ""
 
-#: app/routers/settings.py:142
+#: app/routers/settings.py:144
 msgid "SMTP not configured (no host)."
 msgstr ""
 
-#: app/routers/settings.py:145
+#: app/routers/settings.py:147
 #, python-format
 msgid "Send failed: %s"
 msgstr ""
 
-#: app/routers/settings.py:176
+#: app/routers/settings.py:178
 #, python-format
 msgid "Bot OK: @%s"
 msgstr ""
 
-#: app/routers/settings.py:180
+#: app/routers/settings.py:182
 msgid "AccessFlow — test message."
 msgstr ""
 
-#: app/routers/settings.py:182
+#: app/routers/settings.py:184
 msgid "(test message sent to your Telegram)"
 msgstr ""
 
-#: app/routers/settings.py:185
+#: app/routers/settings.py:187
 #, python-format
 msgid "Bot test failed: %s"
 msgstr ""
 
-#: app/routers/settings.py:227
+#: app/routers/settings.py:229
 msgid "Plex sign-in was not completed."
 msgstr ""
 
-#: app/routers/settings.py:433
+#: app/routers/settings.py:435
 #, python-format
 msgid "Template error: %s"
 msgstr ""
 
-#: app/routers/settings.py:443
+#: app/routers/settings.py:445
 msgid "Template saved."
 msgstr ""
 
-#: app/routers/settings.py:510
+#: app/routers/settings.py:502
+#, python-format
+msgid "That doesn't look like a valid URL: %s"
+msgstr ""
+
+#: app/routers/settings.py:559
 msgid "New secret must be at least 16 characters."
 msgstr ""
 
-#: app/routers/settings.py:519
+#: app/routers/settings.py:568
 msgid "New secret is identical to the current one."
 msgstr ""
 
-#: app/routers/settings.py:530
+#: app/routers/settings.py:579
 #, python-format
 msgid "Key rotation failed: %s"
 msgstr ""
 
-#: app/routers/settings.py:551
+#: app/routers/settings.py:600
 #, python-format
 msgid "Connection OK and API key valid — Overseerr version %s"
 msgstr ""
 
-#: app/routers/settings.py:557
+#: app/routers/settings.py:606
 #, python-format
 msgid "URL unreachable — check the Base URL. (%s)"
 msgstr ""
 
-#: app/routers/settings.py:562
+#: app/routers/settings.py:611
 #, python-format
 msgid "URL OK but the API key was rejected — check the API key. (%s)"
 msgstr ""
 
-#: app/routers/settings.py:566
+#: app/routers/settings.py:615
 #, python-format
 msgid "Overseerr test failed: %s"
 msgstr ""
@@ -342,18 +408,225 @@ msgstr ""
 msgid "Cannot delete a manager with assigned users. Reassign them first."
 msgstr ""
 
-#: app/services/audit.py:89
+#: app/services/audit.py:20
+msgid "signed in"
+msgstr ""
+
+#: app/services/audit.py:21
+msgid "login locked out (too many failed attempts)"
+msgstr ""
+
+#: app/services/audit.py:22
+msgid "manually sent an expiry reminder"
+msgstr ""
+
+#: app/services/audit.py:23
+msgid "updated their profile"
+msgstr ""
+
+#: app/services/audit.py:24
+msgid "changed their password"
+msgstr ""
+
+#: app/services/audit.py:25
+msgid "synced Telegram ID with Overseerr"
+msgstr ""
+
+#: app/services/audit.py:26
+msgid "assigned a plan"
+msgstr ""
+
+#: app/services/audit.py:27
+msgid "changed the plan"
+msgstr ""
+
+#: app/services/audit.py:28
+msgid "created a renewal"
+msgstr ""
+
+#: app/services/audit.py:29
+msgid "confirmed a payment / renewal"
+msgstr ""
+
+#: app/services/audit.py:30
+msgid "requested a renewal"
+msgstr ""
+
+#: app/services/audit.py:31
+msgid "deleted a renewal request"
+msgstr ""
+
+#: app/services/audit.py:32
+msgid "suspended access"
+msgstr ""
+
+#: app/services/audit.py:33
+msgid "reactivated access"
+msgstr ""
+
+#: app/services/audit.py:34
+msgid "removed from Plex"
+msgstr ""
+
+#: app/services/audit.py:35
+msgid "changed shared libraries"
+msgstr ""
+
+#: app/services/audit.py:36
+msgid "changed grace days"
+msgstr ""
+
+#: app/services/audit.py:37
+msgid "assigned a manager"
+msgstr ""
+
+#: app/services/audit.py:38
+msgid "changed the role"
+msgstr ""
+
+#: app/services/audit.py:39
+msgid "deleted a user"
+msgstr ""
+
+#: app/services/audit.py:40
+msgid "created an invite"
+msgstr ""
+
+#: app/services/audit.py:41
+msgid "withdrew an invite"
+msgstr ""
+
+#: app/services/audit.py:42
+msgid "resent an invite email"
+msgstr ""
+
+#: app/services/audit.py:43
+msgid "imported users from Plex"
+msgstr ""
+
+#: app/services/audit.py:44
+msgid "created a plan"
+msgstr ""
+
+#: app/services/audit.py:45
+msgid "edited a plan"
+msgstr ""
+
+#: app/services/audit.py:46
+msgid "deleted a plan"
+msgstr ""
+
+#: app/services/audit.py:47
+msgid "sent a broadcast"
+msgstr ""
+
+#: app/services/audit.py:48
+msgid "updated SMTP settings"
+msgstr ""
+
+#: app/services/audit.py:49
+msgid "updated Telegram settings"
+msgstr ""
+
+#: app/services/audit.py:50
+msgid "updated Overseerr settings"
+msgstr ""
+
+#: app/services/audit.py:51
+msgid "updated the public address"
+msgstr ""
+
+#: app/services/audit.py:52
+msgid "updated the reminder schedule"
+msgstr ""
+
+#: app/services/audit.py:53
+msgid "updated the manager digest window"
+msgstr ""
+
+#: app/services/audit.py:54
+msgid "updated the notification retention window"
+msgstr ""
+
+#: app/services/audit.py:55
+msgid "changed the color theme"
+msgstr ""
+
+#: app/services/audit.py:56
+msgid "edited a notification template"
+msgstr ""
+
+#: app/services/audit.py:57
+msgid "rotated the encryption key"
+msgstr ""
+
+#: app/services/audit.py:58
+msgid "renamed a user"
+msgstr ""
+
+#: app/services/audit.py:59
+msgid "connected Plex"
+msgstr ""
+
+#: app/services/audit.py:60
+msgid "selected the Plex server"
+msgstr ""
+
+#: app/services/audit.py:61
+msgid "disconnected Plex"
+msgstr ""
+
+#: app/services/audit.py:62
+msgid "set the default libraries"
+msgstr ""
+
+#: app/services/audit.py:94
 #, python-format
 msgid "sent %(n)s message(s)"
 msgstr ""
 
-#: app/services/audit.py:107
+#: app/services/audit.py:112
 #, python-format
 msgid "created %(c)s, skipped %(s)s"
 msgstr ""
 
-#: app/services/audit.py:137
+#: app/services/audit.py:142
 msgid "system"
+msgstr ""
+
+#: app/services/audit.py:167 app/services/audit.py:174
+#: app/services/audit.py:175 app/services/audit.py:176
+#: app/services/audit.py:177
+msgid "expiry reminder"
+msgstr ""
+
+#: app/services/audit.py:168 app/services/audit.py:178
+#: app/services/audit.py:179
+msgid "overdue notice"
+msgstr ""
+
+#: app/services/audit.py:169
+msgid "welcome"
+msgstr ""
+
+#: app/services/audit.py:170
+msgid "manager digest"
+msgstr ""
+
+#: app/services/audit.py:171
+msgid "manager collect"
+msgstr ""
+
+#: app/services/audit.py:172
+msgid "broadcast"
+msgstr ""
+
+#: app/services/audit.py:173
+msgid "invite"
+msgstr ""
+
+#: app/services/audit.py:233
+msgid "invite no longer pending"
 msgstr ""
 
 #: app/templates/audit.html:14
@@ -391,7 +664,7 @@ msgid "All outcomes"
 msgstr ""
 
 #: app/templates/audit.html:38 app/templates/audit.html:62
-#: app/templates/invites/list.html:93 app/templates/invites/list.html:101
+#: app/templates/invites/list.html:107 app/templates/invites/list.html:115
 msgid "Sent"
 msgstr ""
 
@@ -441,7 +714,7 @@ msgid "No activity recorded yet."
 msgstr ""
 
 #: app/templates/base.html:6 app/templates/base.html:104
-#: app/templates/base.html:123 app/templates/index.html:5
+#: app/templates/base.html:126 app/templates/index.html:5
 msgid "AccessFlow"
 msgstr ""
 
@@ -454,131 +727,131 @@ msgstr ""
 msgid "Sign out"
 msgstr ""
 
-#: app/templates/base.html:126 app/templates/profile.html:111
+#: app/templates/base.html:129 app/templates/profile.html:111
 msgid "Language"
 msgstr ""
 
-#: app/templates/base.html:144
+#: app/templates/base.html:147
 msgid "Dismiss"
 msgstr ""
 
-#: app/templates/base.html:157
+#: app/templates/base.html:160
 msgid ""
 "AccessFlow is an independent project, not affiliated with or endorsed by "
 "Plex, Inc."
 msgstr ""
 
-#: app/templates/base.html:177 app/templates/base.html:182
-#: app/templates/base.html:188 app/templates/base.html:195
+#: app/templates/base.html:180 app/templates/base.html:185
+#: app/templates/base.html:191 app/templates/base.html:198
 msgid "Welcome!"
 msgstr ""
 
-#: app/templates/base.html:177
+#: app/templates/base.html:180
 msgid ""
 "AccessFlow helps you keep track of your Plex subscription: expiry, "
 "renewals and notifications, all in one place."
 msgstr ""
 
-#: app/templates/base.html:178
+#: app/templates/base.html:181
 msgid ""
 "This is where you'll find your active plan, its expiry date and your "
 "payment status."
 msgstr ""
 
-#: app/templates/base.html:179 app/templates/base.html:185
-#: app/templates/base.html:192
+#: app/templates/base.html:182 app/templates/base.html:188
+#: app/templates/base.html:195
 msgid "Here you can manage your email, Telegram ID and expiry notifications."
 msgstr ""
 
-#: app/templates/base.html:182
+#: app/templates/base.html:185
 msgid ""
 "AccessFlow helps you manage accounts and collect outstanding payments for"
 " your Plex library."
 msgstr ""
 
-#: app/templates/base.html:183 app/templates/base.html:189
-#: app/templates/base.html:196
+#: app/templates/base.html:186 app/templates/base.html:192
+#: app/templates/base.html:199
 msgid "Users & Collect"
 msgstr ""
 
-#: app/templates/base.html:183
+#: app/templates/base.html:186
 #, python-format
 msgid ""
 "\"%(users)s\" manages accounts within your permissions; \"%(collect)s\" "
 "tracks payments still to be collected."
 msgstr ""
 
-#: app/templates/base.html:184
+#: app/templates/base.html:187
 msgid ""
 "Here you can review the renewal and expiry notifications already sent to "
 "users."
 msgstr ""
 
-#: app/templates/base.html:188 app/templates/base.html:195
+#: app/templates/base.html:191 app/templates/base.html:198
 msgid ""
 "AccessFlow centralizes user management, subscriptions and communication "
 "for your Plex library."
 msgstr ""
 
-#: app/templates/base.html:189 app/templates/base.html:196
+#: app/templates/base.html:192 app/templates/base.html:199
 #, python-format
 msgid ""
 "\"%(users)s\" manages every account; \"%(collect)s\" tracks payments "
 "still to be collected."
 msgstr ""
 
-#: app/templates/base.html:190 app/templates/base.html:197
+#: app/templates/base.html:193 app/templates/base.html:200
 msgid "Invites & Broadcast"
 msgstr ""
 
-#: app/templates/base.html:190 app/templates/base.html:197
+#: app/templates/base.html:193 app/templates/base.html:200
 #, python-format
 msgid ""
 "\"%(invites)s\" brings in new members; \"%(broadcast)s\" sends a message "
 "to everyone at once."
 msgstr ""
 
-#: app/templates/base.html:191 app/templates/base.html:198
+#: app/templates/base.html:194 app/templates/base.html:201
 msgid "Reports & Audit log"
 msgstr ""
 
-#: app/templates/base.html:191 app/templates/base.html:198
+#: app/templates/base.html:194 app/templates/base.html:201
 #, python-format
 msgid ""
 "\"%(reports)s\" gives you subscription and revenue stats; \"%(audit)s\" "
 "is the full action history."
 msgstr ""
 
-#: app/templates/base.html:199
+#: app/templates/base.html:202
 msgid ""
 "This is where you configure the subscription plans available to invite "
 "users into."
 msgstr ""
 
-#: app/templates/base.html:200
+#: app/templates/base.html:203
 msgid "Settings & Profile"
 msgstr ""
 
-#: app/templates/base.html:200
+#: app/templates/base.html:203
 #, python-format
 msgid ""
 "\"%(settings)s\" configures Plex, SMTP and Telegram; \"%(profile)s\" "
 "manages your own account."
 msgstr ""
 
-#: app/templates/base.html:221
+#: app/templates/base.html:224
 msgid "Skip"
 msgstr ""
 
-#: app/templates/base.html:224 app/templates/settings_plex_select.html:35
+#: app/templates/base.html:227 app/templates/settings_plex_select.html:35
 msgid "Back"
 msgstr ""
 
-#: app/templates/base.html:225 app/templates/base.html:226
+#: app/templates/base.html:228 app/templates/base.html:229
 msgid "Next"
 msgstr ""
 
-#: app/templates/base.html:225
+#: app/templates/base.html:228
 msgid "Done"
 msgstr ""
 
@@ -735,13 +1008,6 @@ msgstr ""
 msgid "Status"
 msgstr ""
 
-#: app/templates/index.html:116 app/templates/index.html:124
-#: app/templates/plans.html:32 app/templates/plans.html:99
-#: app/templates/subscriptions/detail.html:260
-#: app/templates/subscriptions/detail.html:273
-msgid "Paid"
-msgstr ""
-
 #: app/templates/index.html:116 app/templates/index.html:125
 #: app/templates/subscriptions/detail.html:261
 #: app/templates/subscriptions/detail.html:274
@@ -792,7 +1058,7 @@ msgstr ""
 msgid "or"
 msgstr ""
 
-#: app/templates/login.html:29 app/templates/settings.html:304
+#: app/templates/login.html:29 app/templates/settings.html:326
 msgid "Local administrator login"
 msgstr ""
 
@@ -805,7 +1071,6 @@ msgid "Administrator login"
 msgstr ""
 
 #: app/templates/login_local.html:21 app/templates/settings.html:138
-#: app/templates/users/list.html:149 app/templates/users/list.html:182
 msgid "Username"
 msgstr ""
 
@@ -859,13 +1124,6 @@ msgstr ""
 msgid "Libraries"
 msgstr ""
 
-#: app/templates/plans.html:84 app/templates/plans.html:131
-#: app/templates/subscriptions/detail.html:141 app/templates/users/list.html:99
-#: app/templates/users/list.html:106 app/templates/users/list.html:232
-#: app/templates/users/list.html:239 app/templates/users/list.html:289
-msgid "Active"
-msgstr ""
-
 #: app/templates/plans.html:119
 msgid "libraries"
 msgstr ""
@@ -885,8 +1143,7 @@ msgid "Delete this plan?"
 msgstr ""
 
 #: app/templates/plans.html:148 app/templates/requests.html:95
-#: app/templates/subscriptions/detail.html:63 app/templates/users/list.html:259
-#: app/templates/users/list.html:260
+#: app/templates/subscriptions/detail.html:63 app/templates/users/list.html:275
 msgid "Delete"
 msgstr ""
 
@@ -906,10 +1163,10 @@ msgstr ""
 msgid "Replay the tutorial"
 msgstr ""
 
-#: app/templates/invites/list.html:26 app/templates/invites/list.html:93
-#: app/templates/invites/list.html:100 app/templates/profile.html:19
-#: app/templates/subscriptions/detail.html:19 app/templates/users/list.html:148
-#: app/templates/users/list.html:173 app/templates/users/list.html:178
+#: app/templates/invites/list.html:40 app/templates/invites/list.html:107
+#: app/templates/invites/list.html:114 app/templates/profile.html:19
+#: app/templates/subscriptions/detail.html:19 app/templates/users/list.html:151
+#: app/templates/users/list.html:183
 msgid "Real name"
 msgstr ""
 
@@ -1208,8 +1465,7 @@ msgstr ""
 
 #: app/templates/reports.html:189 app/templates/reports.html:201
 #: app/templates/requests.html:28 app/templates/requests.html:38
-#: app/templates/users/list.html:123 app/templates/users/list.html:154
-#: app/templates/users/list.html:222
+#: app/templates/users/list.html:123
 msgid "Expiry"
 msgstr ""
 
@@ -1577,57 +1833,82 @@ msgid "Save currency"
 msgstr ""
 
 #: app/templates/settings.html:285
-msgid "Color theme"
+msgid "Public address"
 msgstr ""
 
 #: app/templates/settings.html:287
+msgid ""
+"The address users reach AccessFlow at, from outside your network. Plex "
+"sign-in and the links in outgoing email are built from it, so behind a "
+"reverse proxy it must be set here — the app cannot guess it."
+msgstr ""
+
+#: app/templates/settings.html:291
+msgid ""
+"Still set to a local address: Plex sign-in and invite links will not work"
+" for anyone but you."
+msgstr ""
+
+#: app/templates/settings.html:296
+msgid "Public URL"
+msgstr ""
+
+#: app/templates/settings.html:300
+msgid "Save address"
+msgstr ""
+
+#: app/templates/settings.html:307
+msgid "Color theme"
+msgstr ""
+
+#: app/templates/settings.html:309
 msgid "Choose the color palette used across the app."
 msgstr ""
 
-#: app/templates/settings.html:290
+#: app/templates/settings.html:312
 msgid "Theme"
 msgstr ""
 
-#: app/templates/settings.html:297
+#: app/templates/settings.html:319
 msgid "Save theme"
 msgstr ""
 
-#: app/templates/settings.html:306
+#: app/templates/settings.html:328
 msgid ""
 "Show the local login link on the sign-in page. Usually only needed for "
 "first-time setup — the page stays reachable at /login/local either way."
 msgstr ""
 
-#: app/templates/settings.html:312
+#: app/templates/settings.html:334
 msgid "Show local login link"
 msgstr ""
 
-#: app/templates/settings.html:320
+#: app/templates/settings.html:342
 msgid "Encryption key (advanced)"
 msgstr ""
 
-#: app/templates/settings.html:322
+#: app/templates/settings.html:344
 msgid ""
 "Re-encrypts all stored secrets with a new APP_SECRET_KEY. After rotating "
 "you MUST update the env var and restart, or the app can't read its "
 "settings until you do."
 msgstr ""
 
-#: app/templates/settings.html:324
+#: app/templates/settings.html:346
 msgid ""
 "Rotate the encryption key? You will need to update APP_SECRET_KEY and "
 "restart immediately afterwards."
 msgstr ""
 
-#: app/templates/settings.html:326
+#: app/templates/settings.html:348
 msgid "New secret (leave blank to auto-generate)"
 msgstr ""
 
-#: app/templates/settings.html:327
+#: app/templates/settings.html:349
 msgid "auto-generate"
 msgstr ""
 
-#: app/templates/settings.html:329
+#: app/templates/settings.html:351
 msgid "Rotate encryption key"
 msgstr ""
 
@@ -1749,53 +2030,65 @@ msgstr ""
 msgid "Invite a user"
 msgstr ""
 
-#: app/templates/invites/list.html:21 app/templates/invites/list.html:93
-#: app/templates/invites/list.html:100
+#: app/templates/invites/list.html:20
+msgid ""
+"SMTP is not configured, so no invite email will be sent — the invitee "
+"only gets Plex's own share notice. Set it up in Settings → Notifications."
+msgstr ""
+
+#: app/templates/invites/list.html:35 app/templates/invites/list.html:107
+#: app/templates/invites/list.html:114
 msgid "Email"
 msgstr ""
 
-#: app/templates/invites/list.html:33 app/templates/invites/list.html:93
-#: app/templates/invites/list.html:101
+#: app/templates/invites/list.html:47 app/templates/invites/list.html:107
+#: app/templates/invites/list.html:115
 #: app/templates/subscriptions/detail.html:30 app/templates/users/list.html:90
-#: app/templates/users/list.html:136 app/templates/users/list.html:150
-#: app/templates/users/list.html:183
+#: app/templates/users/list.html:136 app/templates/users/list.html:152
 msgid "Role"
 msgstr ""
 
-#: app/templates/invites/list.html:43 app/templates/invites/list.html:53
+#: app/templates/invites/list.html:57 app/templates/invites/list.html:67
 #: app/templates/subscriptions/detail.html:49 app/templates/users/list.html:115
-#: app/templates/users/list.html:213
+#: app/templates/users/list.html:218
 msgid "— none —"
 msgstr ""
 
-#: app/templates/invites/list.html:58
+#: app/templates/invites/list.html:72
 msgid "Trial days (Trial plan only, max 30)"
 msgstr ""
 
-#: app/templates/invites/list.html:65
+#: app/templates/invites/list.html:79
 msgid "Libraries to share (default if none checked)"
 msgstr ""
 
-#: app/templates/invites/list.html:79
+#: app/templates/invites/list.html:93
 msgid "Send Plex invite"
 msgstr ""
 
-#: app/templates/invites/list.html:86
+#: app/templates/invites/list.html:100
 msgid "Pending invites"
 msgstr ""
 
-#: app/templates/invites/list.html:105
+#: app/templates/invites/list.html:120
+msgid "Send the invite email again. The Plex share is left as it is."
+msgstr ""
+
+#: app/templates/invites/list.html:122
+msgid "Resend email"
+msgstr ""
+
+#: app/templates/invites/list.html:126
 msgid "Withdraw this pending invite? It will be cancelled on Plex too."
 msgstr ""
 
-#: app/templates/invites/list.html:108
+#: app/templates/invites/list.html:129
 msgid "Withdraw"
 msgstr ""
 
 #: app/templates/subscriptions/detail.html:2
 #: app/templates/subscriptions/detail.html:6 app/templates/users/list.html:103
-#: app/templates/users/list.html:155 app/templates/users/list.html:231
-#: app/templates/users/list.html:253 app/templates/users/list.html:254
+#: app/templates/users/list.html:156 app/templates/users/list.html:268
 msgid "Subscription"
 msgstr ""
 
@@ -1803,7 +2096,7 @@ msgstr ""
 msgid "Account"
 msgstr ""
 
-#: app/templates/subscriptions/detail.html:59 app/templates/users/list.html:258
+#: app/templates/subscriptions/detail.html:59 app/templates/users/list.html:273
 msgid "Delete this user?"
 msgstr ""
 
@@ -1848,18 +2141,12 @@ msgid "Apply plan"
 msgstr ""
 
 #: app/templates/subscriptions/detail.html:137 app/templates/users/list.html:96
-#: app/templates/users/list.html:156 app/templates/users/list.html:236
+#: app/templates/users/list.html:157
 msgid "Access"
 msgstr ""
 
 #: app/templates/subscriptions/detail.html:139
 msgid "Plex access"
-msgstr ""
-
-#: app/templates/subscriptions/detail.html:140
-#: app/templates/users/list.html:100 app/templates/users/list.html:238
-#: app/templates/users/list.html:280
-msgid "Suspended"
 msgstr ""
 
 #: app/templates/subscriptions/detail.html:146
@@ -2016,19 +2303,13 @@ msgid "Filters"
 msgstr ""
 
 #: app/templates/users/list.html:98 app/templates/users/list.html:105
-#: app/templates/users/list.html:321
+#: app/templates/users/list.html:340
 msgid "All"
 msgstr ""
 
-#: app/templates/users/list.html:101 app/templates/users/list.html:237
-#: app/templates/users/list.html:277
+#: app/templates/users/list.html:101 app/templates/users/list.html:250
+#: app/templates/users/list.html:293
 msgid "Off"
-msgstr ""
-
-#: app/templates/users/list.html:107 app/templates/users/list.html:126
-#: app/templates/users/list.html:227 app/templates/users/list.html:233
-#: app/templates/users/list.html:283
-msgid "Expired"
 msgstr ""
 
 #: app/templates/users/list.html:108 app/templates/users/list.html:130
@@ -2076,47 +2357,47 @@ msgstr ""
 msgid "{shown} of {total} users"
 msgstr ""
 
-#: app/templates/users/list.html:151 app/templates/users/list.html:195
+#: app/templates/users/list.html:153
 msgid "Contact"
 msgstr ""
 
-#: app/templates/users/list.html:157 app/templates/users/list.html:241
+#: app/templates/users/list.html:158
 msgid "Actions"
 msgstr ""
 
-#: app/templates/users/list.html:199
+#: app/templates/users/list.html:204
 msgid "Notify"
 msgstr ""
 
-#: app/templates/users/list.html:204
+#: app/templates/users/list.html:209
 msgid "Telegram linked"
 msgstr ""
 
-#: app/templates/users/list.html:228
+#: app/templates/users/list.html:242
 msgid "Soon"
 msgstr ""
 
-#: app/templates/users/list.html:246
+#: app/templates/users/list.html:259
 msgid "Edit name"
 msgstr ""
 
-#: app/templates/users/list.html:286
+#: app/templates/users/list.html:302
 msgid "Expiring soon"
 msgstr ""
 
-#: app/templates/users/list.html:314 app/templates/users/list.html:315
+#: app/templates/users/list.html:333 app/templates/users/list.html:334
 msgid "Rows per page"
 msgstr ""
 
-#: app/templates/users/list.html:326
+#: app/templates/users/list.html:345
 msgid "Previous page"
 msgstr ""
 
-#: app/templates/users/list.html:332
+#: app/templates/users/list.html:351
 msgid "Next page"
 msgstr ""
 
-#: app/templates/users/list.html:338
+#: app/templates/users/list.html:357
 msgid "No users match your filters."
 msgstr ""
 

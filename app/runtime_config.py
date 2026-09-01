@@ -126,6 +126,33 @@ def _load_local_login_visible() -> bool:
     return v != "false"  # default visible
 
 
+def public_base_url() -> str:
+    """External URL the app is reached at, without a trailing slash.
+
+    DB setting first, ENV `PUBLIC_BASE_URL` as fallback. Every absolute link the
+    app hands out is built from this: the Plex OAuth forward URLs, the CSRF
+    origin allowlist, and the sign-in link in the invite email. A deploy behind a
+    reverse proxy can't infer it, hence the setting."""
+    return _cached("public_base_url", _load_public_base_url)
+
+
+def _load_public_base_url() -> str:
+    with Session(engine) as session:
+        url = settings_store.get_value(session, "public_base_url")
+    return (url or get_settings().public_base_url or "").strip().rstrip("/")
+
+
+def cookies_secure() -> bool:
+    """Secure flag for session cookies.
+
+    True when either the configured base URL or the ENV fallback is https: a
+    typo in Settings must not silently downgrade a working HTTPS deploy to
+    cookies an on-path attacker can read."""
+    return public_base_url().lower().startswith("https://") or (
+        get_settings().public_base_url.lower().startswith("https://")
+    )
+
+
 def overseerr_config() -> dict:
     return _cached("overseerr", _load_overseerr)
 

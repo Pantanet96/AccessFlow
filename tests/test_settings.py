@@ -175,3 +175,53 @@ def test_plex_select_and_disconnect(client, db_session, login_as):
     client.post("/settings/plex/disconnect")
     assert runtime_config.plex_config()["token"] == ""
     assert runtime_config.plex_config()["server_name"] == ""
+
+
+# ---- Public base URL (Settings -> System) ----
+
+def test_public_url_saved_and_normalized(client, db_session, login_as):
+    login_as(client, _superadmin(db_session).id)
+    resp = client.post(
+        "/settings/public-url",
+        data={"public_base_url": "accessflow.example.com/"},
+        follow_redirects=False,
+    )
+    assert resp.status_code == 303
+    # Bare host gets a scheme, trailing slash goes -- callers concatenate a path
+    # straight onto this.
+    assert runtime_config.public_base_url() == "https://accessflow.example.com"
+
+
+def test_public_url_rejects_junk(client, db_session, login_as):
+    login_as(client, _superadmin(db_session).id)
+    for junk in ("http://", "ftp://x.test", "///"):
+        resp = client.post("/settings/public-url", data={"public_base_url": junk})
+        assert resp.status_code == 400, junk
+
+
+def test_public_url_blank_falls_back_to_env(client, db_session, login_as):
+    from app.config import get_settings
+
+    login_as(client, _superadmin(db_session).id)
+    client.post("/settings/public-url", data={"public_base_url": "https://x.test"})
+    client.post("/settings/public-url", data={"public_base_url": ""})
+    assert runtime_config.public_base_url() == get_settings().public_base_url.rstrip("/")
+
+
+def test_cookies_stay_secure_when_env_is_https(db_session, monkeypatch):
+    """An admin typing an http URL must not downgrade a working HTTPS deploy."""
+    from app.config import get_settings
+
+    settings_store.set_value(db_session, "public_base_url", "http://typo.local")
+    monkeypatch.setattr(get_settings(), "public_base_url", "https://real.example.com")
+    assert runtime_config.cookies_secure() is True
+
+
+def test_plex_forward_url_uses_the_configured_domain(client, db_session, login_as):
+    """The OAuth callback is built from the setting, not from the request host --
+    this is what a reverse-proxy deploy gets wrong without it."""
+    settings_store.set_value(db_session, "public_base_url", "https://af.example.com")
+    assert (
+        runtime_config.public_base_url() + "/login/plex/callback"
+        == "https://af.example.com/login/plex/callback"
+    )

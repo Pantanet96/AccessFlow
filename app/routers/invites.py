@@ -1,5 +1,6 @@
 """Invite flow: admin invites an email to Plex; a pending Invite is recorded."""
 import json
+import logging
 import secrets
 
 from fastapi import APIRouter, Depends, Form, Request
@@ -12,12 +13,14 @@ from app.i18n import gettext as _
 from app.models import AppUser, Invite, InviteStatus, Role, utcnow
 from app.permissions import Capability, outranks
 from app import runtime_config
-from app.services import audit, plex_service
+from app.services import audit, notifications, plex_service
 from app.services import subscriptions as sub_svc
 from app.services import users as users_svc
 from app.templating import templates
 
 router = APIRouter()
+
+log = logging.getLogger("pum.invites")
 
 _ALLOWED_ROLES = {Role.user, Role.admin, Role.moderator}
 
@@ -33,7 +36,7 @@ def _invitable_roles(viewer: AppUser) -> list[Role]:
     )
 
 
-def _render(request, viewer, session, error=None, status_code=200):
+def _render(request, viewer, session, error=None, message=None, status_code=200):
     pending = list(
         session.exec(
             select(Invite)
@@ -51,8 +54,10 @@ def _render(request, viewer, session, error=None, status_code=200):
             "plans": sub_svc.list_plans(session),
             "roles": _invitable_roles(viewer),
             "sections": plex_service.list_sections_safe(),
+            "smtp_configured": bool(runtime_config.smtp_config()["host"]),
             "default_sections": runtime_config.plex_default_sections(),
             "error": error,
+            "message": message,
         },
         status_code=status_code,
     )
@@ -128,11 +133,71 @@ def create_invite(
     session.add(invite)
     session.commit()
     audit.record(session, viewer.id, "create_invite", "invite", invite.id, {"email": email})
+    # The Plex share exists now; the mail explaining what to do with it is a
+    # separate best-effort step. A dead SMTP must not undo a good invite --
+    # tell the admin instead, they can retry from the pending list.
+    try:
+        sent = notifications.notify_invite(session, invite)
+    except Exception as exc:  # noqa: BLE001
+        log.warning("invite email failed for %s", email, exc_info=True)
+        return _render(
+            request,
+            viewer,
+            session,
+            error=_("Invited on Plex, but the email could not be sent: %s") % exc,
+        )
+    if not sent and runtime_config.smtp_config()["host"]:
+        # No host at all means email is switched off for this install (the page
+        # says so); a configured host that sends nothing is worth flagging.
+        return _render(
+            request,
+            viewer,
+            session,
+            error=_(
+                "Invited on Plex, but no email was sent — check the SMTP settings."
+            ),
+        )
     return RedirectResponse("/invites", status_code=303)
+
+
+@router.post("/invites/{invite_id}/resend")
+def resend_invite_email(
+    request: Request,
+    invite_id: int,
+    viewer: AppUser = Depends(require_capability(Capability.invite_user)),
+    session: Session = Depends(get_session),
+):
+    """Send the invite email again (bounced, deleted, or landed in spam). Does
+    not touch the Plex share, which is already in place."""
+    invite = session.get(Invite, invite_id)
+    if invite is None or invite.status != InviteStatus.pending:
+        return RedirectResponse("/invites", status_code=303)
+    try:
+        sent = notifications.notify_invite(session, invite, resend=True)
+    except Exception as exc:  # noqa: BLE001
+        log.warning("invite email resend failed for %s", invite.email, exc_info=True)
+        return _render(
+            request, viewer, session,
+            error=_("Email could not be sent: %s") % exc,
+        )
+    audit.record(
+        session, viewer.id, "resend_invite", "invite", invite_id,
+        {"email": invite.email, "sent": sent},
+    )
+    if not sent:
+        return _render(
+            request, viewer, session,
+            error=_("No email was sent — check the SMTP settings."),
+        )
+    return _render(
+        request, viewer, session,
+        message=_("Invite email sent again to %s.") % invite.email,
+    )
 
 
 @router.post("/invites/{invite_id}/delete")
 def delete_invite(
+    request: Request,
     invite_id: int,
     viewer: AppUser = Depends(require_capability(Capability.invite_user)),
     session: Session = Depends(get_session),
@@ -142,11 +207,30 @@ def delete_invite(
     if invite is None or invite.status != InviteStatus.pending:
         return RedirectResponse("/invites", status_code=303)
     email = invite.email
+    plex_error = None
     try:
         plex_service.cancel_invite(email)
-    except Exception:  # noqa: BLE001 - Plex withdraw is best-effort
+    except plex_service.PlexShareNotFound:
+        # Nothing left on plex.tv (withdrawn there already, or never created):
+        # dropping the local row is the whole job.
         pass
+    except Exception as exc:  # noqa: BLE001 - don't strand the invite here
+        # Withdraw locally anyway, but say so: the share may still exist on
+        # plex.tv, and swallowing this is what let the two sides drift apart.
+        log.warning("Plex withdraw failed for %s", email, exc_info=True)
+        plex_error = str(exc)
     session.delete(invite)
     session.commit()
-    audit.record(session, viewer.id, "delete_invite", "invite", invite_id, {"email": email})
+    detail = {"email": email}
+    if plex_error:
+        detail["plex_error"] = plex_error
+    audit.record(session, viewer.id, "delete_invite", "invite", invite_id, detail)
+    if plex_error:
+        return _render(
+            request,
+            viewer,
+            session,
+            error=_("Invite withdrawn here, but Plex did not confirm it: %s")
+            % plex_error,
+        )
     return RedirectResponse("/invites", status_code=303)
