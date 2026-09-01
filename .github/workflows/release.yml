@@ -1,0 +1,34 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+jobs:
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      # A tag that disagrees with app/__init__.py would ship an image lying
+      # about its own version. Fail before anything is pushed.
+      - name: Tag matches app version
+        id: v
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          grep -q "__version__ = \"$version\"" app/__init__.py
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+      - uses: docker/login-action@v4
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - uses: docker/build-push-action@v7
+        with:
+          context: .
+          push: true
+          # Tags on Docker Hub carry no "v" prefix (1.2.4, not v1.2.4).
+          tags: |
+            pantanet96/accessflow:${{ steps.v.outputs.version }}
+            pantanet96/accessflow:latest

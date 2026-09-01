@@ -1,0 +1,55 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  # New advisories land without commits, so audit on a timer too.
+  schedule:
+    - cron: "17 4 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          # Same minor as the runtime image, not whatever the runner defaults to.
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements-dev.txt
+      - run: pip install -r requirements-dev.txt
+      # .mo files are gitignored (the Dockerfile compiles them in its own
+      # stage), and the i18n tests read the compiled catalogs.
+      - run: pybabel compile -d app/translations
+      - run: pytest -q
+
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      # Unpinned on purpose: the point of the tool is to know about today's
+      # advisories, and it only ever runs in CI.
+      - run: pip install pip-audit
+      - run: pip-audit -r requirements.txt
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+          cache: npm
+      # Reads package-lock.json; no install needed.
+      - run: npm audit --audit-level=high
+
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      # Catch a broken multi-stage build here, not at release time.
+      - run: docker build -t accessflow:ci .
