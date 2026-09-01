@@ -1,0 +1,23 @@
+name: CodeQL
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  # Queries improve over time; re-scan even when the code is idle.
+  schedule:
+    - cron: "23 5 * * 1"
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: github/codeql-action/init@v3
+        with:
+          languages: python
+      - uses: github/codeql-action/analyze@v3
