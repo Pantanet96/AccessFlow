@@ -113,6 +113,24 @@ def _machine_id(server=None) -> str:
     return server.machineIdentifier
 
 
+def _find_pending_invite(account, email: str):
+    """The pending friend invite for `email`, if plex.tv still holds one.
+
+    Not `account.pendingInvite(email)`: that one skips any invite whose
+    `username` is empty, and plex.tv leaves it empty until the address has a
+    Plex account -- which is the whole point of an invite. Matching on email
+    ourselves finds it; `cancelInvite` takes the object and skips its own
+    lookup."""
+    try:
+        invites = account.pendingInvites(includeReceived=False)
+    except Exception:  # noqa: BLE001 - no invite list, nothing to cancel
+        return None
+    for invite in invites:
+        if (getattr(invite, "email", "") or "").lower() == email.lower():
+            return invite
+    return None
+
+
 def _find_share_id(account, machine_id: str, email: str) -> str | None:
     """Id of the plex.tv `shared_servers` row for `email`, if one exists.
 
@@ -233,8 +251,10 @@ def cancel_invite(email: str) -> None:
     account = _account()
     done = False
     try:
-        account.cancelInvite(email)
-        done = True
+        invite = _find_pending_invite(account, email)
+        if invite is not None:
+            account.cancelInvite(invite)
+            done = True
     except Exception:  # noqa: BLE001 - not pending; maybe already a friend
         pass
     try:
