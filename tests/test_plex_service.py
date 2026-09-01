@@ -2,6 +2,7 @@
 import types
 
 import pytest
+from plexapi.myplex import MyPlexInvite
 
 import app.services.plex_service as plex_service
 
@@ -35,28 +36,15 @@ class FakeAccount:
     def updateFriend(self, email, server, sections=None):
         self.calls.append(("update", email, sections))
 
-    def pendingInvites(self, includeSent=True, includeReceived=True):
-        self.calls.append(("pendingInvites", includeReceived))
-        return self._invites
-
-    def cancelInvite(self, user):
-        """Mirrors plexapi: given a string it goes through `pendingInvite()`,
-        which skips every invite with an empty `username` -- so it raises for an
-        address with no Plex account yet. Given the object it just deletes."""
-        if isinstance(user, str):
-            self.calls.append(("cancelInvite:notfound", user))
-            raise RuntimeError(f"Unable to find invite {user}")
-        self.calls.append(("cancelInvite", user.email))
-
     def removeFriend(self, email):
         self.calls.append(("removeFriend", email))
         raise RuntimeError("not a friend")
 
     def query(self, url, method=None, **kwargs):
         self.calls.append(("query", url, method))
-        if method is None:
-            return self._shares
-        return None
+        if method is not None:
+            return None
+        return self._invites if url.startswith(MyPlexInvite.REQUESTED) else self._shares
 
 
 def _user(email):
@@ -157,14 +145,26 @@ def test_cancel_invite_raises_when_nothing_matches(wired):
         plex_service.cancel_invite("a@b.it")
 
 
-def _invite(email, username=""):
-    """plex.tv leaves `username` empty until the address has a Plex account."""
-    return types.SimpleNamespace(email=email, username=username, id=42)
+def _invite(email, invite_id=None):
+    """A pending invite as plex.tv really returns it. Until the address has a
+    Plex account there is no username and no numeric id: the id *is* the
+    address, which is what plexapi's `cast(int, ...)` turns into `nan`."""
+    return _Elem(
+        id=invite_id or email,
+        email=email,
+        username="" if invite_id is None else "someone",
+        friend="0",
+        home="0",
+        server="1",
+    )
+
+
+_WITHDRAW = "https://plex.tv/api/invites/requested/a@b.it?friend=0&home=0&server=1"
 
 
 def test_cancel_invite_withdraws_invite_without_a_plex_account(wired):
-    # The invitee hasn't signed up yet, so plex.tv reports no username for the
-    # invite. plexapi's own lookup drops it on the floor; ours must not.
+    # The invitee hasn't signed up yet, so the invite id is their address.
+    # Handing that to plexapi 404s on `.../requested/nan`; we DELETE it by id.
     account, _ = wired(
         FakeAccount(
             invites=[_invite("a@b.it")],
@@ -172,7 +172,7 @@ def test_cancel_invite_withdraws_invite_without_a_plex_account(wired):
         )
     )
     plex_service.cancel_invite("a@b.it")
-    assert ("cancelInvite", "a@b.it") in account.calls
+    assert ("query", _WITHDRAW, "DELETE") in account.calls
     # The share row goes too -- leaving it is what 400s the next invite.
     assert (
         "query",
@@ -185,4 +185,20 @@ def test_cancel_invite_ignores_a_pending_invite_for_someone_else(wired):
     account, _ = wired(FakeAccount(invites=[_invite("other@b.it")], shares=[]))
     with pytest.raises(plex_service.PlexShareNotFound):
         plex_service.cancel_invite("a@b.it")
-    assert not [c for c in account.calls if c[0].startswith("cancelInvite")]
+    assert not [c for c in account.calls if c[0] == "query" and c[2] == "DELETE"]
+
+
+def test_invite_withdraws_a_still_open_invite_and_retries(wired):
+    # plex.tv says "already sharing" for an invite it never withdrew. It is in
+    # neither `users()` nor `shared_servers` -- only in the pending list.
+    account, _ = wired(
+        FakeAccount(
+            users=[], shares=[], invites=[_invite("a@b.it")], invite_error=_ALREADY
+        )
+    )
+    plex_service.invite_friend("a@b.it", sections=["Film"])
+    assert ("query", _WITHDRAW, "DELETE") in account.calls
+    assert [c for c in account.calls if c[0] == "invite"] == [
+        ("invite", "a@b.it", ["Film"]),
+        ("invite", "a@b.it", ["Film"]),
+    ]
