@@ -1,7 +1,8 @@
 """Plex admin operations using the connected admin token (share/unshare)."""
 import time
 
-from plexapi.myplex import MyPlexAccount
+from plexapi import utils
+from plexapi.myplex import MyPlexAccount, MyPlexInvite
 from plexapi.server import PlexServer
 
 from app import runtime_config
@@ -113,22 +114,31 @@ def _machine_id(server=None) -> str:
     return server.machineIdentifier
 
 
-def _find_pending_invite(account, email: str):
-    """The pending friend invite for `email`, if plex.tv still holds one.
+def _cancel_pending_invite(account, email: str) -> bool:
+    """Withdraw the pending invite for `email`. True if one was there.
 
-    Not `account.pendingInvite(email)`: that one skips any invite whose
-    `username` is empty, and plex.tv leaves it empty until the address has a
-    Plex account -- which is the whole point of an invite. Matching on email
-    ourselves finds it; `cancelInvite` takes the object and skips its own
-    lookup."""
-    try:
-        invites = account.pendingInvites(includeReceived=False)
-    except Exception:  # noqa: BLE001 - no invite list, nothing to cancel
-        return None
-    for invite in invites:
-        if (getattr(invite, "email", "") or "").lower() == email.lower():
-            return invite
-    return None
+    Not `account.cancelInvite()`. plexapi reads the invite id as
+    `cast(int, id)`, but plex.tv only numbers an invite once the address has a
+    Plex account -- before that it puts the address itself in `id`. `int()`
+    turns that into `nan`, the DELETE goes to `.../requested/nan` and 404s, and
+    the invite stays pending: exactly the address an invite mail exists for.
+    Same request, with the id plex.tv actually gave us."""
+    data = account.query(MyPlexInvite.REQUESTED)
+    for elem in (data if data is not None else []):
+        attrib = elem.attrib
+        if (attrib.get("email") or "").lower() != email.lower():
+            continue
+        params = utils.joinArgs(
+            {
+                "friend": int(attrib.get("friend") == "1"),
+                "home": int(attrib.get("home") == "1"),
+                "server": int(attrib.get("server") == "1"),
+            }
+        )
+        url = MyPlexInvite.REQUESTED + "/" + attrib["id"] + params
+        account.query(url, account._session.delete)
+        return True
+    return False
 
 
 def _find_share_id(account, machine_id: str, email: str) -> str | None:
@@ -191,12 +201,15 @@ def _resolve_existing_share(account, server, email: str, sections) -> bool:
         account.updateFriend(email, server, sections=sections)
         return True
     # Orphan share, or "all libraries" (which updateFriend can't express):
-    # drop the row and invite again from scratch.
+    # drop what plex.tv is holding and invite again from scratch. A still-open
+    # invite counts as "already sharing" too, and it shows up in neither
+    # `users()` nor `shared_servers` -- only in the pending invite list.
     machine_id = _machine_id(server)
     share_id = _find_share_id(account, machine_id, email)
-    if share_id is None:
+    if share_id is not None:
+        _delete_share(account, machine_id, share_id)
+    elif not _cancel_pending_invite(account, email):
         return False
-    _delete_share(account, machine_id, share_id)
     account.inviteFriend(email, server, sections=sections or None)
     return True
 
@@ -251,9 +264,7 @@ def cancel_invite(email: str) -> None:
     account = _account()
     done = False
     try:
-        invite = _find_pending_invite(account, email)
-        if invite is not None:
-            account.cancelInvite(invite)
+        if _cancel_pending_invite(account, email):
             done = True
     except Exception:  # noqa: BLE001 - not pending; maybe already a friend
         pass
