@@ -112,7 +112,11 @@ _env.filters["tgmoney"] = _tgmoney
 def _html_to_text(html: str) -> str:
     """Cheap plain-text fallback for the multipart email."""
     text = re.sub(r"(?i)<br\s*/?>", "\n", html)
-    text = re.sub(r"(?i)</p\s*>", "\n\n", text)
+    # <li> carries the invite's step-by-step instructions and the digest's
+    # per-user rows; without these the items run together into one long line.
+    text = re.sub(r"(?i)<li\s*>", "- ", text)
+    text = re.sub(r"(?i)</li\s*>", "\n", text)
+    text = re.sub(r"(?i)</(p|ul|ol)\s*>", "\n\n", text)
     text = re.sub(r"<[^>]+>", "", text)
     return _htmlmod.unescape(text).strip()
 
