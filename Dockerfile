@@ -1,9 +1,12 @@
-FROM node:20-slim AS assets
+FROM node:22-slim AS assets
 
 WORKDIR /app
 
-COPY package.json .
-RUN npm install
+# Lockfile + `npm ci`, not `npm install`: the lockfile is what pins the
+# transitive tree (postcss, nanoid), so a build that ignores it resolves
+# different versions every time and never picks up an `npm audit fix`.
+COPY package.json package-lock.json .
+RUN npm ci
 COPY tailwind.config.js .
 COPY src ./src
 COPY app/templates ./app/templates
