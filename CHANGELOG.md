@@ -5,6 +5,19 @@ All notable changes to AccessFlow are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+- **Withdrawing an invite left it pending on plex.tv** whenever the invitee had
+  not created a Plex account yet -- the common case, since the invite mail is
+  what tells them to. plexapi's `pendingInvite()` only matches an invite whose
+  `username` is set, and plex.tv leaves that empty until the address has an
+  account, so `cancelInvite(email)` raised `NotFound`. The withdrawal swallowed
+  it, cleared the `shared_servers` row and reported success, while the friend
+  invite stayed pending. The invite is now looked up by email and cancelled by
+  object, which skips plexapi's own lookup.
+
 ## [1.2.0] - 2026-09-01
 
 ### Added

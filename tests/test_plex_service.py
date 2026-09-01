@@ -14,9 +14,10 @@ class _Elem:
 class FakeAccount:
     """Stands in for MyPlexAccount: records calls, replays canned failures."""
 
-    def __init__(self, users=(), shares=(), invite_error=None):
+    def __init__(self, users=(), shares=(), invite_error=None, invites=()):
         self._users = list(users)
         self._shares = list(shares)
+        self._invites = list(invites)
         self._invite_error = invite_error
         self.calls = []
         self._session = types.SimpleNamespace(delete="DELETE")
@@ -34,9 +35,18 @@ class FakeAccount:
     def updateFriend(self, email, server, sections=None):
         self.calls.append(("update", email, sections))
 
-    def cancelInvite(self, email):
-        self.calls.append(("cancelInvite", email))
-        raise RuntimeError("no pending invite")
+    def pendingInvites(self, includeSent=True, includeReceived=True):
+        self.calls.append(("pendingInvites", includeReceived))
+        return self._invites
+
+    def cancelInvite(self, user):
+        """Mirrors plexapi: given a string it goes through `pendingInvite()`,
+        which skips every invite with an empty `username` -- so it raises for an
+        address with no Plex account yet. Given the object it just deletes."""
+        if isinstance(user, str):
+            self.calls.append(("cancelInvite:notfound", user))
+            raise RuntimeError(f"Unable to find invite {user}")
+        self.calls.append(("cancelInvite", user.email))
 
     def removeFriend(self, email):
         self.calls.append(("removeFriend", email))
@@ -145,3 +155,34 @@ def test_cancel_invite_raises_when_nothing_matches(wired):
     wired(FakeAccount(shares=[]))
     with pytest.raises(plex_service.PlexShareNotFound):
         plex_service.cancel_invite("a@b.it")
+
+
+def _invite(email, username=""):
+    """plex.tv leaves `username` empty until the address has a Plex account."""
+    return types.SimpleNamespace(email=email, username=username, id=42)
+
+
+def test_cancel_invite_withdraws_invite_without_a_plex_account(wired):
+    # The invitee hasn't signed up yet, so plex.tv reports no username for the
+    # invite. plexapi's own lookup drops it on the floor; ours must not.
+    account, _ = wired(
+        FakeAccount(
+            invites=[_invite("a@b.it")],
+            shares=[_Elem(id="77", email="a@b.it")],
+        )
+    )
+    plex_service.cancel_invite("a@b.it")
+    assert ("cancelInvite", "a@b.it") in account.calls
+    # The share row goes too -- leaving it is what 400s the next invite.
+    assert (
+        "query",
+        "https://plex.tv/api/servers/MID/shared_servers/77",
+        "DELETE",
+    ) in account.calls
+
+
+def test_cancel_invite_ignores_a_pending_invite_for_someone_else(wired):
+    account, _ = wired(FakeAccount(invites=[_invite("other@b.it")], shares=[]))
+    with pytest.raises(plex_service.PlexShareNotFound):
+        plex_service.cancel_invite("a@b.it")
+    assert not [c for c in account.calls if c[0].startswith("cancelInvite")]
