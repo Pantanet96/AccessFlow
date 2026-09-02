@@ -5,6 +5,7 @@ from sqlmodel import Session
 
 from app.auth.deps import require_role, require_user
 from app.db import get_session
+from app.security import safe_next_url
 from app.models import AppUser, Role
 from app.services import audit
 from app.services import broadcast as broadcast_svc
@@ -54,5 +55,5 @@ def broadcast_dismiss(
     viewer.dismissed_broadcast_id = id
     session.add(viewer)
     session.commit()
-    safe_next = next if next.startswith("/") and not next.startswith("//") else "/"
+    safe_next = safe_next_url(next, "/")
     return RedirectResponse(safe_next, status_code=303)
