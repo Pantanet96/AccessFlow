@@ -9,7 +9,9 @@ _VALID_LOCALES = ("it", "en")
 # A single, well-formed address: no spaces/commas, so it can't smuggle extra
 # recipients into the To header (send_message parses it) or store junk that
 # throws at send time. Deliberately simple, not a full RFC 5322 validator.
-_EMAIL_RE = re.compile(r"^[^@\s,;]+@[^@\s,;]+\.[^@\s,;]+$")
+# The domain labels exclude "." so the pattern stays unambiguous: with "." in
+# both classes around it, a long dotted non-match backtracks quadratically.
+_EMAIL_RE = re.compile(r"^[^@\s,;]+@[^@\s,;.]+(?:\.[^@\s,;.]+)+$")
 
 
 def valid_notify_email(value: str) -> bool:

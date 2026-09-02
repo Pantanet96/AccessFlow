@@ -10,6 +10,7 @@ from app.models import AppUser, Plan, Role, Subscription, SubscriptionStatus, ut
 from app.permissions import Capability
 from app.config import get_settings
 from app.services import access_service, audit, plex_import, plex_service, users as users_svc
+from app.security import safe_next_url
 from app.services.plex_service import PlexNotConnected
 from app.templating import templates
 
@@ -17,13 +18,7 @@ router = APIRouter()
 
 
 def _next_redirect(next_url: str, default: str = "/users") -> RedirectResponse:
-    is_safe = (
-        next_url.startswith("/")
-        and not next_url.startswith("//")
-        and not next_url.startswith("/\\")
-    )
-    safe = next_url if is_safe else default
-    return RedirectResponse(safe, status_code=303)
+    return RedirectResponse(safe_next_url(next_url, default), status_code=303)
 
 
 def _render_list(request, viewer, session, error=None, message=None,
