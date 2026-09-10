@@ -376,7 +376,10 @@
         {% for job in jobs %}
         <tr class="border-b border-outline-variant last:border-0 hover:bg-surface-container/60">
           <td class="px-4 py-3" data-label="{{ _('Job name') }}">{{ _(job.label) }}</td>
-          <td class="px-4 py-3" data-label="{{ _('Type') }}"><span class="badge badge--active">{{ _("Job") }}</span></td>
+          <td class="px-4 py-3" data-label="{{ _('Type') }}">
+            <span class="badge badge--active">{{ _("Job") }}</span>
+            <span class="badge badge--cancelled">{{ _("Daily") if job.schedule == 'daily' else _("Interval") }}</span>
+          </td>
           <td class="px-4 py-3" data-label="{{ _('Next run') }}">
             {% if job.next_run %}
             <span class="job-next-run" data-next-run="{{ job.next_run.isoformat() }}">{{ job.next_run | datetime }}</span>
@@ -391,6 +394,15 @@
                   <span class="material-symbols-outlined text-[16px] leading-none" aria-hidden="true">edit</span>
                   {{ _("Edit") }}
                 </summary>
+                {% if job.schedule == 'daily' %}
+                <form method="post" action="/settings/jobs/{{ job.id }}/run-hour" class="flex flex-wrap items-end gap-2 mt-2">
+                  <label class="form-label max-w-[9rem]">
+                    {{ _("Run at (hour, 0-23)") }}
+                    <input name="run_hour" type="number" min="0" max="23" value="{{ job.run_hour }}" class="form-input">
+                  </label>
+                  <button type="submit" class="btn-sm btn-primary">{{ _("Save") }}</button>
+                </form>
+                {% else %}
                 <form method="post" action="/settings/jobs/{{ job.id }}/interval" class="flex flex-wrap items-end gap-2 mt-2">
                   <label class="form-label max-w-[9rem]">
                     {{ _("Run every (hours)") }}
@@ -398,6 +410,7 @@
                   </label>
                   <button type="submit" class="btn-sm btn-primary">{{ _("Save") }}</button>
                 </form>
+                {% endif %}
               </details>
               <form method="post" action="/settings/jobs/{{ job.id }}/run">
                 <button type="submit" class="btn-sm inline-flex items-center gap-1">

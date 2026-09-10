@@ -111,6 +111,10 @@ def _detail_summary(action: str, detail: dict | None) -> str:
     if action == "broadcast":
         return str(detail.get("recipients", ""))
     if action == "settings_job_interval":
+        if "run_hour" in detail:
+            return _("%(job)s: daily at %(h)s:00") % {
+                "job": detail.get("job", "?"), "h": detail.get("run_hour", "?")
+            }
         return _("%(job)s: every %(h)sh") % {
             "job": detail.get("job", "?"), "h": detail.get("hours", "?")
         }

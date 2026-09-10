@@ -372,7 +372,8 @@ def save_job_interval(
 ):
     from app import scheduler as sched_module
 
-    if job_id not in sched_module.JOB_IDS:
+    job = sched_module.job_by_id(job_id)
+    if job is None or job["schedule"] != "interval":
         return RedirectResponse("/settings?group=jobs", status_code=303)
     try:
         n = runtime_config.clamp_job_interval_hours(int(interval_hours))
@@ -381,6 +382,30 @@ def save_job_interval(
     settings_store.set_value(session, f"job_interval_hours:{job_id}", str(n))
     audit.record(
         session, viewer.id, "settings_job_interval", detail={"job": job_id, "hours": n}
+    )
+    sched_module.reschedule_job(job_id)
+    return RedirectResponse("/settings?group=jobs", status_code=303)
+
+
+@router.post("/settings/jobs/{job_id}/run-hour")
+def save_job_run_hour(
+    job_id: str,
+    run_hour: str = Form(""),
+    viewer: AppUser = Depends(_admin),
+    session: Session = Depends(get_session),
+):
+    from app import scheduler as sched_module
+
+    job = sched_module.job_by_id(job_id)
+    if job is None or job["schedule"] != "daily":
+        return RedirectResponse("/settings?group=jobs", status_code=303)
+    try:
+        n = runtime_config.clamp_job_run_hour(int(run_hour))
+    except (ValueError, TypeError):
+        n = get_settings().notify_hour
+    settings_store.set_value(session, f"job_run_hour:{job_id}", str(n))
+    audit.record(
+        session, viewer.id, "settings_job_interval", detail={"job": job_id, "run_hour": n}
     )
     sched_module.reschedule_job(job_id)
     return RedirectResponse("/settings?group=jobs", status_code=303)

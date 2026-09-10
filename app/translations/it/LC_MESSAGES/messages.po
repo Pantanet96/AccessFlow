@@ -2608,6 +2608,23 @@ msgstr "Modifica"
 msgid "Run now"
 msgstr "Esegui ora"
 
+#: app/services/audit.py:115
+#, python-format
+msgid "%(job)s: daily at %(h)s:00"
+msgstr "%(job)s: ogni giorno alle %(h)s:00"
+
+#: app/templates/settings.html:381
+msgid "Daily"
+msgstr "Giornaliero"
+
+#: app/templates/settings.html:381
+msgid "Interval"
+msgstr "A intervallo"
+
+#: app/templates/settings.html:400
+msgid "Run at (hour, 0-23)"
+msgstr "Esegui alle (ora, 0-23)"
+
 #~ msgid "Plex User Manager"
 #~ msgstr "Plex User Manager"
 
