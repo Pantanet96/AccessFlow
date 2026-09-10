@@ -2504,6 +2504,23 @@ msgstr ""
 msgid "Run now"
 msgstr ""
 
+#: app/services/audit.py:115
+#, python-format
+msgid "%(job)s: daily at %(h)s:00"
+msgstr ""
+
+#: app/templates/settings.html:381
+msgid "Daily"
+msgstr ""
+
+#: app/templates/settings.html:381
+msgid "Interval"
+msgstr ""
+
+#: app/templates/settings.html:400
+msgid "Run at (hour, 0-23)"
+msgstr ""
+
 #~ msgid "Your %(plan)s subscription expires in %(days)d day(s)"
 #~ msgstr ""
 

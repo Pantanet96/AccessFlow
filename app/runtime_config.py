@@ -202,6 +202,30 @@ def _load_job_interval_hours(job_id: str) -> int:
         return DEFAULT_JOB_INTERVAL_HOURS
 
 
+def clamp_job_run_hour(n: int) -> int:
+    """0..23 -- the hour of day (server timezone) a 'daily' job fires at."""
+    return max(0, min(23, n))
+
+
+def job_run_hour(job_id: str) -> int:
+    """Hour of day a 'daily'-scheduled background job runs at (see
+    app.scheduler.JOBS). DB override -> the legacy NOTIFY_HOUR env var (only
+    meaningful for expiry_scan, the one job that predates this setting) -> 9."""
+    return _cached(f"job_run_hour:{job_id}", lambda: _load_job_run_hour(job_id))
+
+
+def _load_job_run_hour(job_id: str) -> int:
+    with Session(engine) as session:
+        raw = settings_store.get_value(session, f"job_run_hour:{job_id}")
+    default = get_settings().notify_hour if job_id == "expiry_scan" else 9
+    if raw in (None, ""):
+        return default
+    try:
+        return clamp_job_run_hour(int(raw))
+    except (ValueError, TypeError):
+        return default
+
+
 def plex_default_sections() -> list[str]:
     return _cached("plex_default_sections", _load_plex_default_sections)
 

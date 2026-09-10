@@ -19,7 +19,7 @@ def test_jobs_status_lists_all_jobs_even_without_scheduler(db_session):
 
 
 def test_reschedule_job_applies_new_interval(monkeypatch):
-    job_id = scheduler_module.JOB_IDS[0]
+    job_id = "plex_auto_import"  # an "interval"-scheduled job, not the "daily" expiry_scan
     sched = BackgroundScheduler()
     sched.add_job(lambda: None, IntervalTrigger(hours=24), id=job_id)
     sched.start()
@@ -43,3 +43,34 @@ def test_reschedule_job_applies_new_interval(monkeypatch):
 def test_reschedule_job_noop_without_scheduler():
     scheduler_module._scheduler = None
     scheduler_module.reschedule_job("plex_auto_import")  # must not raise
+
+
+def test_expiry_scan_is_daily_scheduled():
+    """The only job whose output reaches people (reminders, manager digests)
+    must run at a fixed hour of day, not an arbitrary interval from restart."""
+    job = scheduler_module.job_by_id("expiry_scan")
+    assert job["schedule"] == "daily"
+    for job_id in ("plex_auto_import", "db_backup"):
+        assert scheduler_module.job_by_id(job_id)["schedule"] == "interval"
+
+
+def test_reschedule_daily_job_uses_run_hour(monkeypatch):
+    from apscheduler.triggers.cron import CronTrigger
+
+    sched = BackgroundScheduler()
+    sched.add_job(lambda: None, CronTrigger(hour=9, minute=0), id="expiry_scan")
+    sched.start()
+    scheduler_module._scheduler = sched
+    try:
+        monkeypatch.setattr("app.runtime_config.job_run_hour", lambda jid: 14)
+        scheduler_module.reschedule_job("expiry_scan")
+        job = sched.get_job("expiry_scan")
+        assert isinstance(job.trigger, CronTrigger)
+        assert job.next_run_time.hour == 14
+    finally:
+        sched.shutdown(wait=False)
+        scheduler_module._scheduler = None
+
+
+def test_job_by_id_unknown_returns_none():
+    assert scheduler_module.job_by_id("not-a-real-job") is None

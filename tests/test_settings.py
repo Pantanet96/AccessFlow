@@ -261,6 +261,38 @@ def test_job_interval_rejects_unknown_job_id(client, db_session, login_as):
     assert settings_store.get_value(db_session, "job_interval_hours:not-a-real-job") is None
 
 
+def test_job_run_hour_saved_and_clamped(client, db_session, login_as):
+    login_as(client, _superadmin(db_session).id)
+    resp = client.post(
+        "/settings/jobs/expiry_scan/run-hour",
+        data={"run_hour": "14"},
+        follow_redirects=False,
+    )
+    assert resp.status_code == 303
+    assert runtime_config.job_run_hour("expiry_scan") == 14
+
+    client.post("/settings/jobs/expiry_scan/run-hour", data={"run_hour": "99"})
+    assert runtime_config.job_run_hour("expiry_scan") == 23  # clamped to max
+
+
+def test_job_interval_endpoint_rejects_daily_job(client, db_session, login_as):
+    """expiry_scan is 'daily'-scheduled -- the hours-interval endpoint is for
+    'interval' jobs only, and must not silently accept it."""
+    login_as(client, _superadmin(db_session).id)
+    client.post("/settings/jobs/expiry_scan/interval", data={"interval_hours": "6"})
+    from app.services import settings_store
+
+    assert settings_store.get_value(db_session, "job_interval_hours:expiry_scan") is None
+
+
+def test_job_run_hour_endpoint_rejects_interval_job(client, db_session, login_as):
+    login_as(client, _superadmin(db_session).id)
+    client.post("/settings/jobs/plex_auto_import/run-hour", data={"run_hour": "14"})
+    from app.services import settings_store
+
+    assert settings_store.get_value(db_session, "job_run_hour:plex_auto_import") is None
+
+
 def test_run_job_now_executes_immediately(client, db_session, login_as, monkeypatch):
     import app.scheduler as scheduler_module
 

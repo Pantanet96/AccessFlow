@@ -5,6 +5,12 @@ All notable changes to AccessFlow are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.1] - 2026-09-10
+
+### Fixed
+
+- The expiry-scan job (reminder emails + manager weekly digest) now runs at a fixed hour of day instead of drifting with app restarts like the 1.3.0 interval-based jobs. Configurable from Settings > Jobs.
+
 ## [1.3.0] - 2026-09-10
 
 ### Added
