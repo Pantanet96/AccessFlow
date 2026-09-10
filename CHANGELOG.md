@@ -5,6 +5,17 @@ All notable changes to AccessFlow are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.0] - 2026-09-10
+
+### Added
+
+- Pending invites now auto-activate once the invitee accepts the Plex share, no more getting stuck in "pending" forever. A "Check now" button on Invites triggers the check on demand.
+- New Settings > Jobs page: every background job's run interval is configurable in hours, with a live next-run countdown and a manual "Run now" per job.
+
+### Changed
+
+- Background jobs (expiry scan, Plex reconciliation, database backup) now run on a configurable interval instead of a fixed time of day.
+
 ## [1.2.5] - 2026-09-02
 
 ### Security
