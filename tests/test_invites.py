@@ -263,6 +263,49 @@ def test_withdraw_is_clean_when_plex_has_nothing(
     assert resp.status_code == 303
 
 
+def test_reconcile_activates_accepted_invite(client, db_session, login_as, monkeypatch):
+    admin = _mk(db_session, Role.admin, "ReconAdmin")
+    db_session.add(
+        Invite(
+            email="accepted@example.com",
+            real_name="Accepted User",
+            intended_role=Role.user,
+            token="t-recon",
+        )
+    )
+    db_session.commit()
+    monkeypatch.setattr(
+        plex_service,
+        "list_shared_users",
+        lambda: [{"id": "999", "email": "accepted@example.com", "username": "acc"}],
+    )
+    login_as(client, admin.id)
+    resp = client.post("/invites/reconcile")
+    assert resp.status_code == 200
+    assert "Attivato 1 invito/i in sospeso." in resp.text  # default test locale is it
+    inv = db_session.exec(
+        select(Invite).where(Invite.email == "accepted@example.com")
+    ).one()
+    assert inv.status == InviteStatus.accepted
+    assert (
+        db_session.exec(
+            select(AppUser).where(AppUser.plex_account_id == "999")
+        ).first()
+        is not None
+    )
+
+
+def test_reconcile_not_connected(client, db_session, login_as, monkeypatch):
+    def _boom():
+        raise plex_service.PlexNotConnected()
+
+    monkeypatch.setattr(plex_service, "list_shared_users", _boom)
+    admin = _mk(db_session, Role.admin, "ReconAdmin2")
+    login_as(client, admin.id)
+    resp = client.post("/invites/reconcile")
+    assert resp.status_code == 400
+
+
 def test_invitable_roles_least_privilege_first(db_session):
     """The dropdown's first (pre-selected) option must be the safest role."""
     from app.routers.invites import _invitable_roles

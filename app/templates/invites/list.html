@@ -95,9 +95,18 @@
   </form>
 </div>
 
-<div class="flex items-center gap-gap-sm mb-gap-md">
-  <span class="material-symbols-outlined text-primary-container" aria-hidden="true">hourglass_top</span>
-  <h3 class="text-xl font-semibold text-on-surface m-0">{{ _("Pending invites") }} ({{ pending|length }})</h3>
+<div class="flex items-center justify-between mb-gap-md">
+  <div class="flex items-center gap-gap-sm">
+    <span class="material-symbols-outlined text-primary-container" aria-hidden="true">hourglass_top</span>
+    <h3 class="text-xl font-semibold text-on-surface m-0">{{ _("Pending invites") }} ({{ pending|length }})</h3>
+  </div>
+  <form method="post" action="/invites/reconcile">
+    <button type="submit" class="btn-sm inline-flex items-center gap-1"
+            title="{{ _("Check Plex now for invites that have already been accepted, instead of waiting for the scheduled job.") }}">
+      <span class="material-symbols-outlined text-[16px] leading-none" aria-hidden="true">sync</span>
+      {{ _("Check now") }}
+    </button>
+  </form>
 </div>
 
 <div class="bg-surface-container-low rounded-xl border border-outline-variant overflow-x-auto">

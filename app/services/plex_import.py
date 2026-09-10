@@ -6,6 +6,7 @@ from sqlmodel import Session, select
 
 from app.models import AppUser, Role
 from app.services import overseerr_service, plex_service
+from app.services.invite_activation import activate_pending_invite
 from app.services.subscriptions import get_active_subscription
 
 
@@ -13,6 +14,7 @@ def import_plex_users(session: Session) -> dict:
     users = plex_service.list_shared_users()
     created = 0
     skipped = 0
+    activated = 0
     new_plex_ids = []
     # Build the set currently shared on Plex, to detect stale app users below.
     shared_ids = {str(u["id"]) for u in users if u.get("id")}
@@ -32,6 +34,16 @@ def import_plex_users(session: Session) -> dict:
             ).first()
         if existing is not None:
             skipped += 1
+            continue
+
+        # A pending Invite for this email means someone already accepted the
+        # Plex share -- turn it into the intended AppUser (role, manager, ...)
+        # instead of falling through to the generic role=User creation below.
+        activated_user = activate_pending_invite(session, u)
+        if activated_user is not None:
+            activated += 1
+            if acc_id:
+                new_plex_ids.append(str(acc_id))
             continue
 
         # Keep their current Plex sharing: snapshot the libraries they already have.
@@ -86,7 +98,7 @@ def import_plex_users(session: Session) -> dict:
             continue
         stale.append(au.real_name or amail or aid)
 
-    return {"created": created, "skipped": skipped, "stale": stale}
+    return {"created": created, "skipped": skipped, "activated": activated, "stale": stale}
 
 
 def users_without_active_subscription(session: Session) -> list[AppUser]:

@@ -13,7 +13,7 @@ from app.i18n import gettext as _
 from app.models import AppUser, Invite, InviteStatus, Role, utcnow
 from app.permissions import Capability, outranks
 from app import runtime_config
-from app.services import audit, notifications, plex_service
+from app.services import audit, notifications, plex_import, plex_service
 from app.services import subscriptions as sub_svc
 from app.services import users as users_svc
 from app.templating import templates
@@ -156,6 +156,31 @@ def create_invite(
             ),
         )
     return RedirectResponse("/invites", status_code=303)
+
+
+@router.post("/invites/reconcile")
+def reconcile_invites(
+    request: Request,
+    viewer: AppUser = Depends(require_capability(Capability.invite_user)),
+    session: Session = Depends(get_session),
+):
+    """On-demand counterpart of the nightly Plex import: checks who has
+    accepted their share since the last run and activates their invite now,
+    without waiting for the 4am job."""
+    try:
+        result = plex_import.import_plex_users(session)
+    except plex_service.PlexNotConnected:
+        return _render(request, viewer, session, error=_("Plex is not connected."), status_code=400)
+    audit.record(session, viewer.id, "import_plex_users", detail=result)
+    if not result["activated"]:
+        return _render(
+            request, viewer, session,
+            message=_("No pending invite has been accepted yet."),
+        )
+    return _render(
+        request, viewer, session,
+        message=_("Activated %(a)d pending invite(s).") % {"a": result["activated"]},
+    )
 
 
 @router.post("/invites/{invite_id}/resend")

@@ -13,6 +13,7 @@
     <a href="/settings?group=notifiche" class="notif-tab {% if group == 'notifiche' %}active{% endif %}">{{ _("Notifications") }}</a>
     <a href="/settings?group=utenti" class="notif-tab {% if group == 'utenti' %}active{% endif %}">{{ _("Users") }}</a>
     <a href="/settings?group=sistema" class="notif-tab {% if group == 'sistema' %}active{% endif %}">{{ _("System") }}</a>
+    <a href="/settings?group=jobs" class="notif-tab {% if group == 'jobs' %}active{% endif %}">Jobs</a>
   </div>
 
   {% if message %}<p class="rounded-lg border border-status-active/30 bg-status-active/10 px-4 py-3 text-status-active font-medium">{{ message }}</p>{% endif %}
@@ -351,6 +352,86 @@
       <button type="submit" class="btn-red rounded-lg px-5 py-2.5 font-semibold">{{ _("Rotate encryption key") }}</button>
     </form>
   </article>
+  {% endif %}
+
+  {% if group == 'jobs' %}
+  <article class="settings-card">
+    <div class="flex items-center gap-2 mb-2">
+      <span class="material-symbols-outlined text-primary-container" aria-hidden="true">schedule</span>
+      <h3 class="text-lg font-semibold text-on-surface m-0">Jobs</h3>
+    </div>
+    <p class="text-sm text-on-surface-variant mb-4">{{ _("AccessFlow runs some maintenance jobs on a regular schedule, but they can also be triggered manually below. Running a job manually does not change its schedule.") }}</p>
+
+    <div class="bg-surface-container-low rounded-xl border border-outline-variant overflow-x-auto">
+    <table class="responsive w-full text-left border-collapse">
+      <thead>
+        <tr class="border-b border-outline-variant text-on-surface-variant text-xs uppercase tracking-wide">
+          <th class="px-4 py-3">{{ _("Job name") }}</th>
+          <th class="px-4 py-3">{{ _("Type") }}</th>
+          <th class="px-4 py-3">{{ _("Next run") }}</th>
+          <th class="px-4 py-3"></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for job in jobs %}
+        <tr class="border-b border-outline-variant last:border-0 hover:bg-surface-container/60">
+          <td class="px-4 py-3" data-label="{{ _('Job name') }}">{{ _(job.label) }}</td>
+          <td class="px-4 py-3" data-label="{{ _('Type') }}"><span class="badge badge--active">{{ _("Job") }}</span></td>
+          <td class="px-4 py-3" data-label="{{ _('Next run') }}">
+            {% if job.next_run %}
+            <span class="job-next-run" data-next-run="{{ job.next_run.isoformat() }}">{{ job.next_run | datetime }}</span>
+            {% else %}
+            {{ _("scheduler not running") }}
+            {% endif %}
+          </td>
+          <td class="px-4 py-3" data-label="">
+            <div class="row-actions">
+              <details>
+                <summary class="btn-sm inline-flex items-center gap-1">
+                  <span class="material-symbols-outlined text-[16px] leading-none" aria-hidden="true">edit</span>
+                  {{ _("Edit") }}
+                </summary>
+                <form method="post" action="/settings/jobs/{{ job.id }}/interval" class="flex flex-wrap items-end gap-2 mt-2">
+                  <label class="form-label max-w-[9rem]">
+                    {{ _("Run every (hours)") }}
+                    <input name="interval_hours" type="number" min="1" max="168" value="{{ job.interval_hours }}" class="form-input">
+                  </label>
+                  <button type="submit" class="btn-sm btn-primary">{{ _("Save") }}</button>
+                </form>
+              </details>
+              <form method="post" action="/settings/jobs/{{ job.id }}/run">
+                <button type="submit" class="btn-sm inline-flex items-center gap-1">
+                  <span class="material-symbols-outlined text-[16px] leading-none" aria-hidden="true">play_arrow</span>
+                  {{ _("Run now") }}
+                </button>
+              </form>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    </div>
+  </article>
+  <script>
+  (function () {
+    document.querySelectorAll('.job-next-run').forEach(function (el) {
+      var target = new Date(el.dataset.nextRun);
+      function tick() {
+        var diff = target.getTime() - Date.now();
+        if (diff <= 0) { el.textContent = '{{ _("due now") }}'; return; }
+        var totalMin = Math.floor(diff / 60000);
+        var h = Math.floor(totalMin / 60);
+        var m = totalMin % 60;
+        el.textContent = h > 0
+          ? '{{ _("in") }} ' + h + 'h ' + m + 'm'
+          : '{{ _("in") }} ' + m + 'm';
+      }
+      tick();
+      setInterval(tick, 30000);
+    });
+  })();
+  </script>
   {% endif %}
 
 </div>
