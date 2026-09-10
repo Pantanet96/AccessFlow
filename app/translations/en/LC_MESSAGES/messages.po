@@ -2402,6 +2402,108 @@ msgstr ""
 msgid "No users match your filters."
 msgstr ""
 
+#: app/scheduler.py:80
+msgid "Expiry scan & reminders"
+msgstr ""
+
+#: app/scheduler.py:81
+msgid "Plex reconciliation"
+msgstr ""
+
+#: app/scheduler.py:82
+msgid "Database backup"
+msgstr ""
+
+#: app/routers/invites.py:178
+msgid "No pending invite has been accepted yet."
+msgstr ""
+
+#: app/routers/invites.py:182 app/routers/users.py:134
+#, python-format
+msgid "Activated %(a)d pending invite(s)."
+msgstr ""
+
+#: app/services/audit.py:54
+msgid "changed a background job's run interval"
+msgstr ""
+
+#: app/services/audit.py:113
+#, python-format
+msgid "%(job)s: every %(h)sh"
+msgstr ""
+
+#: app/services/audit.py:121
+#, python-format
+msgid "activated %(a)s"
+msgstr ""
+
+#: app/templates/settings.html:363
+msgid ""
+"Every background job runs on its own interval, counted from whenever the "
+"app last (re)started — not at a fixed clock time."
+msgstr ""
+
+#: app/templates/settings.html:371
+msgid "Run every (hours)"
+msgstr ""
+
+#: app/templates/settings.html:377
+msgid "Next run:"
+msgstr ""
+
+#: app/templates/settings.html:382
+msgid "scheduler not running"
+msgstr ""
+
+#: app/templates/settings.html:397
+msgid "due now"
+msgstr ""
+
+#: app/templates/settings.html:401
+msgid "in"
+msgstr ""
+
+#: app/templates/invites/list.html:105
+msgid ""
+"Check Plex now for invites that have already been accepted, instead of "
+"waiting for the scheduled job."
+msgstr ""
+
+#: app/templates/invites/list.html:107
+msgid "Check now"
+msgstr ""
+
+#: app/services/audit.py:55
+msgid "ran a background job manually"
+msgstr ""
+
+#: app/templates/settings.html:363
+msgid ""
+"AccessFlow runs some maintenance jobs on a regular schedule, but they can"
+" also be triggered manually below. Running a job manually does not change"
+" its schedule."
+msgstr ""
+
+#: app/templates/settings.html:369 app/templates/settings.html:378
+msgid "Job name"
+msgstr ""
+
+#: app/templates/settings.html:371 app/templates/settings.html:380
+msgid "Next run"
+msgstr ""
+
+#: app/templates/settings.html:379
+msgid "Job"
+msgstr ""
+
+#: app/templates/settings.html:392
+msgid "Edit"
+msgstr ""
+
+#: app/templates/settings.html:405
+msgid "Run now"
+msgstr ""
+
 #~ msgid "Your %(plan)s subscription expires in %(days)d day(s)"
 #~ msgstr ""
 

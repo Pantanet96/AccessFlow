@@ -1,8 +1,11 @@
-"""APScheduler background jobs: daily expiry scan + nightly DB backup."""
+"""APScheduler background jobs, each on its own admin-configurable interval."""
+from datetime import datetime
+
 from apscheduler.schedulers.background import BackgroundScheduler
-from apscheduler.triggers.cron import CronTrigger
+from apscheduler.triggers.interval import IntervalTrigger
 
 from app.config import get_settings
+from app.i18n import N_
 
 _scheduler: BackgroundScheduler | None = None
 
@@ -46,7 +49,7 @@ def _run_expiry_scan() -> None:
 
 
 def _run_plex_import() -> None:
-    """Daily auto-import of Plex-shared users (keeps app in sync, no ghosts)."""
+    """Auto-import of Plex-shared users + pending-invite reconciliation."""
     import logging
 
     from sqlmodel import Session
@@ -70,28 +73,30 @@ def _run_backup() -> None:
     backup_database()
 
 
+# Every background job, in the order they're listed on Settings > Jobs. Each
+# runs on its own admin-configurable interval (see runtime_config.job_interval_hours),
+# counted from whenever the scheduler last (re)started -- not a fixed clock time.
+JOBS = (
+    {"id": "expiry_scan", "label": N_("Expiry scan & reminders"), "fn": _run_expiry_scan},
+    {"id": "plex_auto_import", "label": N_("Plex reconciliation"), "fn": _run_plex_import},
+    {"id": "db_backup", "label": N_("Database backup"), "fn": _run_backup},
+)
+JOB_IDS = tuple(j["id"] for j in JOBS)
+
+
 def start_scheduler() -> BackgroundScheduler:
     global _scheduler
     settings = get_settings()
     _scheduler = BackgroundScheduler(timezone=settings.tz)
-    _scheduler.add_job(
-        _run_expiry_scan,
-        CronTrigger(hour=settings.notify_hour, minute=0),
-        id="expiry_scan",
-        replace_existing=True,
-    )
-    _scheduler.add_job(
-        _run_plex_import,
-        CronTrigger(hour=4, minute=0),
-        id="plex_auto_import",
-        replace_existing=True,
-    )
-    _scheduler.add_job(
-        _run_backup,
-        CronTrigger(hour=3, minute=30),
-        id="db_backup",
-        replace_existing=True,
-    )
+    from app import runtime_config
+
+    for job in JOBS:
+        _scheduler.add_job(
+            job["fn"],
+            IntervalTrigger(hours=runtime_config.job_interval_hours(job["id"])),
+            id=job["id"],
+            replace_existing=True,
+        )
     _scheduler.start()
     return _scheduler
 
@@ -101,3 +106,49 @@ def shutdown_scheduler() -> None:
     if _scheduler is not None:
         _scheduler.shutdown(wait=False)
         _scheduler = None
+
+
+def reschedule_job(job_id: str) -> None:
+    """Apply a freshly-saved interval to the running job immediately (no app
+    restart needed). No-op if the scheduler isn't running (e.g. disabled, or
+    called from a test)."""
+    if _scheduler is None:
+        return
+    from app import runtime_config
+
+    hours = runtime_config.job_interval_hours(job_id)
+    _scheduler.reschedule_job(job_id, trigger=IntervalTrigger(hours=hours))
+
+
+def job_next_run(job_id: str) -> datetime | None:
+    """When the named job will next fire, for display in Settings > Jobs."""
+    if _scheduler is None:
+        return None
+    job = _scheduler.get_job(job_id)
+    return job.next_run_time if job else None
+
+
+def run_job_now(job_id: str) -> bool:
+    """Execute the named job's function immediately, synchronously (the
+    Settings > Jobs 'Run now' button). Does not touch its schedule. Returns
+    False if job_id is unknown."""
+    for j in JOBS:
+        if j["id"] == job_id:
+            j["fn"]()
+            return True
+    return False
+
+
+def jobs_status() -> list[dict]:
+    """[{id, label, interval_hours, next_run}] for the Settings > Jobs page."""
+    from app import runtime_config
+
+    return [
+        {
+            "id": j["id"],
+            "label": j["label"],
+            "interval_hours": runtime_config.job_interval_hours(j["id"]),
+            "next_run": job_next_run(j["id"]),
+        }
+        for j in JOBS
+    ]

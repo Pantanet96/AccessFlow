@@ -406,6 +406,13 @@
     margin: 0 !important;
     display: inline-flex;
   }
+  /* A <summary class="btn-sm"> disclosure toggle (e.g. Jobs > Edit) reusing the
+     button look -- same zero-JS <details> pattern as .lib-sum/.audit-item, just
+     without their custom marker glyph since the button text already reads as
+     a toggle. */
+  .row-actions details { @apply relative; }
+  .row-actions summary.btn-sm { @apply list-none cursor-pointer; }
+  .row-actions summary.btn-sm::-webkit-details-marker { display: none; }
 
   /* Plans row-toggle cell: hidden by default (desktop). Kept as its own
      class rather than Tailwind's `md:hidden` (min-width:768px) because that

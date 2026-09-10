@@ -126,12 +126,17 @@ def import_plex_users(
             request, actor, session, error=_("Plex is not connected."), status_code=400
         )
     audit.record(session, actor.id, "import_plex_users", detail=result)
+    msg = _("Imported %(c)d user(s), skipped %(s)d existing.") % {
+        "c": result["created"],
+        "s": result["skipped"],
+    }
+    if result.get("activated"):
+        msg += " " + _("Activated %(a)d pending invite(s).") % {"a": result["activated"]}
     return _render_list(
         request,
         actor,
         session,
-        message=_("Imported %(c)d user(s), skipped %(s)d existing.")
-        % {"c": result["created"], "s": result["skipped"]},
+        message=msg,
         stale=result.get("stale"),
     )
 

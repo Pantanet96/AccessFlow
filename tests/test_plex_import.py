@@ -1,7 +1,7 @@
 from sqlmodel import select
 
 import app.services.plex_service as plex_service
-from app.models import AppUser, Role
+from app.models import AppUser, Invite, InviteStatus, Role
 from app.services import plex_import
 
 
@@ -32,6 +32,37 @@ def test_import_creates_and_skips(db_session, monkeypatch):
         select(AppUser).where(AppUser.plex_account_id == "200")
     ).one()
     assert new.role == Role.user and new.manager_id is None
+
+
+def test_import_activates_pending_invite(db_session, monkeypatch):
+    manager = _mk(db_session, Role.moderator, "Manager")
+    invite = Invite(
+        email="invited@example.com",
+        real_name="Invited Person",
+        intended_role=Role.moderator,
+        manager_id=manager.id,
+        token="tok123",
+        status=InviteStatus.pending,
+    )
+    db_session.add(invite)
+    db_session.commit()
+    monkeypatch.setattr(
+        plex_service,
+        "list_shared_users",
+        lambda: [{"id": "800", "email": "invited@example.com", "username": "invited"}],
+    )
+    result = plex_import.import_plex_users(db_session)
+    assert result["created"] == 0 and result["activated"] == 1
+
+    new = db_session.exec(
+        select(AppUser).where(AppUser.plex_account_id == "800")
+    ).one()
+    assert new.role == Role.moderator
+    assert new.manager_id == manager.id
+    assert new.real_name == "Invited Person"
+
+    db_session.refresh(invite)
+    assert invite.status == InviteStatus.accepted
 
 
 def test_import_route_admin(client, db_session, login_as, monkeypatch):

@@ -173,6 +173,35 @@ def _load_overseerr() -> dict:
     }
 
 
+DEFAULT_JOB_INTERVAL_HOURS = 24
+
+
+def clamp_job_interval_hours(n: int) -> int:
+    """1..168 (one week) -- a job runs every N hours from whenever the
+    scheduler last (re)started, not at a fixed clock time."""
+    return max(1, min(168, n))
+
+
+def job_interval_hours(job_id: str) -> int:
+    """Hours between runs of the named background job (see app.scheduler.JOBS).
+    DB-only setting, per job; defaults to DEFAULT_JOB_INTERVAL_HOURS when never
+    configured."""
+    return _cached(
+        f"job_interval_hours:{job_id}", lambda: _load_job_interval_hours(job_id)
+    )
+
+
+def _load_job_interval_hours(job_id: str) -> int:
+    with Session(engine) as session:
+        raw = settings_store.get_value(session, f"job_interval_hours:{job_id}")
+    if raw in (None, ""):
+        return DEFAULT_JOB_INTERVAL_HOURS
+    try:
+        return clamp_job_interval_hours(int(raw))
+    except (ValueError, TypeError):
+        return DEFAULT_JOB_INTERVAL_HOURS
+
+
 def plex_default_sections() -> list[str]:
     return _cached("plex_default_sections", _load_plex_default_sections)
 

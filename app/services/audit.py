@@ -51,6 +51,8 @@ _ACTION_LABELS = {
     "settings_public_url": N_("updated the public address"),
     "settings_reminders": N_("updated the reminder schedule"),
     "settings_digest": N_("updated the manager digest window"),
+    "settings_job_interval": N_("changed a background job's run interval"),
+    "run_job_now": N_("ran a background job manually"),
     "settings_notification_retention": N_("updated the notification retention window"),
     "settings_color_theme": N_("changed the color theme"),
     "settings_template": N_("edited a notification template"),
@@ -108,10 +110,19 @@ def _detail_summary(action: str, detail: dict | None) -> str:
         return detail.get("name") or detail.get("type") or ""
     if action == "broadcast":
         return str(detail.get("recipients", ""))
+    if action == "settings_job_interval":
+        return _("%(job)s: every %(h)sh") % {
+            "job": detail.get("job", "?"), "h": detail.get("hours", "?")
+        }
+    if action == "run_job_now":
+        return detail.get("job", "")
     if action == "import_plex_users":
-        return _("created %(c)s, skipped %(s)s") % {
+        base = _("created %(c)s, skipped %(s)s") % {
             "c": detail.get("created", 0), "s": detail.get("skipped", 0)
         }
+        if detail.get("activated"):
+            base += ", " + _("activated %(a)s") % {"a": detail["activated"]}
+        return base
     # Fallback: compact key=value list
     return ", ".join(f"{k}={v}" for k, v in detail.items())
 

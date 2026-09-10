@@ -217,6 +217,83 @@ def test_cookies_stay_secure_when_env_is_https(db_session, monkeypatch):
     assert runtime_config.cookies_secure() is True
 
 
+# ---- Background jobs (Settings > Jobs) ----
+
+def test_job_interval_saved_and_clamped(client, db_session, login_as):
+    login_as(client, _superadmin(db_session).id)
+    resp = client.post(
+        "/settings/jobs/plex_auto_import/interval",
+        data={"interval_hours": "6"},
+        follow_redirects=False,
+    )
+    assert resp.status_code == 303
+    assert runtime_config.job_interval_hours("plex_auto_import") == 6
+
+    client.post(
+        "/settings/jobs/plex_auto_import/interval", data={"interval_hours": "9999"}
+    )
+    assert runtime_config.job_interval_hours("plex_auto_import") == 168  # clamped to max
+
+    client.post(
+        "/settings/jobs/plex_auto_import/interval", data={"interval_hours": "abc"}
+    )
+    assert (
+        runtime_config.job_interval_hours("plex_auto_import")
+        == runtime_config.DEFAULT_JOB_INTERVAL_HOURS
+    )
+
+    # Each job's interval is independent -- changing one must not affect another.
+    assert runtime_config.job_interval_hours("db_backup") == (
+        runtime_config.DEFAULT_JOB_INTERVAL_HOURS
+    )
+
+
+def test_job_interval_rejects_unknown_job_id(client, db_session, login_as):
+    login_as(client, _superadmin(db_session).id)
+    resp = client.post(
+        "/settings/jobs/not-a-real-job/interval",
+        data={"interval_hours": "6"},
+        follow_redirects=False,
+    )
+    assert resp.status_code == 303
+    from app.services import settings_store
+
+    assert settings_store.get_value(db_session, "job_interval_hours:not-a-real-job") is None
+
+
+def test_run_job_now_executes_immediately(client, db_session, login_as, monkeypatch):
+    import app.scheduler as scheduler_module
+
+    calls = []
+    # JOBS holds its own reference to the job function, so patch the registry
+    # entry directly rather than the module-level _run_backup.
+    for j in scheduler_module.JOBS:
+        if j["id"] == "db_backup":
+            monkeypatch.setitem(j, "fn", lambda: calls.append("ran"))
+
+    login_as(client, _superadmin(db_session).id)
+    resp = client.post("/settings/jobs/db_backup/run", follow_redirects=False)
+    assert resp.status_code == 303
+    assert calls == ["ran"]
+
+
+def test_run_job_now_rejects_unknown_job_id(client, db_session, login_as):
+    login_as(client, _superadmin(db_session).id)
+    resp = client.post(
+        "/settings/jobs/not-a-real-job/run", follow_redirects=False
+    )
+    assert resp.status_code == 303
+
+
+def test_settings_jobs_page_ok_without_running_scheduler(client, db_session, login_as):
+    # Tests run with the scheduler disabled -- the page must still render,
+    # showing the "not running" fallback instead of a next-run time.
+    login_as(client, _superadmin(db_session).id)
+    resp = client.get("/settings?group=jobs")
+    assert resp.status_code == 200
+    assert "scheduler non attivo" in resp.text  # default test locale is it
+
+
 def test_plex_forward_url_uses_the_configured_domain(client, db_session, login_as):
     """The OAuth callback is built from the setting, not from the request host --
     this is what a reverse-proxy deploy gets wrong without it."""

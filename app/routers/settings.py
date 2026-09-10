@@ -31,7 +31,7 @@ router = APIRouter()
 _PIN_COOKIE = "plex_setup_pin"
 _PIN_SALT = "plex-setup-pin"
 
-_GROUPS = ("plex", "notifiche", "utenti", "sistema")
+_GROUPS = ("plex", "notifiche", "utenti", "sistema", "jobs")
 
 
 def _valid_group(group: str) -> str:
@@ -55,6 +55,7 @@ def _context(session: Session, viewer: AppUser, group: str = "plex", **extra) ->
         "plex_server": plex["server_name"],
         "sections": sections,
         "default_sections": runtime_config.plex_default_sections(),
+        "jobs": _jobs_status(),
         "reminder_days_before": ",".join(str(d) for d in sched["before"]),
         "reminder_days_after": ",".join(str(-d) for d in sched["after"]),
         "digest_lookahead_days": runtime_config.digest_lookahead(),
@@ -86,6 +87,14 @@ def _context(session: Session, viewer: AppUser, group: str = "plex", **extra) ->
 
 def _admin(viewer: AppUser = Depends(require_role(Role.superadmin))) -> AppUser:
     return viewer
+
+
+def _jobs_status() -> list[dict]:
+    # Lazy import: the scheduler module is only relevant when it's running
+    # (disabled in tests), same pattern as the /healthz check in main.py.
+    from app import scheduler as sched_module
+
+    return sched_module.jobs_status()
 
 
 @router.get("/settings", response_class=HTMLResponse)
@@ -350,6 +359,46 @@ def save_reminders(
         detail={"before": before, "after": after},
     )
     return RedirectResponse("/settings?group=utenti", status_code=303)
+
+
+# ---- Background jobs (Settings > Jobs) ----
+
+@router.post("/settings/jobs/{job_id}/interval")
+def save_job_interval(
+    job_id: str,
+    interval_hours: str = Form(""),
+    viewer: AppUser = Depends(_admin),
+    session: Session = Depends(get_session),
+):
+    from app import scheduler as sched_module
+
+    if job_id not in sched_module.JOB_IDS:
+        return RedirectResponse("/settings?group=jobs", status_code=303)
+    try:
+        n = runtime_config.clamp_job_interval_hours(int(interval_hours))
+    except (ValueError, TypeError):
+        n = runtime_config.DEFAULT_JOB_INTERVAL_HOURS
+    settings_store.set_value(session, f"job_interval_hours:{job_id}", str(n))
+    audit.record(
+        session, viewer.id, "settings_job_interval", detail={"job": job_id, "hours": n}
+    )
+    sched_module.reschedule_job(job_id)
+    return RedirectResponse("/settings?group=jobs", status_code=303)
+
+
+@router.post("/settings/jobs/{job_id}/run")
+def run_job_now(
+    job_id: str,
+    viewer: AppUser = Depends(_admin),
+    session: Session = Depends(get_session),
+):
+    from app import scheduler as sched_module
+
+    if job_id not in sched_module.JOB_IDS:
+        return RedirectResponse("/settings?group=jobs", status_code=303)
+    sched_module.run_job_now(job_id)
+    audit.record(session, viewer.id, "run_job_now", detail={"job": job_id})
+    return RedirectResponse("/settings?group=jobs", status_code=303)
 
 
 @router.post("/settings/digest")

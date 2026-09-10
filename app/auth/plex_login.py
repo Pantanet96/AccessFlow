@@ -3,19 +3,10 @@ from sqlalchemy import func
 from sqlmodel import Session, select
 
 from app import runtime_config
-from app.config import get_settings
-from app.models import AppUser, Invite, InviteStatus, Role
-from app.services.activation import on_user_activated
+from app.models import AppUser, Role
+from app.services.invite_activation import activate_pending_invite, sync_plex_fields
 
-
-def _sync_plex_fields(user: AppUser, account: dict) -> None:
-    acc_id = account.get("id")
-    if acc_id is not None:
-        user.plex_account_id = str(acc_id)
-    if account.get("username"):
-        user.plex_username = account["username"]
-    if account.get("email"):
-        user.plex_email = account["email"]
+_sync_plex_fields = sync_plex_fields
 
 
 def resolve_or_activate_user(session: Session, account: dict) -> AppUser | None:
@@ -67,27 +58,6 @@ def resolve_or_activate_user(session: Session, account: dict) -> AppUser | None:
 
     # 3. Pending invite -> activate (create the user).
     if email:
-        invite = session.exec(
-            select(Invite).where(
-                func.lower(Invite.email) == email,
-                Invite.status == InviteStatus.pending,
-            )
-        ).first()
-        if invite is not None:
-            user = AppUser(
-                role=invite.intended_role,
-                real_name=invite.real_name,
-                manager_id=invite.manager_id,
-                locale=get_settings().default_locale,
-                is_active=True,
-            )
-            _sync_plex_fields(user, account)
-            session.add(user)
-            invite.status = InviteStatus.accepted
-            session.add(invite)
-            session.commit()
-            session.refresh(user)
-            on_user_activated(session, user, invite)
-            return user
+        return activate_pending_invite(session, account)
 
     return None
