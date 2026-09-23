@@ -344,3 +344,37 @@ def test_reports_export_csv_requires_permission(client, db_session, login_as):
     user = _user(db_session, "PlainCsv")
     login_as(client, user.id)
     assert client.get("/reports/export.csv", follow_redirects=False).status_code == 403
+
+
+def test_renewal_rate_counts_renewals_paid_through_the_real_flow(db_session):
+    # mark_renewal_paid moves expiry a period forward, out of the month: the
+    # old expiry-based count never saw the renewal and read 0%.
+    from app.services import subscriptions as sub_svc
+
+    bronze = _plan(db_session, "bronze")
+    renewed = _sub(db_session, _user(db_session, "Renewed"), bronze, datetime(2026, 6, 10))
+    r = sub_svc.create_renewal(db_session, renewed, actor_id=None, collected_by=None)
+    sub_svc.mark_renewal_paid(db_session, r, causale="cash", paid_at=datetime(2026, 6, 2))
+    assert renewed.expiry_at >= datetime(2026, 7, 1)
+    _sub(db_session, _user(db_session, "Unpaid"), bronze, datetime(2026, 6, 28))
+    # A first-period setup payment in June is not a renewal.
+    fresh = _user(db_session, "Fresh")
+    new_sub = sub_svc.create_subscription(db_session, fresh, bronze, start=datetime(2026, 6, 5))
+    sub_svc.record_setup_payment(db_session, new_sub, bronze, actor_id=None, collected_by=None)
+
+    assert rep.earnings(db_session, REF)["renewal_rate"] == 50.0
+
+
+def test_collected_share_uses_the_month_total(client, db_session, login_as):
+    # It divided by the still-to-collect remainder: 90 in, 10 left read 900%.
+    bronze = _plan(db_session, "bronze")
+    admin = _manager(db_session, "Share", role=Role.admin)
+    _paid_renewal(
+        db_session, _sub(db_session, _user(db_session, "In"), bronze, datetime(2026, 6, 20)),
+        bronze, 900, datetime(2026, 6, 5),
+    )
+    _sub(db_session, _user(db_session, "Left"), bronze, datetime(2026, 6, 25))
+    login_as(client, admin.id)
+    html = client.get("/reports?month=2026-06").text
+    share = 900 / (900 + bronze.price_cents) * 100
+    assert f"{share:.1f}%" in html

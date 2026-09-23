@@ -33,7 +33,9 @@
 <section class="mb-gap-lg">
   <h2 class="mb-gap-sm text-sm font-semibold uppercase tracking-wide text-on-surface-variant">{{ _("Earnings") }} — {{ month }}</h2>
   {% set collected_trend = ((earnings.current_collected - earnings.prev) / earnings.prev * 100) if earnings.prev else none %}
-  {% set collect_rate = (earnings.current_collected / earnings.current_collectable * 100) if earnings.current_collectable else none %}
+  {# Share of this month's money already in: collected / (collected + still to collect). #}
+  {% set month_total = earnings.current_collected + earnings.current_collectable %}
+  {% set collect_rate = (earnings.current_collected / month_total * 100) if month_total else none %}
   <div class="grid grid-cols-1 divide-y divide-outline-variant rounded-xl border border-outline-variant bg-surface-container-low md:grid-cols-4 md:divide-y-0 md:divide-x">
     <div class="p-5">
       <p class="text-2xl font-bold text-primary">{{ earnings.prev | euros }}</p>
