@@ -21,6 +21,7 @@ from app.models import (
     Plan,
     Subscription,
     SubscriptionStatus,
+    local_date,
     utcnow,
 )
 from app.services import mail_service, telegram_service
@@ -164,7 +165,7 @@ def notify_expiry(session: Session, sub: Subscription, days: int) -> None:
         return
     overdue = days <= 0
     ntype = _ntype_for(days)
-    exp = sub.expiry_at.date().isoformat()
+    exp = local_date(sub.expiry_at).isoformat()
     tag = "ovd" if overdue else "exp"      # dedup namespace per phase
     grace_left = user.grace_days + days    # days <= 0 when overdue
     suspended = overdue and grace_left <= 0
@@ -206,7 +207,7 @@ def run_expiry_scan(session: Session, today: datetime | None = None) -> dict:
     for sub in subs:
         if sub.expiry_at is None:          # unlimited / F&F -> never dunned
             continue
-        days_left = (sub.expiry_at.date() - now.date()).days
+        days_left = (local_date(sub.expiry_at) - local_date(now)).days
         if days_left in fire_days:
             notify_expiry(session, sub, days_left)
             counts["notified"] += 1
@@ -228,7 +229,7 @@ def collectables(session, *, manager_id=None, lookahead, today=None):
     days_left asc (most urgent / most overdue first)."""
     from app.services.subscriptions import get_current_subscription, has_pending_renewal
 
-    today = (today or utcnow()).date()
+    today = local_date(today or utcnow())
     stmt = select(AppUser).where(AppUser.is_active.is_(True))
     if manager_id is not None:
         stmt = stmt.where(AppUser.manager_id == manager_id)
@@ -244,7 +245,7 @@ def collectables(session, *, manager_id=None, lookahead, today=None):
         plan = session.get(Plan, sub.plan_id)
         if plan is None or not plan.is_paid:
             continue
-        days_left = (sub.expiry_at.date() - today).days
+        days_left = (local_date(sub.expiry_at) - today).days
         if days_left > lookahead:
             continue
         if has_pending_renewal(session, sub.id):
@@ -253,7 +254,7 @@ def collectables(session, *, manager_id=None, lookahead, today=None):
             "user_id": u.id,
             "user_name": u.real_name,
             "plan_name": plan.name,
-            "expiry_date": sub.expiry_at.date().isoformat(),
+            "expiry_date": local_date(sub.expiry_at).isoformat(),
             "days_left": days_left,
             "amount_cents": plan.price_cents,
             "amount_eur": _amount_eur(plan),
@@ -268,9 +269,10 @@ def run_manager_digests(session, today=None) -> int:
     collectable subs within the lookahead window. Idempotent per ISO week.
     Channels reuse the manager's notify_via_email / notify_via_telegram prefs."""
     now = today or utcnow()
-    weekday = now.weekday()
+    local_today = local_date(now)
+    weekday = local_today.weekday()
     lookahead = runtime_config.digest_lookahead()
-    period = now.strftime("%G-W%V")
+    period = local_today.strftime("%G-W%V")
     mgr_ids = {
         u.manager_id for u in session.exec(
             select(AppUser).where(AppUser.manager_id.is_not(None))
@@ -366,7 +368,7 @@ def _welcome_ctx(session: Session, user: AppUser, plan: Plan, expiry: datetime |
     from app.services.telegram_link import make_link_token
 
     if expiry is not None:
-        exp_str = expiry.date().isoformat()
+        exp_str = local_date(expiry).isoformat()
     else:
         exp_str = "illimitato" if user.locale == "it" else "unlimited"
     public_url = runtime_config.overseerr_config()["public_url"]
@@ -408,13 +410,13 @@ def notify_expiry_manual(session: Session, sub: Subscription) -> int:
     plan = session.get(Plan, sub.plan_id)
     if user is None or plan is None or sub.expiry_at is None:
         return 0
-    today = utcnow().date()
+    today = local_date(utcnow())
     # Real (possibly negative) days so an already-overdue user gets the overdue /
     # suspended copy, not a wrong "expires in 0 days". Mirrors notify_expiry.
-    days = (sub.expiry_at.date() - today).days
+    days = (local_date(sub.expiry_at) - today).days
     overdue = days <= 0
     ntype = _ntype_for(days)
-    exp = sub.expiry_at.date().isoformat()
+    exp = local_date(sub.expiry_at).isoformat()
     tag = "ovd" if overdue else "exp"
     grace_left = user.grace_days + days
     user_type = "user_overdue" if overdue else "user_expiry"

@@ -273,3 +273,28 @@ def test_user_opts_out_of_telegram(db_session, monkeypatch):
     notif.notify_expiry(db_session, sub, 3)
     assert sent["email"] == ["notg@example.com"]
     assert sent["tg"] == []
+
+
+def test_reminder_steps_follow_local_calendar_day(db_session, monkeypatch):
+    # The scan runs on Europe/Rome time. At 00:30 Rome on 1 Oct it is still
+    # 30 Sep in UTC: counting in UTC put every reminder one step off.
+    from datetime import datetime
+
+    sent = _capture(monkeypatch)
+    u = _user(db_session, "Rome", plex_email="rome@example.com")
+    sub = _sub(db_session, u, _plan(db_session, "bronze"), 0)
+    sub.expiry_at = datetime(2026, 10, 4, 12, 0)   # 4 Oct, local and UTC alike
+    db_session.add(sub)
+    db_session.commit()
+
+    notif.run_expiry_scan(db_session, today=datetime(2026, 9, 30, 22, 30))  # UTC
+    assert sent["email"] == ["rome@example.com"]  # 3 local days -> the 3-day step
+
+
+def test_digest_weekday_is_local(db_session):
+    from datetime import datetime
+
+    from app.models import local_date
+
+    # 22:30 UTC Sunday 4 Oct 2026 is already Monday in Rome.
+    assert local_date(datetime(2026, 10, 4, 22, 30)).weekday() == 0
