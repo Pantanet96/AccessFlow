@@ -19,6 +19,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - SMTP on port 465 (implicit TLS) now works.
 - A failed backup no longer leaves a partial file that pushes a good backup out of retention.
 - Reconnecting Plex forgets the previously selected server, so shares no longer target a server of the old login.
+- An out-of-range report month or a malformed manager choice no longer returns a server error.
+- Dismissing the banner or the tutorial no longer fails on pages shown after a form submission.
 
 ## [1.3.3] - 2026-09-23
 

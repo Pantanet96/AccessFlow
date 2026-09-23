@@ -26,9 +26,12 @@ TREND_MONTHS = 12
 def _parse_month(raw: str) -> datetime | None:
     """"YYYY-MM" from <input type="month">. Anything else -> None = current."""
     try:
-        return datetime.strptime(raw, "%Y-%m")
+        dt = datetime.strptime(raw, "%Y-%m")
     except (ValueError, TypeError):
         return None
+    # The 12-month trend reaches back a year (and the export a month ahead):
+    # "0001-01" / "9999-12" overflowed datetime -> 500.
+    return dt if 1900 <= dt.year <= 9000 else None
 
 
 def _parse_manager(raw: str) -> int | None:

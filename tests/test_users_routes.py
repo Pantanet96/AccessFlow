@@ -337,3 +337,24 @@ def test_deleted_user_cookie_stays_dead_after_reactivation(client, db_session, l
     db_session.add(u)
     db_session.commit()
     assert client.get("/profile", follow_redirects=False).status_code == 303
+
+
+def test_manager_assign_non_numeric_is_ignored(client, db_session, login_as):
+    admin = _mk(db_session, Role.admin, "AdminNum")
+    target = _mk(db_session, Role.user, "TargetNum")
+    login_as(client, admin.id)
+    resp = client.post(f"/users/{target.id}/manager", data={"manager_id": "abc"},
+                       follow_redirects=False)
+    assert resp.status_code == 303
+
+
+def test_dismiss_next_never_points_at_post_route(client, db_session, login_as):
+    # A page rendered by a POST handler (here a 400 from /role) carried its own
+    # POST-only path as `next`: dismissing the banner then answered 405.
+    boss = db_session.exec(select(AppUser).where(AppUser.role == Role.superadmin)).first()
+    mod = _mk(db_session, Role.moderator, "KeeperB")
+    _mk(db_session, Role.user, "KeptB", manager_id=mod.id)
+    login_as(client, boss.id)
+    resp = client.post(f"/users/{mod.id}/role", data={"role": "user"})
+    assert resp.status_code == 400
+    assert f'name="next" value="/users/{mod.id}/role"' not in resp.text
