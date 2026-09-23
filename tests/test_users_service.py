@@ -66,3 +66,22 @@ def test_change_role(db_session):
     u = _mk(db_session, Role.user, "R")
     svc.change_role(db_session, u, Role.moderator)
     assert u.role == Role.moderator
+
+
+def test_soft_delete_stops_billing_and_reminders(db_session):
+    # The expiry scan, reports and /requests key on the subscription, not on
+    # is_active: a deleted user kept getting reminders and counted as paying.
+    from app.models import Plan, Renewal, SubscriptionStatus
+    from app.services import subscriptions as sub_svc
+
+    u = _mk(db_session, Role.user, "Leaving")
+    bronze = db_session.exec(select(Plan).where(Plan.slug == "bronze")).one()
+    sub = sub_svc.create_subscription(db_session, u, bronze)
+    sub_svc.create_renewal(db_session, sub, actor_id=None, collected_by=None)
+
+    svc.soft_delete(db_session, u)
+    db_session.refresh(sub)
+    assert sub.status == SubscriptionStatus.cancelled
+    assert not db_session.exec(
+        select(Renewal).where(Renewal.subscription_id == sub.id)
+    ).all()
