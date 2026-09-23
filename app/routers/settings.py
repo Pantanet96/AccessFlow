@@ -10,7 +10,7 @@ from urllib.parse import urlparse
 from app import runtime_config
 from app.auth.deps import require_role
 from app.auth.session import read_value, sign_value
-from app.config import get_settings
+from app.config import get_settings, is_weak_secret
 from app.db import get_session
 from app.i18n import gettext as _
 from app.models import AppUser, Role
@@ -624,13 +624,15 @@ def rotate_key(
     new_secret = new_secret.strip()
     if not new_secret:
         new_secret = secrets.token_urlsafe(48)  # auto-generate strong secret
-    elif len(new_secret) < 16:
+    elif is_weak_secret(new_secret):
+        # Same rule as startup: a shorter key rotates fine, then the app
+        # refuses to boot once APP_SECRET_KEY is set to it.
         return templates.TemplateResponse(
             request,
             "settings.html",
             _context(
                 session, viewer, group="sistema",
-                error=_("New secret must be at least 16 characters."),
+                error=_("New secret must be at least 32 characters."),
             ),
         )
     if new_secret == get_settings().app_secret_key:

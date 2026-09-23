@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Suspending a user now actually removes their Plex library share.
 - Default Telegram expiry reminder and welcome messages are no longer rejected by Telegram.
 - Users removed from Plex are no longer re-invited by the next daily library sync.
+- Key rotation now requires a 32-character secret, the same minimum the app enforces at startup.
 - Overdue subscriptions stay visible and renewable instead of showing "No active subscription"; assigning a plan to an overdue user no longer creates a second subscription.
 
 ## [1.3.1] - 2026-09-10
