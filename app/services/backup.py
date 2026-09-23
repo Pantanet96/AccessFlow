@@ -19,14 +19,22 @@ def backup_database() -> Path | None:
     stamp = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S-%f")
     dest = backups_dir / f"app-{stamp}.db"
 
+    # Write under a name retention doesn't match; a failed run (disk full, db
+    # locked) used to leave a truncated app-*.db that pushed out a good backup.
+    part = dest.with_suffix(".db.part")
     source = sqlite3.connect(str(src))
-    target = sqlite3.connect(str(dest))
+    target = sqlite3.connect(str(part))
     try:
         with target:
             source.backup(target)
+    except BaseException:
+        target.close()
+        part.unlink(missing_ok=True)
+        raise
     finally:
         target.close()
         source.close()
+    part.replace(dest)
 
     # Retain the newest `keep` by actual modification time (not filename order),
     # so retention stays correct even if names ever sort oddly.

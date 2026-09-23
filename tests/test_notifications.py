@@ -339,3 +339,39 @@ def test_digest_weekday_is_local(db_session):
 
     # 22:30 UTC Sunday 4 Oct 2026 is already Monday in Rome.
     assert local_date(datetime(2026, 10, 4, 22, 30)).weekday() == 0
+
+
+def test_failed_backup_leaves_no_file(db_session, monkeypatch):
+    # A truncated app-*.db counted in retention and pushed out a good backup.
+    import sqlite3
+    from pathlib import Path
+
+    import pytest
+
+    from app.config import get_settings
+    from app.services import backup
+
+    real = sqlite3.connect
+    opened = []
+
+    class BrokenSource:
+        def __init__(self, conn):
+            self.conn = conn
+
+        def backup(self, target):
+            raise sqlite3.OperationalError("disk I/O error")
+
+        def close(self):
+            self.conn.close()
+
+    def connect(path):
+        opened.append(path)
+        conn = real(path)
+        return BrokenSource(conn) if len(opened) == 1 else conn
+
+    backups = Path(get_settings().database_path).parent / "backups"
+    before = set(backups.glob("app-*")) if backups.exists() else set()
+    monkeypatch.setattr(backup.sqlite3, "connect", connect)
+    with pytest.raises(sqlite3.OperationalError):
+        backup.backup_database()
+    assert set(backups.glob("app-*")) == before
