@@ -171,14 +171,14 @@ def test_manager_collect_skipped_for_free_plan(db_session, monkeypatch):
 def test_run_expiry_scan_buckets_and_expiry(db_session, monkeypatch):
     _capture(monkeypatch)
     bronze = _plan(db_session, "bronze")
-    for d in (7, 3, 1, 5):  # 7/3/1 notified, 5 ignored
+    for d in (7, 3, 1, 5, 20):  # 7/3/1 on their step, 5 catches up the 7, 20 none
         u = _user(db_session, f"U{d}", plex_email=f"u{d}@example.com")
         _sub(db_session, u, bronze, d)
     expired_user = _user(db_session, "Exp", plex_email="exp@example.com")
     expired_sub = _sub(db_session, expired_user, bronze, -2)
 
     counts = notif.run_expiry_scan(db_session)
-    assert counts["notified"] == 3
+    assert counts["notified"] == 5  # + the -2 overdue catching up the day-0 step
     assert counts["expired"] == 1
     db_session.refresh(expired_sub)
     assert expired_sub.status == SubscriptionStatus.expired
@@ -198,14 +198,14 @@ def test_run_expiry_scan_respects_configured_days(db_session, monkeypatch):
     # Admin sets a custom schedule: only 10 days before + 2 days overdue.
     settings_store.set_value(db_session, "reminder_days_before", "10")
     settings_store.set_value(db_session, "reminder_days_after", "2")
-    for d in (10, 7, 1):  # only the 10-day sub is in the schedule now
+    for d in (10, 7, 1):  # 10 on its step, 7 catches it up, 1 is too far past
         u = _user(db_session, f"C{d}", plex_email=f"c{d}@example.com")
         _sub(db_session, u, bronze, d)
     overdue = _user(db_session, "Ovd", plex_email="ovd@example.com")
     _sub(db_session, overdue, bronze, -2)  # 2 days overdue -> fires
 
     counts = notif.run_expiry_scan(db_session)
-    assert counts["notified"] == 2  # the 10-day + the -2 overdue, not 7/1
+    assert counts["notified"] == 3  # 10, 7 (catch-up) and the -2 overdue, not 1
 
     # rerun is idempotent (dedup holds for configured days too)
     before = len(db_session.exec(select(NotificationLog)).all())
@@ -294,3 +294,18 @@ def test_dedup_race_does_not_abort_the_run(db_session):
         channel=NotificationChannel.email, dedup_key="race:1",
         sender=racing_sender,
     ) is False
+
+
+def test_missed_reminder_is_caught_up_once(db_session, monkeypatch):
+    # The 3-day reminder failed (SMTP down) or the app was off that day: the
+    # exact-match scan never sent it. Next run catches it up, once.
+    sent = _capture(monkeypatch)
+    u = _user(db_session, "Late", plex_email="late@example.com")
+    _sub(db_session, u, _plan(db_session, "bronze"), 2)  # step 3 was yesterday
+
+    notif.run_expiry_scan(db_session)
+    assert sent["email"] == ["late@example.com"]
+    notif.run_expiry_scan(db_session)  # same step: deduped
+    assert sent["email"] == ["late@example.com"]
+    keys = [n.dedup_key for n in db_session.exec(select(NotificationLog)).all()]
+    assert any(k.startswith("exp:") and ":3:" in k for k in keys)
