@@ -3,7 +3,9 @@ import re
 
 from sqlmodel import Session, select
 
-from app.models import AppUser, Role
+from app.models import (
+    AppUser, Renewal, RenewalStatus, Role, Subscription, SubscriptionStatus,
+)
 
 _VALID_LOCALES = ("it", "en")
 # A single, well-formed address: no spaces/commas, so it can't smuggle extra
@@ -71,6 +73,23 @@ def soft_delete(session: Session, user: AppUser) -> None:
             raise OrphanError()
     user.is_active = False
     session.add(user)
+    # Nothing left to bill or remind: the expiry scan, reports and /requests
+    # key on the subscription, not on is_active.
+    subs = session.exec(
+        select(Subscription)
+        .where(Subscription.user_id == user.id)
+        .where(Subscription.status != SubscriptionStatus.cancelled)
+    ).all()
+    for sub in subs:
+        sub.status = SubscriptionStatus.cancelled
+        session.add(sub)
+        pending = session.exec(
+            select(Renewal)
+            .where(Renewal.subscription_id == sub.id)
+            .where(Renewal.status == RenewalStatus.pending)
+        ).all()
+        for renewal in pending:
+            session.delete(renewal)
     session.commit()
 
 
