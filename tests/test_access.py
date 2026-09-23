@@ -431,3 +431,23 @@ def test_grace_period_trial_stays_view_only(db_session):
     _overdue_sub(db_session, u, trial)
     assert access_service._desired_ov_permissions(db_session, u) == \
         access_service.TRIAL_OV_PERMISSIONS
+
+
+def test_failed_unshare_leaves_user_unsuspended_for_retry(db_session, monkeypatch):
+    # Flagged first, a Plex outage left "suspended" in the DB while access went
+    # on: reconcile_all/resync skip suspended users, so nothing ever retried.
+    from app.models import Plan
+
+    _mute_plex(monkeypatch)
+    monkeypatch.setattr(plex_service, "unshare",
+                        lambda *a, **k: (_ for _ in ()).throw(RuntimeError("503")))
+    plan = db_session.exec(select(Plan).where(Plan.slug == "bronze")).one()
+    u = _mk(db_session, name="Retry")
+    _overdue_sub(db_session, u, plan)
+
+    assert access_service.suspend(db_session, u) is False
+    assert u.access_suspended is False
+    # Next daily run: Plex is back -> suspended for real.
+    monkeypatch.setattr(plex_service, "unshare", lambda *a, **k: None)
+    assert access_service.reconcile_all(db_session) == 1
+    assert u.access_suspended is True

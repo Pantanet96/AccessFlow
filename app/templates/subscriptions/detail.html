@@ -140,6 +140,12 @@
     {% if target.access_suspended %}<span class="badge badge--suspended">{{ _("Suspended") }}</span>
     {% else %}<span class="badge badge--active">{{ _("Active") }}</span>{% endif %}
   </p>
+  {% if suspend_failed %}
+  <p class="flex items-center gap-2 text-status-expired bg-status-expired/10 rounded-lg py-2 px-3 mb-gap-md text-sm" role="alert">
+    <span class="material-symbols-outlined text-[18px]" aria-hidden="true">error</span>
+    {{ _("Plex could not be reached: access not suspended. Try again later.") }}
+  </p>
+  {% endif %}
   <div class="flex flex-wrap gap-gap-sm mb-gap-md">
     {% if target.access_suspended %}
     <form method="post" action="/users/{{ target.id }}/reactivate" class="m-0">

@@ -2640,3 +2640,6 @@ msgstr "Esegui alle (ora, 0-23)"
 #~ msgid "Keep Plex User Manager ID"
 #~ msgstr "Tieni l'ID di Plex User Manager"
 
+
+msgid "Plex could not be reached: access not suspended. Try again later."
+msgstr "Plex non raggiungibile: accesso non sospeso. Riprova più tardi."

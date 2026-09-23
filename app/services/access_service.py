@@ -125,13 +125,18 @@ def _ov_delete(user: AppUser) -> None:
 
 # ---- Public actions ----
 
-def suspend(session: Session, user: AppUser) -> None:
+def suspend(session: Session, user: AppUser) -> bool:
+    """Revoke access. False if Plex could not be reached: the user is then left
+    unsuspended so reconcile_all retries tomorrow (reconcile and resync skip
+    suspended users, so flagging first meant a failed unshare stuck forever)."""
+    if user.plex_email and not _safe(plex_service.unshare, user.plex_email):
+        _ov_disable(session, user)
+        return False
     user.access_suspended = True
     session.add(user)
     session.commit()
-    if user.plex_email:
-        _safe(plex_service.unshare, user.plex_email)
     _ov_disable(session, user)
+    return True
 
 
 def reactivate(session: Session, user: AppUser) -> None:
@@ -323,6 +328,6 @@ def reconcile_all(session: Session, now: datetime | None = None) -> int:
         if sub.expiry_at is None:
             continue
         if now > sub.expiry_at + timedelta(days=user.grace_days):
-            suspend(session, user)
-            suspended += 1
+            if suspend(session, user):
+                suspended += 1
     return suspended
