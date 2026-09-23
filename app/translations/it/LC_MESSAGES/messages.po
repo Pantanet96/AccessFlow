@@ -357,8 +357,8 @@ msgid "That doesn't look like a valid URL: %s"
 msgstr "Non sembra un URL valido: %s"
 
 #: app/routers/settings.py:559
-msgid "New secret must be at least 16 characters."
-msgstr "Il nuovo segreto deve avere almeno 16 caratteri."
+msgid "New secret must be at least 32 characters."
+msgstr "Il nuovo segreto deve avere almeno 32 caratteri."
 
 #: app/routers/settings.py:568
 msgid "New secret is identical to the current one."

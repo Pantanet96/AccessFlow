@@ -7,7 +7,7 @@ def test_rotate_secret_reencrypts(db_session):
     s = db_session
     settings_store.set_value(s, "plex_token", "secret-token-123")
 
-    new = "rotated-secret-key-0123456789"  # >= 16 chars
+    new = "rotated-secret-key-0123456789-abcdef"  # >= 32 chars
     try:
         count = settings_store.rotate_secret(s, new)
         assert count >= 1
@@ -21,4 +21,21 @@ def test_rotate_secret_reencrypts(db_session):
         assert plain == "secret-token-123"
     finally:
         # Global override must not leak into other tests (they use the base key).
+        settings_store._active_secret_override = None
+
+
+def test_rotate_route_rejects_key_startup_would_refuse(client, db_session, login_as):
+    # 16..31 chars used to rotate fine, then crash-looped the container once
+    # APP_SECRET_KEY was set to it (startup requires 32).
+    from app.models import AppUser, Role
+
+    boss = AppUser(role=Role.superadmin, real_name="Boss")
+    db_session.add(boss)
+    db_session.commit()
+    login_as(client, boss.id)
+    try:
+        resp = client.post("/settings/rotate-key", data={"new_secret": "x" * 20})
+        assert "at least 32 characters" in resp.text
+        assert settings_store._active_secret_override is None
+    finally:
         settings_store._active_secret_override = None

@@ -5,6 +5,12 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # Historic default secrets to reject in production (Fix #1).
 _WEAK_SECRETS = {"change-me", "change-me-to-a-long-random-string", ""}
+MIN_SECRET_LEN = 32
+
+
+def is_weak_secret(secret: str) -> bool:
+    """Known default or too short: startup refuses it (see main.lifespan)."""
+    return secret in _WEAK_SECRETS or len(secret) < MIN_SECRET_LEN
 
 
 class Settings(BaseSettings):
@@ -63,7 +69,7 @@ class Settings(BaseSettings):
 
     def secret_is_weak(self) -> bool:
         """True if APP_SECRET_KEY is a known default or too short (Fix #1)."""
-        return self.app_secret_key in _WEAK_SECRETS or len(self.app_secret_key) < 32
+        return is_weak_secret(self.app_secret_key)
 
     def cookies_secure(self) -> bool:
         """Set the Secure cookie flag only on HTTPS deploys (Fix #4)."""
