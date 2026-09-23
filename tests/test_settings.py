@@ -139,6 +139,42 @@ def test_telegram_test_route(client, db_session, login_as, monkeypatch):
     assert "mybot" in resp.text
 
 
+def test_telegram_test_reports_failed_send(client, db_session, login_as, monkeypatch):
+    # The bot answered but the message to the admin failed: it still said "sent".
+    monkeypatch.setattr(telegram_service, "get_me", lambda: {"username": "mybot"})
+    monkeypatch.setattr(telegram_service, "send_message", lambda *a, **k: False)
+    admin = _superadmin(db_session)
+    admin.telegram_id = "123"
+    db_session.add(admin)
+    db_session.commit()
+    login_as(client, admin.id)
+    client.cookies.set("locale", "en")
+    resp = client.post("/settings/telegram/test")
+    assert "could not be sent" in resp.text
+    assert "message sent to your Telegram" not in resp.text
+
+
+def test_new_bot_token_restarts_polling(client, db_session, login_as, monkeypatch):
+    # Polling kept the old token until a container restart: /start links broke.
+    from app.bot import runner
+    from app.config import get_settings
+
+    calls = []
+
+    async def fake_restart(app):
+        calls.append(app)
+
+    monkeypatch.setattr(runner, "restart_bot", fake_restart)
+    monkeypatch.setattr(get_settings(), "enable_bot", True)
+    login_as(client, _superadmin(db_session).id)
+    client.post("/settings/telegram", data={"telegram_bot_token": "1:new",
+                                            "telegram_bot_username": "b"})
+    assert len(calls) == 1
+    client.post("/settings/telegram", data={"telegram_bot_token": "",
+                                            "telegram_bot_username": "b"})
+    assert len(calls) == 1  # blank keeps the token: nothing to restart
+
+
 # ---- Plex connect flow ----
 
 def test_plex_connect_redirects(client, db_session, login_as, monkeypatch):

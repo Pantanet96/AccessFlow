@@ -2637,3 +2637,6 @@ msgstr ""
 
 msgid "This Telegram ID is already linked to another account."
 msgstr ""
+
+msgid "(test message to your Telegram could not be sent)"
+msgstr ""

@@ -13,6 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Deleting a plan no longer fails with an error when invites reference it; a plan still used by a pending invite is shown as in use.
 - A paid plan now requires a duration; without one, subscriptions expired at once and renewals added no time.
 - A Telegram ID already linked to another account can no longer be set from the profile or imported from Overseerr.
+- A new Telegram bot token takes effect right away instead of after a restart.
+- The Telegram test no longer says the test message was sent when it was not.
 
 ## [1.3.3] - 2026-09-23
 

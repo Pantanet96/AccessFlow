@@ -111,32 +111,18 @@ async def lifespan(app: FastAPI):
             target=warm_plex_cache, name="plex-warmup", daemon=True
         ).start()
 
-    bot = None
     if settings.enable_bot:
-        from app.runtime_config import telegram_config
+        from app.bot.runner import restart_bot
 
-        if telegram_config()["token"]:
-            from app.bot.runner import start_bot
-
-            try:
-                bot = await start_bot()
-                app.state.telegram_bot = bot  # expose to /healthz probe
-            except Exception:
-                import logging
-
-                logging.getLogger(__name__).warning(
-                    "Telegram bot failed to start (bad token or network) — "
-                    "continuing without it.", exc_info=True,
-                )
-                bot = None
+        await restart_bot(app)  # sets app.state.telegram_bot (/healthz probe)
 
     try:
         yield
     finally:
-        if bot is not None:
+        if app.state.telegram_bot is not None:
             from app.bot.runner import stop_bot
 
-            await stop_bot(bot)
+            await stop_bot(app.state.telegram_bot)
         if scheduler is not None:
             from app.scheduler import shutdown_scheduler
 

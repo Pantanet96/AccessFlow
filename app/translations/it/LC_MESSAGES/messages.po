@@ -2655,3 +2655,6 @@ msgstr "Un piano a pagamento richiede una durata in mesi o giorni."
 
 msgid "This Telegram ID is already linked to another account."
 msgstr "Questo ID Telegram è già collegato a un altro account."
+
+msgid "(test message to your Telegram could not be sent)"
+msgstr "(impossibile inviare il messaggio di prova sul tuo Telegram)"
