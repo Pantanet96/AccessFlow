@@ -1,5 +1,6 @@
 """SQLModel table definitions for AccessFlow."""
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
+from zoneinfo import ZoneInfo
 
 from sqlmodel import Field, SQLModel
 
@@ -17,6 +18,17 @@ def utcnow() -> datetime:
     # Naive UTC: SQLite stores naive datetimes, so keeping everything naive
     # avoids aware/naive comparison errors when reading values back.
     return datetime.now(timezone.utc).replace(tzinfo=None)
+
+
+def local_date(dt: datetime) -> date:
+    """Calendar day of a naive-UTC datetime in the app's timezone (settings.tz).
+
+    Day counts and weekdays that reach people (reminder steps, digest day) must
+    follow the wall clock the scheduler runs on, not UTC: a scan at 00:30 Rome
+    is still the previous day in UTC."""
+    from app.config import get_settings
+
+    return dt.replace(tzinfo=timezone.utc).astimezone(ZoneInfo(get_settings().tz)).date()
 
 
 class AppUser(SQLModel, table=True):
