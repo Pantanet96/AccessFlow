@@ -8,7 +8,9 @@ from sqlmodel import Session, select
 from app import runtime_config
 from app.auth.deps import require_capability, require_user
 from app.db import get_session
-from app.models import AppUser, Plan, Renewal, RenewalStatus, Role, Subscription
+from app.models import (
+    AppUser, Plan, Renewal, RenewalStatus, Role, Subscription, SubscriptionStatus, utcnow,
+)
 from app.permissions import Capability, has_capability
 from app.services import audit, notifications
 from app.services import subscriptions as sub_svc
@@ -41,7 +43,9 @@ def subscription_detail(
     session: Session = Depends(get_session),
 ):
     target = _load_target(session, viewer, user_id)
-    sub = sub_svc.get_active_subscription(session, target.id)
+    # Current, not active: an overdue (`expired`) sub must stay visible and
+    # renewable here, or "Collect" only offers "Assign plan" -> a second sub.
+    sub = sub_svc.get_current_subscription(session, target.id)
     plan = session.get(Plan, sub.plan_id) if sub else None
     renewals = sub_svc.list_renewals(session, sub.id) if sub else []
     # Acting on the sub (plan/renew/remind/access) requires hierarchy rights;
@@ -155,7 +159,7 @@ def change_or_create_plan(
             start = datetime.strptime(start_date, "%Y-%m-%d")
         except ValueError:
             start = None
-    existing = sub_svc.get_active_subscription(session, target.id)
+    existing = sub_svc.get_current_subscription(session, target.id)
     if existing is None:
         new_sub = sub_svc.create_subscription(
             session, target, plan, trial_days=days, start=start, periods=periods
@@ -202,13 +206,17 @@ def set_expiry(
     target = _load_target(session, viewer, user_id)
     if not users_svc.can_manage_user(viewer, target):
         raise HTTPException(status_code=403)
-    sub = sub_svc.get_active_subscription(session, target.id)
+    sub = sub_svc.get_current_subscription(session, target.id)
     if sub is None:
         raise HTTPException(status_code=404)
     try:
         sub.expiry_at = datetime.strptime(expiry_date, "%Y-%m-%d")
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid date")
+    if sub.expiry_at.date() >= utcnow().date():
+        # Moved back into the future: no longer overdue. The daily scan flips
+        # it to expired again once the new date passes.
+        sub.status = SubscriptionStatus.active
     session.add(sub)
     session.commit()
     audit.record(
