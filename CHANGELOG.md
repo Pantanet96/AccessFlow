@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The Telegram test no longer says the test message was sent when it was not.
 - Deleting a user now ends their open sessions for good, even if the account is later restored.
 - SMTP on port 465 (implicit TLS) now works.
+- A failed backup no longer leaves a partial file that pushes a good backup out of retention.
 
 ## [1.3.3] - 2026-09-23
 
