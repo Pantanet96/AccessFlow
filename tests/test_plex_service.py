@@ -230,3 +230,14 @@ def test_unshare_raises_when_share_list_unreadable(wired):
     wired(Down(users=[_user("a@b.it")]))
     with pytest.raises(RuntimeError, match="503"):
         plex_service.unshare("a@b.it")
+
+
+def test_share_refuses_when_every_library_is_gone(wired):
+    # Filtered to [] the invite would go out as "all libraries".
+    account, server = wired(FakeAccount(users=[]))
+    server.library = types.SimpleNamespace(
+        sections=lambda: [types.SimpleNamespace(title="Movies")]
+    )
+    with pytest.raises(plex_service.PlexShareNotFound):
+        plex_service.share("a@b.it", ["Renamed"])
+    assert not [c for c in account.calls if c[0] in ("invite", "update")]
