@@ -296,3 +296,87 @@ def test_subscription_detail_no_delete_for_inactive_target(client, db_session, l
     resp = client.get(f"/users/{target.id}/subscription")
     assert resp.status_code == 200
     assert f'action="/users/{target.id}/delete"' not in resp.text
+
+
+def _expired_sub(db_session, user, slug="bronze"):
+    """A paid sub the daily scan has already flipped to `expired`."""
+    from datetime import timedelta
+
+    from app.models import SubscriptionStatus, utcnow
+
+    sub = svc.create_subscription(db_session, user, _plan(db_session, slug))
+    sub.expiry_at = utcnow() - timedelta(days=3)
+    sub.status = SubscriptionStatus.expired
+    db_session.add(sub)
+    db_session.commit()
+    return sub
+
+
+def test_overdue_sub_stays_visible_and_renewable(client, db_session, login_as):
+    admin = _mk(db_session, Role.admin, "AdmOver")
+    user = _mk(db_session, Role.user, "Overdue", manager_id=admin.id)
+    sub = _expired_sub(db_session, user)
+    login_as(client, admin.id)
+    html = client.get(f"/users/{user.id}/subscription").text
+    assert "No active subscription." not in html
+    assert f"/subscriptions/{sub.id}/renew" in html
+
+
+def test_assign_plan_on_overdue_user_changes_it_instead_of_duplicating(
+    client, db_session, login_as
+):
+    from app.models import Subscription, SubscriptionStatus
+
+    admin = _mk(db_session, Role.admin, "AdmDup")
+    user = _mk(db_session, Role.user, "Dup", manager_id=admin.id)
+    _expired_sub(db_session, user)
+    login_as(client, admin.id)
+    resp = client.post(
+        f"/users/{user.id}/subscription/plan",
+        data={"plan_slug": "gold", "trial_days": "", "periods": "1"},
+        follow_redirects=False,
+    )
+    assert resp.status_code == 303
+    db_session.expire_all()
+    live = db_session.exec(
+        select(Subscription)
+        .where(Subscription.user_id == user.id)
+        .where(Subscription.status.in_(
+            (SubscriptionStatus.active, SubscriptionStatus.expired)))
+    ).all()
+    assert len(live) == 1
+
+
+def test_create_subscription_cancels_overdue_one(db_session):
+    from app.models import SubscriptionStatus
+
+    user = _mk(db_session, Role.user, "Replace")
+    old = _expired_sub(db_session, user)
+    svc.create_subscription(db_session, user, _plan(db_session, "gold"))
+    db_session.refresh(old)
+    assert old.status == SubscriptionStatus.cancelled
+
+
+def test_set_expiry_on_overdue_sub_reactivates_it(client, db_session, login_as):
+    from app.models import SubscriptionStatus
+
+    admin = _mk(db_session, Role.admin, "AdmFix")
+    user = _mk(db_session, Role.user, "Fix", manager_id=admin.id)
+    sub = _expired_sub(db_session, user)
+    login_as(client, admin.id)
+    resp = client.post(
+        f"/users/{user.id}/subscription/expiry",
+        data={"expiry_date": "2099-01-01"},
+        follow_redirects=False,
+    )
+    assert resp.status_code == 303
+    db_session.refresh(sub)
+    assert sub.status == SubscriptionStatus.active
+
+
+def test_overdue_user_home_offers_renewal_request(client, db_session, login_as):
+    user = _mk(db_session, Role.user, "HomeOver")
+    sub = _expired_sub(db_session, user)
+    login_as(client, user.id)
+    html = client.get("/").text
+    assert f"/subscriptions/{sub.id}/request-renewal" in html

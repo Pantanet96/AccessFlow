@@ -97,7 +97,9 @@ def create_subscription(
     start = start or utcnow()
     expiry = compute_expiry(start, plan, trial_days, periods=periods)
 
-    existing = get_active_subscription(session, user.id)
+    # Current, not active: an overdue sub left `expired` beside the new one
+    # would keep firing overdue reminders and stay payable from /requests.
+    existing = get_current_subscription(session, user.id)
     if existing is not None:
         existing.status = SubscriptionStatus.cancelled
         session.add(existing)

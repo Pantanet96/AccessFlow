@@ -7,7 +7,7 @@ from sqlmodel import Session, select
 from app.models import AppUser, Role
 from app.services import overseerr_service, plex_service
 from app.services.invite_activation import activate_pending_invite
-from app.services.subscriptions import get_active_subscription
+from app.services.subscriptions import get_current_subscription
 
 
 def import_plex_users(session: Session) -> dict:
@@ -102,11 +102,11 @@ def import_plex_users(session: Session) -> dict:
 
 
 def users_without_active_subscription(session: Session) -> list[AppUser]:
-    """Active end-users that have no active subscription (need a plan assigned)."""
+    """Active end-users with no current (active or overdue) subscription."""
     rows = session.exec(
         select(AppUser)
         .where(AppUser.is_active.is_(True))
         .where(AppUser.role == Role.user)
         .order_by(AppUser.real_name)
     ).all()
-    return [u for u in rows if get_active_subscription(session, u.id) is None]
+    return [u for u in rows if get_current_subscription(session, u.id) is None]

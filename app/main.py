@@ -337,7 +337,7 @@ def create_app() -> FastAPI:
             from app.models import Plan
             from app.services import subscriptions as sub_svc
 
-            sub = sub_svc.get_active_subscription(session, current_user.id)
+            sub = sub_svc.get_current_subscription(session, current_user.id)
             plan = session.get(Plan, sub.plan_id) if sub else None
             manager = (
                 session.get(AppUser, current_user.manager_id)
