@@ -113,6 +113,29 @@ def _has_paid_renewal(session: Session, sub_id: int, start: datetime, end: datet
     )
 
 
+def _renewed_sub_ids(session: Session, start: datetime, end: datetime, uids=None) -> set[int]:
+    """Subs whose renewal fell due in [start, end) and is paid.
+
+    Keyed on Renewal.due_at (the expiry at request time), not on the sub's
+    current expiry: paying moves expiry_at a period forward, out of the month,
+    so an expiry-based count never saw a renewal and read ~0%. Setup payments
+    (record_setup_payment: due_at == start_at) are a first period, not a
+    renewal, and stay out."""
+    if uids is not None and not uids:
+        return set()
+    stmt = (
+        select(Subscription.id)
+        .join(Renewal, Renewal.subscription_id == Subscription.id)
+        .where(Renewal.status == RenewalStatus.paid)
+        .where(Renewal.due_at >= start)
+        .where(Renewal.due_at < end)
+        .where(Renewal.due_at != Subscription.start_at)
+    )
+    if uids is not None:
+        stmt = stmt.where(Subscription.user_id.in_(uids))
+    return set(session.exec(stmt).all())
+
+
 def _active_paying(session: Session, uids=None) -> int:
     if uids is not None and not uids:
         return 0
@@ -143,16 +166,19 @@ def earnings(
     current_collected = _sum_paid(session, cur_start, next_start, sub_ids)
 
     current_collectable = 0
-    due = renewed = 0
+    renewed_ids = _renewed_sub_ids(session, cur_start, next_start, uids)
+    unpaid = 0
     for sub in _subs_expiring(session, cur_start, next_start, uids):
         plan = session.get(Plan, sub.plan_id)
-        if plan is None or not plan.is_paid:
+        if plan is None or not plan.is_paid or sub.id in renewed_ids:
             continue
-        due += 1
         if _has_paid_renewal(session, sub.id, cur_start, next_start):
-            renewed += 1
+            renewed_ids.add(sub.id)
         else:
+            unpaid += 1
             current_collectable += plan.price_cents
+    renewed = len(renewed_ids)
+    due = renewed + unpaid
 
     next_projected = 0
     for sub in _subs_expiring(session, next_start, nn_start, uids):
