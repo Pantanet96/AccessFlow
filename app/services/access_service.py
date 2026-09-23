@@ -16,10 +16,7 @@ from sqlmodel import Session, select
 from app import runtime_config
 from app.models import AppUser, Plan, utcnow
 from app.services import overseerr_service, plex_service, settings_store
-from app.services.subscriptions import (
-    get_active_subscription,
-    get_current_subscription,
-)
+from app.services.subscriptions import get_current_subscription
 
 log = logging.getLogger("pum.access")
 
@@ -40,11 +37,14 @@ def _parse(raw: str | None) -> list[str] | None:
 
 
 def libraries_for(session: Session, user: AppUser) -> list[str]:
-    """Precedence: user override -> active plan's libraries -> global default."""
+    """Precedence: user override -> current plan's libraries -> global default.
+
+    Current, not active: in the grace period the sub is already `expired`, and
+    an active-only lookup fell through to the (often wider) global default."""
     user_libs = _parse(user.shared_libraries)
     if user_libs is not None:
         return user_libs
-    sub = get_active_subscription(session, user.id)
+    sub = get_current_subscription(session, user.id)
     if sub is not None:
         plan = session.get(Plan, sub.plan_id)
         plan_libs = _parse(plan.libraries) if plan else None
@@ -83,10 +83,11 @@ def _ov_disable(session: Session, user: AppUser) -> None:
 
 
 def _desired_ov_permissions(session: Session, user: AppUser) -> int:
-    """Overseerr permission bitmask the user should hold, decided by their active
-    plan: a trial is view-only (no requests); everyone else gets their saved
-    permissions, or the configured default."""
-    sub = get_active_subscription(session, user.id)
+    """Overseerr permission bitmask the user should hold, decided by their
+    current plan (overdue included, or an expired trial in grace would get full
+    request rights): a trial is view-only (no requests); everyone else gets
+    their saved permissions, or the configured default."""
+    sub = get_current_subscription(session, user.id)
     if sub is not None:
         plan = session.get(Plan, sub.plan_id)
         if plan is not None and plan.is_trial:
