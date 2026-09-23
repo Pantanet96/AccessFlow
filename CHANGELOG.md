@@ -21,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Creating a renewal twice (e.g. double click) no longer produces two pending renewals.
 - Reports: the renewal rate counts paid renewals (it read ~0%), and "already collected" is a share of the month total (it could exceed 100%).
 - Users list: sorting now applies across pages, not only within the current one.
+- A manager with assigned users can no longer be demoted to user (same rule as delete); reassign them first.
 - Overdue subscriptions stay visible and renewable instead of showing "No active subscription"; assigning a plan to an overdue user no longer creates a second subscription.
 
 ## [1.3.1] - 2026-09-10

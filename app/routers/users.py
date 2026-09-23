@@ -242,7 +242,18 @@ def set_role(
 
     if new_role == Role.superadmin or not outranks(actor.role, new_role):
         return _next_redirect(next)
-    users_svc.change_role(session, target, new_role)
+    try:
+        users_svc.change_role(session, target, new_role)
+    except users_svc.OrphanError:
+        return _render_list(
+            request,
+            actor,
+            session,
+            error=_(
+                "Cannot demote a manager with assigned users. Reassign them first."
+            ),
+            status_code=400,
+        )
     audit.record(
         session, actor.id, "change_role", "app_user", user_id, {"role": new_role.value}
     )

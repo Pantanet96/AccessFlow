@@ -169,6 +169,15 @@ def can_manage_user(viewer: AppUser, target: AppUser) -> bool:
 
 
 def change_role(session: Session, user: AppUser, new_role: Role) -> AppUser:
+    # Demoting a manager to a plain user: same guard as soft_delete. Otherwise
+    # their users keep a manager_id pointing at a user (digests keep going to
+    # them, reports drop that revenue) and demote-then-delete skips the check.
+    if (
+        user.role in (Role.admin, Role.moderator)
+        and new_role == Role.user
+        and assigned_active_count(session, user.id) > 0
+    ):
+        raise OrphanError()
     user.role = new_role
     session.add(user)
     session.commit()

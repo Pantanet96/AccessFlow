@@ -2625,3 +2625,6 @@ msgstr ""
 
 msgid "Plex could not be reached: access not suspended. Try again later."
 msgstr ""
+
+msgid "Cannot demote a manager with assigned users. Reassign them first."
+msgstr ""

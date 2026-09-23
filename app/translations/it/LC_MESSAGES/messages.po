@@ -409,7 +409,7 @@ msgstr ""
 
 #: app/routers/users.py:278
 msgid "Cannot delete a manager with assigned users. Reassign them first."
-msgstr ""
+msgstr "Impossibile eliminare un manager con utenti assegnati. Riassegnali prima."
 "Impossibile eliminare un responsabile con utenti assegnati. Riassegnali "
 "prima."
 
@@ -2643,3 +2643,6 @@ msgstr "Esegui alle (ora, 0-23)"
 
 msgid "Plex could not be reached: access not suspended. Try again later."
 msgstr "Plex non raggiungibile: accesso non sospeso. Riprova più tardi."
+
+msgid "Cannot demote a manager with assigned users. Reassign them first."
+msgstr "Impossibile declassare un manager con utenti assegnati. Riassegnali prima."
