@@ -284,3 +284,26 @@ def test_cannot_demote_manager_with_assigned_users(client, db_session, login_as)
     assert resp.status_code == 303
     db_session.expire_all()
     assert db_session.get(AppUser, empty.id).role == Role.user
+
+
+def test_confirm_dialogs_survive_apostrophes(client, db_session, login_as):
+    # confirm('{{ _(...) }}') broke on the first apostrophe ("user's" in en):
+    # a SyntaxError, so the form submitted with no confirmation at all.
+    import re
+    from html.parser import HTMLParser
+
+    class Handlers(HTMLParser):
+        found = []
+
+        def handle_starttag(self, tag, attrs):
+            self.found += [v for k, v in attrs if k == "onsubmit" and "confirm" in v]
+
+    boss = db_session.exec(select(AppUser).where(AppUser.role == Role.superadmin)).first()
+    login_as(client, boss.id)
+    client.cookies.set("locale", "en")
+    parser = Handlers()
+    parser.feed(client.get("/users").text)
+    assert parser.found
+    js_string = r'"(?:[^"\\]|\\.)*"'
+    for handler in parser.found:
+        assert re.fullmatch(rf"return confirm\({js_string}\);", handler), handler

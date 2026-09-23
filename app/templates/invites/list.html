@@ -132,7 +132,7 @@
             </button>
           </form>
           <form method="post" action="/invites/{{ i.id }}/delete"
-                onsubmit="return confirm('{{ _("Withdraw this pending invite? It will be cancelled on Plex too.") }}');">
+                onsubmit='return confirm({{ _("Withdraw this pending invite? It will be cancelled on Plex too.")|tojson }});'>
             <button type="submit" class="btn-sm btn-red inline-flex items-center gap-1">
               <span class="material-symbols-outlined text-[16px] leading-none" aria-hidden="true">cancel</span>
               {{ _("Withdraw") }}

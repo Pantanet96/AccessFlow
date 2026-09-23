@@ -37,14 +37,14 @@
 {% macro _logout_link(mode) %}
   {% if mode == 'bottom' %}
   <form action="/logout" method="post" class="logout-form contents"
-        onsubmit="return confirm('{{ _("Sign out?") }}');">
+        onsubmit='return confirm({{ _("Sign out?")|tojson }});'>
     <button type="submit" class="logout-btn bottomnav-link">
       <span class="material-symbols-outlined" aria-hidden="true">logout</span>
     </button>
   </form>
   {% else %}
   <form action="/logout" method="post" class="logout-form"
-        onsubmit="return confirm('{{ _("Sign out?") }}');">
+        onsubmit='return confirm({{ _("Sign out?")|tojson }});'>
     <button type="submit" class="logout-btn sidebar-link w-full text-left">
       <span class="material-symbols-outlined" aria-hidden="true">logout</span>
       <span>{{ _("Sign out") }}</span>
@@ -77,7 +77,7 @@
           </a>
           {% endfor %}
           <form action="/logout" method="post" class="logout-form"
-                onsubmit="return confirm('{{ _("Sign out?") }}');">
+                onsubmit='return confirm({{ _("Sign out?")|tojson }});'>
             <button type="submit" class="logout-btn sidebar-link w-full text-left">
               <span class="material-symbols-outlined" aria-hidden="true">logout</span>
               <span>{{ _("Sign out") }}</span>

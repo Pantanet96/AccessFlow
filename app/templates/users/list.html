@@ -8,7 +8,7 @@
   {% if can_import %}
   <div class="flex flex-wrap gap-gap-sm">
     <form method="post" action="/users/import-plex"
-          onsubmit="return confirm('{{ _("Import users from the connected Plex server?") }}');">
+          onsubmit='return confirm({{ _("Import users from the connected Plex server?")|tojson }});'>
       <button type="submit"
               class="btn-sm inline-flex items-center gap-1 border border-outline-variant text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-colors">
         <span class="material-symbols-outlined text-base" aria-hidden="true">cloud_download</span>
@@ -16,7 +16,7 @@
       </button>
     </form>
     <form method="post" action="/users/resync-libraries"
-          onsubmit="return confirm('{{ _("Re-apply each user\'s configured libraries to Plex now?") }}');">
+          onsubmit='return confirm({{ _("Re-apply each user\'s configured libraries to Plex now?")|tojson }});'>
       <button type="submit"
               class="btn-sm inline-flex items-center gap-1 border border-primary-container text-primary-container hover:bg-primary-container hover:text-on-primary transition-colors">
         <span class="material-symbols-outlined text-base" aria-hidden="true">sync</span>
@@ -270,7 +270,7 @@
           </a>
           {% if can_delete and u.id != current_user.id and u.is_active and RANK[u.role.value] < RANK[current_user.role.value] %}
           <form method="post" action="/users/{{ u.id }}/delete"
-                onsubmit="return confirm('{{ _("Delete this user?") }}');">
+                onsubmit='return confirm({{ _("Delete this user?")|tojson }});'>
             <button type="submit" class="btn-sm btn-red inline-flex items-center gap-1"
                     title="{{ _('Delete') }}" aria-label="{{ _('Delete') }}">
               <span class="material-symbols-outlined text-base" aria-hidden="true">delete</span>
