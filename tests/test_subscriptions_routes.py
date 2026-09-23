@@ -380,3 +380,19 @@ def test_overdue_user_home_offers_renewal_request(client, db_session, login_as):
     login_as(client, user.id)
     html = client.get("/").text
     assert f"/subscriptions/{sub.id}/request-renewal" in html
+
+
+def test_double_click_create_renewal_makes_one(client, db_session, login_as):
+    mod = _mk(db_session, Role.moderator, "ModDbl")
+    user = _mk(db_session, Role.user, "Dbl", manager_id=mod.id)
+    sub = svc.create_subscription(db_session, user, _plan(db_session, "bronze"))
+    login_as(client, mod.id)
+    for _ in range(2):
+        client.post(f"/subscriptions/{sub.id}/renew", follow_redirects=False)
+    db_session.expire_all()
+    pending = db_session.exec(
+        select(Renewal)
+        .where(Renewal.subscription_id == sub.id)
+        .where(Renewal.status == RenewalStatus.pending)
+    ).all()
+    assert len(pending) == 1

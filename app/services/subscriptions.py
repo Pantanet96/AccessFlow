@@ -214,6 +214,11 @@ def create_renewal(
     plan = session.get(Plan, sub.plan_id)
     if plan is None or not plan.is_paid or plan.is_trial or plan.is_unlimited:
         raise ValueError("Only paid, non-trial plans can be renewed")
+    # One open renewal per sub: a double click used to create two, and paying
+    # both extended the sub twice. The existing one is returned as-is.
+    existing = get_pending_renewal(session, sub.id)
+    if existing is not None:
+        return existing
     periods = max(1, min(MAX_PERIODS, periods))
     renewal = Renewal(
         subscription_id=sub.id,
