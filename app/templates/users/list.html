@@ -376,8 +376,9 @@
   const perPage  = document.getElementById('perPage');
   if (!tbody) return;
   const cardsList = document.getElementById('usersCards');
-  const cards = cardsList ? Array.from(cardsList.children) : [];
-  const rows  = Array.from(tbody.querySelectorAll('tr'));
+  // cards[i] is the mobile card of rows[i]; sort() reorders both together.
+  let cards = cardsList ? Array.from(cardsList.children) : [];
+  let rows  = Array.from(tbody.querySelectorAll('tr'));
   const total = rows.length;
   const tpl   = count.dataset.tpl;
   let PER_PAGE = 20;
@@ -424,11 +425,15 @@
   }
   function sort() {
     const v = sortBy.value, key = v.replace('-desc', ''), dir = v.endsWith('-desc') ? -1 : 1;
-    rows.slice().sort((a, b) =>
+    const order = rows.map((tr, i) => [tr, cards[i]]).sort(([a], [b]) =>
       (a.dataset[key] || '').localeCompare(b.dataset[key] || '') * dir
-    ).forEach(tr => {
+    );
+    // Reorder the arrays, not just the DOM: apply()/paginate() slice `rows`,
+    // so page 1 was the first 20 by name, merely re-sorted among themselves.
+    rows = order.map(([tr]) => tr);
+    cards = order.map(([, card]) => card);
+    order.forEach(([tr, card]) => {
       tbody.appendChild(tr);
-      const card = cards[rows.indexOf(tr)];
       if (card && cardsList) cardsList.appendChild(card);
     });
   }
