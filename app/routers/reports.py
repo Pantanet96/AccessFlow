@@ -71,6 +71,14 @@ def reports_page(
     )
 
 
+def _cell(value) -> str:
+    """Neutralise spreadsheet formulas (CSV injection): a display name such as
+    `=HYPERLINK(...)` is user-editable and runs when the export is opened in
+    Excel/LibreOffice. A leading apostrophe makes it plain text (OWASP)."""
+    text = "" if value is None else str(value)
+    return "'" + text if text[:1] in ("=", "+", "-", "@", "\t", "\r") else text
+
+
 @router.get("/reports/export.csv")
 def reports_export_csv(
     month: str = "",
@@ -96,9 +104,10 @@ def reports_export_csv(
     for r in reports_svc.paid_renewals(session, start, end, mid):
         writer.writerow([
             r["paid_at"].strftime("%Y-%m-%d") if r["paid_at"] else "",
-            r["user"], r["plan"], f"{r['amount_cents'] / 100:.2f}",
+            _cell(r["user"]), _cell(r["plan"]), f"{r['amount_cents'] / 100:.2f}",
             # No manager == the superadmin's own book; same label as the page.
-            r["causale"], r["collected_by"], r["manager"] or _("Superadmin"),
+            _cell(r["causale"]), _cell(r["collected_by"]),
+            _cell(r["manager"] or _("Superadmin")),
         ])
     name = f"incassi-{ref:%Y-%m}.csv" if ref else "incassi.csv"
     return Response(
