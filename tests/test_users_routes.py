@@ -119,6 +119,23 @@ def test_profile_self_edit(client, db_session, login_as):
     assert refreshed.notify_email is None
 
 
+def test_profile_rejects_telegram_id_of_another_user(client, db_session, login_as):
+    # The bot link flow already refused this; typing the id bypassed it and the
+    # other chat got this account's notifications (and bot lookups mixed up).
+    owner = _mk(db_session, Role.user, "Owner")
+    owner.telegram_id = "777"
+    db_session.add(owner)
+    db_session.commit()
+    u = _mk(db_session, Role.user, "Squatter")
+    login_as(client, u.id)
+    resp = client.post("/profile", data={"real_name": "Squatter", "telegram_id": "777",
+                                         "locale": "en"}, follow_redirects=False)
+    assert resp.status_code == 303
+    assert "tg=taken" in resp.headers["location"]
+    db_session.expire_all()
+    assert db_session.get(AppUser, u.id).telegram_id is None
+
+
 def test_manager_assign_redirects_to_next(client, db_session, login_as):
     admin = _mk(db_session, Role.admin, "AdminNext")
     mod = _mk(db_session, Role.moderator, "ModNext")

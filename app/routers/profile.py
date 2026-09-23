@@ -42,6 +42,8 @@ def _tg_status_msgs(status: str) -> tuple[str | None, str | None]:
         )
     if status == "error":
         return None, _("Saved, but the Telegram confirmation could not be sent.")
+    if status == "taken":
+        return None, _("This Telegram ID is already linked to another account.")
     return None, None  # no_config / unknown -> nothing to report
 
 
@@ -100,7 +102,9 @@ def sync_overseerr_chat_id(
             cid = overseerr_service.get_user_chat_id(
                 plex_id=user.plex_account_id, email=user.plex_email
             )
-            if cid:
+            if cid and users_svc.telegram_id_taken(session, cid, user.id):
+                error = _tg_status_msgs("taken")[1]
+            elif cid:
                 user.telegram_id = cid
                 session.add(user)
                 session.commit()
@@ -217,7 +221,8 @@ def profile_save(
     # A Telegram chat id is always an integer; reject anything else so an
     # authenticated user can't make the bot ping arbitrary strings (Fix #9).
     tid = (telegram_id or "").strip()
-    if tid and not tid.lstrip("-").isdigit():
+    taken = bool(tid) and users_svc.telegram_id_taken(session, tid, user.id)
+    if taken or (tid and not tid.lstrip("-").isdigit()):
         telegram_id = user.telegram_id or ""
     else:
         telegram_id = tid
@@ -263,7 +268,7 @@ def profile_save(
     # If the Telegram ID was set/changed manually, confirm it's reachable now
     # (a bot can't message a user who never pressed Start). Carry the result
     # across the redirect so the page can warn if the ID is unusable.
-    tg = None
+    tg = "taken" if taken else None
     if "telegram_id" in changed and (telegram_id or "").strip():
         status = _send_tg_confirm(telegram_id.strip())
         if status != "no_config":

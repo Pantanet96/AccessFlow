@@ -2631,3 +2631,6 @@ msgstr ""
 
 msgid "SMTP port must be a number between 1 and 65535."
 msgstr ""
+
+msgid "This Telegram ID is already linked to another account."
+msgstr ""
