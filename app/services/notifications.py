@@ -157,7 +157,12 @@ def _send_telegram(session, *, recipient, sub_id, ntype, dedup_key, type_, ctx) 
     )
 
 
-def notify_expiry(session: Session, sub: Subscription, days: int) -> None:
+def notify_expiry(
+    session: Session, sub: Subscription, days: int, bucket: int | None = None
+) -> None:
+    """Remind the user `days` from expiry. `bucket` is the reminder-ladder step
+    this send stands for (dedup key); it differs from `days` on a catch-up."""
+    step = days if bucket is None else bucket
     user = session.get(AppUser, sub.user_id)
     plan = session.get(Plan, sub.plan_id)
     if user is None or plan is None or sub.expiry_at is None:
@@ -180,15 +185,18 @@ def notify_expiry(session: Session, sub: Subscription, days: int) -> None:
     }
     _send_email(
         session, recipient=user, sub_id=sub.id, ntype=ntype, type_=user_type,
-        dedup_key=f"{tag}:{sub.id}:{days}:{exp}:user:email", ctx=uctx,
+        dedup_key=f"{tag}:{sub.id}:{step}:{exp}:user:email", ctx=uctx,
     )
     _send_telegram(
         session, recipient=user, sub_id=sub.id, ntype=ntype, type_=user_type,
-        dedup_key=f"{tag}:{sub.id}:{days}:{exp}:user:telegram", ctx=uctx,
+        dedup_key=f"{tag}:{sub.id}:{step}:{exp}:user:telegram", ctx=uctx,
     )
     # NB: managers are NOT pinged per-user here anymore — that spammed them once
     # per user per reminder day. They get a consolidated weekly digest instead
     # (run_manager_digests below).
+
+
+CATCH_UP_DAYS = 7
 
 
 def run_expiry_scan(session: Session, today: datetime | None = None) -> dict:
@@ -207,8 +215,17 @@ def run_expiry_scan(session: Session, today: datetime | None = None) -> dict:
         if sub.expiry_at is None:          # unlimited / F&F -> never dunned
             continue
         days_left = (sub.expiry_at.date() - now.date()).days
-        if days_left in fire_days:
-            notify_expiry(session, sub, days_left)
+        # Latest step already reached, not only an exact hit: an exact match
+        # lost a reminder for good when its send failed (SMTP down) or the app
+        # was off that day. The per-step dedup key keeps each one once-only.
+        # ponytail: catch-up capped at CATCH_UP_DAYS and kept within the phase
+        # (before/after expiry), so an old overdue sub isn't dunned on deploy.
+        reached = [
+            b for b in fire_days
+            if days_left <= b <= days_left + CATCH_UP_DAYS and (b > 0) == (days_left > 0)
+        ]
+        if reached:
+            notify_expiry(session, sub, days_left, bucket=min(reached))
             counts["notified"] += 1
         # Flip to expired once; expired subs stay scanned so overdue buckets fire.
         if days_left < 0 and sub.status != SubscriptionStatus.expired:
