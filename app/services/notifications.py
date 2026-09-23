@@ -9,6 +9,7 @@ import uuid
 from datetime import datetime, timedelta
 
 from sqlalchemy import delete
+from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, select
 
 from app import runtime_config
@@ -117,7 +118,13 @@ def _send_deduped(
             dedup_key=dedup_key,
         )
     )
-    session.commit()
+    try:
+        session.commit()
+    except IntegrityError:
+        # Another run logged the same key between our check and now (unique
+        # dedup_key): it went out twice at worst, but must not abort the scan.
+        session.rollback()
+        return False
     return True
 
 

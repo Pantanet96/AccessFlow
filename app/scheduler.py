@@ -9,6 +9,7 @@ Two scheduling styles, per job:
   "often enough" matters.
 Both are admin-configurable from Settings > Jobs.
 """
+import threading
 from datetime import datetime
 
 from apscheduler.schedulers.background import BackgroundScheduler
@@ -103,6 +104,24 @@ JOBS = (
 )
 JOB_IDS = tuple(j["id"] for j in JOBS)
 
+# One run per job at a time, shared by the scheduler and "Run now": two
+# overlapping expiry scans both passed the dedup check and double-sent.
+# ponytail: in-process locks, enough for the single-worker container; a
+# multi-process deploy would need a DB/file lock instead.
+_locks = {job_id: threading.Lock() for job_id in JOB_IDS}
+
+
+def _run_exclusive(job_id: str) -> bool:
+    """Run the job unless it is already running. False if skipped."""
+    lock = _locks[job_id]
+    if not lock.acquire(blocking=False):
+        return False
+    try:
+        job_by_id(job_id)["fn"]()
+    finally:
+        lock.release()
+    return True
+
 
 def job_by_id(job_id: str) -> dict | None:
     return next((j for j in JOBS if j["id"] == job_id), None)
@@ -122,7 +141,8 @@ def start_scheduler() -> BackgroundScheduler:
     _scheduler = BackgroundScheduler(timezone=settings.tz)
     for job in JOBS:
         _scheduler.add_job(
-            job["fn"], _trigger_for(job), id=job["id"], replace_existing=True
+            _run_exclusive, _trigger_for(job), args=[job["id"]], id=job["id"],
+            replace_existing=True,
         )
     _scheduler.start()
     return _scheduler
@@ -158,12 +178,10 @@ def job_next_run(job_id: str) -> datetime | None:
 def run_job_now(job_id: str) -> bool:
     """Execute the named job's function immediately, synchronously (the
     Settings > Jobs 'Run now' button). Does not touch its schedule. Returns
-    False if job_id is unknown."""
-    job = job_by_id(job_id)
-    if job is None:
+    False if job_id is unknown or the job is already running."""
+    if job_by_id(job_id) is None:
         return False
-    job["fn"]()
-    return True
+    return _run_exclusive(job_id)
 
 
 def jobs_status() -> list[dict]:
