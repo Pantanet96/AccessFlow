@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Confirmation dialogs no longer break (and get skipped) when their text contains an apostrophe.
+- "Run now" no longer overlaps a job that is already running, which could send reminders twice and abort the scan.
 
 ## [1.3.2] - 2026-09-23
 

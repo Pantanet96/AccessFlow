@@ -74,3 +74,19 @@ def test_reschedule_daily_job_uses_run_hour(monkeypatch):
 
 def test_job_by_id_unknown_returns_none():
     assert scheduler_module.job_by_id("not-a-real-job") is None
+
+
+def test_run_now_skips_while_the_job_is_running(monkeypatch):
+    # Overlapping expiry scans both passed the dedup check and double-sent.
+    calls = []
+    job = scheduler_module.job_by_id("expiry_scan")
+    monkeypatch.setitem(job, "fn", lambda: calls.append(1))
+    lock = scheduler_module._locks["expiry_scan"]
+    lock.acquire()
+    try:
+        assert scheduler_module.run_job_now("expiry_scan") is False
+    finally:
+        lock.release()
+    assert calls == []
+    assert scheduler_module.run_job_now("expiry_scan") is True
+    assert calls == [1]

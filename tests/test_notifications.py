@@ -273,3 +273,24 @@ def test_user_opts_out_of_telegram(db_session, monkeypatch):
     notif.notify_expiry(db_session, sub, 3)
     assert sent["email"] == ["notg@example.com"]
     assert sent["tg"] == []
+
+
+def test_dedup_race_does_not_abort_the_run(db_session):
+    # A concurrent run logs the same key between our check and our commit:
+    # the unique constraint fires; it must not escape and stop the scan.
+    from app.models import NotificationChannel, NotificationLog, NotificationType
+    from app.services import notifications as notif
+
+    def racing_sender():
+        db_session.add(NotificationLog(
+            type=NotificationType.expiry_reminder,
+            channel=NotificationChannel.email, dedup_key="race:1"))
+        db_session.commit()
+        return True
+
+    assert notif._send_deduped(
+        db_session, recipient_id=None, sub_id=None,
+        ntype=NotificationType.expiry_reminder,
+        channel=NotificationChannel.email, dedup_key="race:1",
+        sender=racing_sender,
+    ) is False
