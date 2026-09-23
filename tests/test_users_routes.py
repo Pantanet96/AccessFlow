@@ -307,3 +307,24 @@ def test_confirm_dialogs_survive_apostrophes(client, db_session, login_as):
     js_string = r'"(?:[^"\\]|\\.)*"'
     for handler in parser.found:
         assert re.fullmatch(rf"return confirm\({js_string}\);", handler), handler
+
+
+def test_manager_assign_non_numeric_is_ignored(client, db_session, login_as):
+    admin = _mk(db_session, Role.admin, "AdminNum")
+    target = _mk(db_session, Role.user, "TargetNum")
+    login_as(client, admin.id)
+    resp = client.post(f"/users/{target.id}/manager", data={"manager_id": "abc"},
+                       follow_redirects=False)
+    assert resp.status_code == 303
+
+
+def test_dismiss_next_never_points_at_post_route(client, db_session, login_as):
+    # A page rendered by a POST handler (here a 400 from /role) carried its own
+    # POST-only path as `next`: dismissing the banner then answered 405.
+    boss = db_session.exec(select(AppUser).where(AppUser.role == Role.superadmin)).first()
+    mod = _mk(db_session, Role.moderator, "KeeperB")
+    _mk(db_session, Role.user, "KeptB", manager_id=mod.id)
+    login_as(client, boss.id)
+    resp = client.post(f"/users/{mod.id}/role", data={"role": "user"})
+    assert resp.status_code == 400
+    assert f'name="next" value="/users/{mod.id}/role"' not in resp.text

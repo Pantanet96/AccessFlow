@@ -179,7 +179,7 @@ def set_manager(
     target = session.get(AppUser, user_id)
     if target is None or not users_svc.can_manage_user(actor, target):
         return _next_redirect(next)
-    mid = int(manager_id) if manager_id else None
+    mid = int(manager_id) if manager_id.isdigit() else None
     if mid is not None:
         valid_ids = {c.id for c in users_svc.manager_candidates(session)}
         if mid not in valid_ids or mid == target.id:

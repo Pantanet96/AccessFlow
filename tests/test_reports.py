@@ -394,3 +394,15 @@ def test_csv_export_neutralises_formulas(client, db_session, login_as):
     rows = list(csv.reader(io.StringIO(client.get("/reports/export.csv").text)))
     assert rows[1][1] == "'" + evil.real_name
     assert rows[1][3] == "5.00"  # numbers untouched
+
+
+def test_out_of_range_month_falls_back(client, db_session, login_as):
+    from sqlmodel import select
+
+    from app.models import AppUser, Role
+
+    boss = db_session.exec(select(AppUser).where(AppUser.role == Role.superadmin)).first()
+    login_as(client, boss.id)
+    for m in ("0001-01", "9999-12"):
+        assert client.get(f"/reports?month={m}").status_code == 200
+        assert client.get(f"/reports/export.csv?month={m}").status_code == 200
