@@ -35,7 +35,8 @@ def test_rotate_route_rejects_key_startup_would_refuse(client, db_session, login
     login_as(client, boss.id)
     try:
         resp = client.post("/settings/rotate-key", data={"new_secret": "x" * 20})
-        assert "at least 32 characters" in resp.text
+        # Locale-independent: CI compiles the catalogs, so the page is Italian.
+        assert "32 characters" in resp.text or "32 caratteri" in resp.text
         assert settings_store._active_secret_override is None
     finally:
         settings_store._active_secret_override = None
