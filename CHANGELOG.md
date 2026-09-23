@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Suspending a user now actually removes their Plex library share.
+- Default Telegram expiry reminder and welcome messages are no longer rejected by Telegram.
 
 ## [1.3.1] - 2026-09-10
 
