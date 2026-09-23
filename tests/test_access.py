@@ -398,3 +398,36 @@ def test_share_prunes_titles_missing_on_server(db_session, monkeypatch):
     monkeypatch.setattr(plex_service, "_account_and_server", lambda: (acct, srv))
     plex_service.share("e@x.com", ["Movies", "Deleted"])
     assert acct.captured == ("invite", ["Movies"])  # dead "Deleted" dropped
+
+
+def _overdue_sub(session, user, plan):
+    sub = Subscription(user_id=user.id, plan_id=plan.id, start_at=utcnow(),
+                       expiry_at=utcnow() - timedelta(days=2),
+                       status=SubscriptionStatus.expired)
+    session.add(sub)
+    session.commit()
+    return sub
+
+
+def test_grace_period_keeps_plan_libraries(db_session):
+    # In grace the sub is already `expired`: the plan must still decide, not
+    # the (wider) global default.
+    from app.models import Plan
+
+    settings_store.set_value(db_session, "plex_default_sections",
+                             json.dumps(["Movies", "TV", "4K"]))
+    plan = Plan(name="Basic", slug="basic-g", libraries=json.dumps(["Movies"]))
+    db_session.add(plan)
+    u = _mk(db_session, name="Grace")
+    _overdue_sub(db_session, u, plan)
+    assert access_service.libraries_for(db_session, u) == ["Movies"]
+
+
+def test_grace_period_trial_stays_view_only(db_session):
+    from app.models import Plan
+
+    trial = db_session.exec(select(Plan).where(Plan.is_trial.is_(True))).first()
+    u = _mk(db_session, name="TrialGrace", overseerr_prev_permissions=32)
+    _overdue_sub(db_session, u, trial)
+    assert access_service._desired_ov_permissions(db_session, u) == \
+        access_service.TRIAL_OV_PERMISSIONS
