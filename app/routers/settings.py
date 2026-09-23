@@ -260,6 +260,11 @@ def plex_callback(
     email, servers = plex_oauth.list_servers(token)
     settings_store.set_value(session, "plex_token", token)
     settings_store.set_value(session, "plex_account_email", email or "")
+    # The old server belongs to the previous login: kept, share/unshare hit its
+    # machine id with the new token until a server was picked (or forever, if
+    # the picker was left). Cleared, the next page forces the choice.
+    for key in ("plex_server_id", "plex_server_name"):
+        settings_store.delete_value(session, key)
     audit.record(session, viewer.id, "plex_connect", detail={"email": email})
 
     response = templates.TemplateResponse(

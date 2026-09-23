@@ -201,6 +201,18 @@ def test_plex_callback_saves_token_and_lists_servers(client, db_session, login_a
     assert runtime_config.plex_config()["account_email"] == "owner@example.com"
 
 
+def test_plex_reconnect_forgets_previous_server(client, db_session, login_as, monkeypatch):
+    settings_store.set_value(db_session, "plex_server_id", "old-machine")
+    settings_store.set_value(db_session, "plex_server_name", "OldServer")
+    monkeypatch.setattr(po, "create_pin", lambda: {"id": 1, "code": "C"})
+    login_as(client, _superadmin(db_session).id)
+    client.get("/settings/plex/connect", follow_redirects=False)
+    monkeypatch.setattr(po, "poll_pin", lambda pid: "new-token")
+    monkeypatch.setattr(po, "list_servers", lambda tok: ("o@example.com", []))
+    client.get("/settings/plex/callback")
+    assert runtime_config.plex_config()["server_id"] == ""
+
+
 def test_plex_select_and_disconnect(client, db_session, login_as):
     login_as(client, _superadmin(db_session).id)
     settings_store.set_value(db_session, "plex_token", "tok")
