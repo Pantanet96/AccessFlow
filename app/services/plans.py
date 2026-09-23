@@ -4,7 +4,7 @@ import re
 
 from sqlmodel import Session, select
 
-from app.models import Plan, Renewal, Subscription
+from app.models import Invite, InviteStatus, Plan, Renewal, Subscription
 from app.services.subscriptions import TRIAL_MAX_DAYS
 
 PLAN_TYPES = ("paid", "trial", "family_friends")
@@ -65,6 +65,12 @@ def list_all(session: Session) -> list[Plan]:
 def is_in_use(session: Session, plan_id: int) -> bool:
     if session.exec(
         select(Subscription).where(Subscription.plan_id == plan_id)
+    ).first():
+        return True
+    if session.exec(
+        select(Invite)
+        .where(Invite.plan_id == plan_id)
+        .where(Invite.status == InviteStatus.pending)
     ).first():
         return True
     return (
@@ -132,5 +138,9 @@ def update_plan(
 def delete_plan(session: Session, plan: Plan) -> None:
     if is_in_use(session, plan.id):
         raise PlanInUse()
+    # Accepted invites only keep plan_id as history; it would trip the FK.
+    for inv in session.exec(select(Invite).where(Invite.plan_id == plan.id)).all():
+        inv.plan_id = None
+        session.add(inv)
     session.delete(plan)
     session.commit()

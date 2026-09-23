@@ -92,6 +92,29 @@ def test_cannot_delete_plan_in_use(db_session):
         plans_svc.delete_plan(db_session, plan)
 
 
+def test_plan_delete_with_invites(db_session):
+    # A pending invite still needs its plan (activation reads it): in use.
+    # An accepted one is history: it must not trip the FK (500 before).
+    import pytest
+    from app.models import Invite, InviteStatus
+
+    plan = plans_svc.create_plan(db_session, name="Invited", plan_type="paid",
+                                 price_cents=100, duration_months=1)
+    inv = Invite(email="i@example.com", real_name="I", plan_id=plan.id, token="tok-b5")
+    db_session.add(inv)
+    db_session.commit()
+    with pytest.raises(plans_svc.PlanInUse):
+        plans_svc.delete_plan(db_session, plan)
+
+    inv.status = InviteStatus.accepted
+    db_session.add(inv)
+    db_session.commit()
+    plans_svc.delete_plan(db_session, plan)
+    assert db_session.get(Plan, plan.id) is None
+    db_session.refresh(inv)
+    assert inv.plan_id is None
+
+
 def test_plans_route_superadmin_create(client, db_session, login_as):
     login_as(client, _superadmin(db_session).id)
     resp = client.post(
