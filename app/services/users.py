@@ -72,6 +72,9 @@ def soft_delete(session: Session, user: AppUser) -> None:
         if assigned_active_count(session, user.id) > 0:
             raise OrphanError()
     user.is_active = False
+    # Revoke live cookies now, not just while inactive: reactivating the row
+    # would otherwise make every pre-deletion session valid again.
+    user.session_gen = (user.session_gen or 0) + 1
     session.add(user)
     # Nothing left to bill or remind: the expiry scan, reports and /requests
     # key on the subscription, not on is_active.
