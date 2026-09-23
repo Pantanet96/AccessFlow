@@ -80,6 +80,23 @@ def test_remove_from_plex_deletes_overseerr(db_session, monkeypatch):
     assert deleted["id"] == 9
 
 
+def test_remove_from_plex_is_not_undone_by_resync(db_session, monkeypatch):
+    # Left active, the daily resync saw "no libraries shared" != desired and
+    # re-invited the user that was just removed.
+    _mute_plex(monkeypatch)
+    monkeypatch.setattr(plex_service, "list_sections",
+                        lambda force=False: [{"title": "Movies"}])
+    monkeypatch.setattr(plex_service, "get_user_sections", lambda email: [])
+    calls = []
+    monkeypatch.setattr(plex_service, "share", lambda email, secs: calls.append(email))
+    u = _mk(db_session, name="Removed", shared_libraries=json.dumps(["Movies"]))
+
+    access_service.remove_from_plex(db_session, u)
+    assert u.access_suspended is True
+    access_service.resync_libraries(db_session)
+    assert calls == []
+
+
 def test_grant_overseerr_imports_and_enables(db_session, monkeypatch):
     _mute_plex(monkeypatch)
     _enable_overseerr(db_session)
