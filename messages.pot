@@ -2404,3 +2404,6 @@ msgstr ""
 
 msgid "Plex could not be reached: access not suspended. Try again later."
 msgstr ""
+
+msgid "SMTP port must be a number between 1 and 65535."
+msgstr ""

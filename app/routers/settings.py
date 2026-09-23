@@ -124,6 +124,17 @@ def save_smtp(
     viewer: AppUser = Depends(_admin),
     session: Session = Depends(get_session),
 ):
+    smtp_port = smtp_port.strip()
+    if smtp_port and not (smtp_port.isdigit() and 1 <= int(smtp_port) <= 65535):
+        return templates.TemplateResponse(
+            request,
+            "settings.html",
+            _context(
+                session, viewer, group="notifiche",
+                error=_("SMTP port must be a number between 1 and 65535."),
+            ),
+            status_code=400,
+        )
     settings_store.set_value(session, "smtp_host", smtp_host)
     settings_store.set_value(session, "smtp_port", smtp_port)
     settings_store.set_value(session, "smtp_user", smtp_user)

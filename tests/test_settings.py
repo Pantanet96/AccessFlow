@@ -334,3 +334,17 @@ def test_plex_forward_url_uses_the_configured_domain(client, db_session, login_a
         runtime_config.public_base_url() + "/login/plex/callback"
         == "https://af.example.com/login/plex/callback"
     )
+
+
+def test_bad_stored_smtp_port_does_not_break_settings(client, db_session, login_as):
+    # int("1e3") raised in smtp_config(): /settings 500'd, including the form
+    # needed to fix it. Now it falls back and new bad values are refused.
+    settings_store.set_value(db_session, "smtp_port", "1e3")
+    login_as(client, _superadmin(db_session).id)
+    assert client.get("/settings?group=notifiche").status_code == 200
+
+    resp = client.post("/settings/smtp", data={"smtp_port": "99999"}, follow_redirects=False)
+    assert resp.status_code == 400
+    assert settings_store.get_value(db_session, "smtp_port") == "1e3"
+    resp = client.post("/settings/smtp", data={"smtp_port": "587"}, follow_redirects=False)
+    assert resp.status_code == 303
