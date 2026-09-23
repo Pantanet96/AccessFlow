@@ -16,11 +16,14 @@ def on_user_activated(session: Session, user: AppUser, invite: Invite) -> None:
         sub = sub_svc.create_subscription(
             session, user, plan, trial_days=invite.trial_days
         )
-        # First renewal (pending) only for paid, non-trial, non-unlimited plans.
-        if plan.is_paid and not plan.is_trial and not plan.is_unlimited:
-            sub_svc.create_renewal(
-                session, sub, actor_id=None, collected_by=user.manager_id
-            )
+        # A paid invite is collected before it is sent: log that first period as
+        # a paid renewal (revenue in reports), like a manual first setup. No
+        # pending renewal: it asked to collect again what was already paid and,
+        # once confirmed, granted a second period. No-op for trial/F&F.
+        sub_svc.record_setup_payment(
+            session, sub, plan, actor_id=invite.created_by,
+            collected_by=user.manager_id,
+        )
         # One-time welcome / onboarding notification (idempotent via notification_log).
         # Wrapped: a notification failure must never abort first-login activation.
         try:

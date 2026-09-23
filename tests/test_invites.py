@@ -170,8 +170,10 @@ def test_activation_provisions_paid_subscription(client, db_session, monkeypatch
     renewals = db_session.exec(
         select(Renewal).where(Renewal.subscription_id == sub.id)
     ).all()
+    # Collected before the invite: recorded as paid (reports), nothing pending.
     assert len(renewals) == 1
-    assert renewals[0].status == RenewalStatus.pending
+    assert renewals[0].status == RenewalStatus.paid
+    assert renewals[0].amount_cents == bronze.price_cents
     assert renewals[0].collected_by == mgr.id
 
 
@@ -319,3 +321,34 @@ def test_invitable_roles_least_privilege_first(db_session):
         Role.user,
         Role.moderator,
     ]
+
+
+def test_activation_trial_no_renewal_but_expiry(client, db_session, monkeypatch):
+    # Trial: nothing collected, nothing pending; it expires and the regular
+    # expiry reminders ask the user to renew.
+    from app.models import Plan
+
+    trial = db_session.exec(select(Plan).where(Plan.is_trial.is_(True))).first()
+    db_session.add(
+        Invite(
+            email="trial@example.com",
+            real_name="Trial User",
+            intended_role=Role.user,
+            plan_id=trial.id,
+            trial_days=7,
+            token="t-trial",
+        )
+    )
+    db_session.commit()
+
+    _activate_via_plex(client, db_session, monkeypatch, "trial@example.com", acc_id="502")
+    db_session.commit()
+
+    user = db_session.exec(
+        select(AppUser).where(AppUser.plex_email == "trial@example.com")
+    ).one()
+    sub = sub_svc.get_active_subscription(db_session, user.id)
+    assert sub is not None and sub.expiry_at is not None
+    assert not db_session.exec(
+        select(Renewal).where(Renewal.subscription_id == sub.id)
+    ).all()
