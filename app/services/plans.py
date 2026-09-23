@@ -14,6 +14,10 @@ class PlanInUse(Exception):
     """Raised when deleting a plan still referenced by subscriptions/renewals."""
 
 
+class PlanNoDuration(ValueError):
+    """A paid plan with neither months nor days: every renewal added no time."""
+
+
 def _apply_type(plan: Plan, plan_type: str, price_cents, months, days) -> None:
     if plan_type == "trial":
         plan.is_trial = True
@@ -30,6 +34,8 @@ def _apply_type(plan: Plan, plan_type: str, price_cents, months, days) -> None:
         plan.duration_months = None
         plan.duration_days = None
     else:  # paid
+        if not (months or days):
+            raise PlanNoDuration()
         plan.is_trial = False
         plan.is_unlimited = False
         plan.is_paid = True
@@ -123,6 +129,8 @@ def update_plan(
     active: bool,
     libraries: list[str] | None = None,
 ) -> Plan:
+    if _current_type(plan) == "paid" and not (duration_months or duration_days):
+        raise PlanNoDuration()  # before touching the session-bound plan
     if name.strip():
         plan.name = name.strip()
     plan.active = active

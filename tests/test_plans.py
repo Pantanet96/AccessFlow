@@ -115,6 +115,28 @@ def test_plan_delete_with_invites(db_session):
     assert inv.plan_id is None
 
 
+def test_paid_plan_requires_duration(client, db_session, login_as):
+    # compute_expiry added nothing: the sub expired at once, renewals bought 0 days.
+    login_as(client, _superadmin(db_session).id)
+    resp = client.post("/plans", data={"name": "NoTerm", "plan_type": "paid",
+                                       "price": "5", "duration_months": "",
+                                       "duration_days": ""})
+    assert resp.status_code == 400
+    assert db_session.exec(select(Plan).where(Plan.name == "NoTerm")).first() is None
+
+    plan = db_session.exec(select(Plan).where(Plan.slug == "bronze")).one()
+    resp = client.post(f"/plans/{plan.id}/edit", data={"name": "Renamed", "price": "5",
+                                                       "duration_months": "0",
+                                                       "duration_days": ""})
+    assert resp.status_code == 400
+    db_session.expire_all()
+    assert db_session.get(Plan, plan.id).name != "Renamed"
+    # trial / F&F carry no months: still accepted
+    resp = client.post("/plans", data={"name": "Free", "plan_type": "family_friends"},
+                       follow_redirects=False)
+    assert resp.status_code == 303
+
+
 def test_plans_route_superadmin_create(client, db_session, login_as):
     login_as(client, _superadmin(db_session).id)
     resp = client.post(

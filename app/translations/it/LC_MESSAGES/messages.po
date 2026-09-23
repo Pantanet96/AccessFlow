@@ -2649,3 +2649,6 @@ msgstr "Impossibile declassare un manager con utenti assegnati. Riassegnali prim
 
 msgid "SMTP port must be a number between 1 and 65535."
 msgstr "La porta SMTP deve essere un numero tra 1 e 65535."
+
+msgid "A paid plan needs a duration in months or days."
+msgstr "Un piano a pagamento richiede una durata in mesi o giorni."

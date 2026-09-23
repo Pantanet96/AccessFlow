@@ -47,6 +47,13 @@ def _render(request, viewer, session, error=None):
     )
 
 
+def _no_duration(request, viewer, session):
+    resp = _render(request, viewer, session,
+                   error=_("A paid plan needs a duration in months or days."))
+    resp.status_code = status.HTTP_400_BAD_REQUEST
+    return resp
+
+
 @router.get("/plans", response_class=HTMLResponse)
 def plans_page(
     request: Request,
@@ -58,6 +65,7 @@ def plans_page(
 
 @router.post("/plans")
 def create_plan(
+    request: Request,
     name: str = Form(...),
     plan_type: str = Form("paid"),
     price: str = Form("0"),
@@ -67,21 +75,25 @@ def create_plan(
     viewer: AppUser = Depends(require_role(Role.superadmin)),
     session: Session = Depends(get_session),
 ):
-    plans_svc.create_plan(
-        session,
-        name=name,
-        plan_type=plan_type,
-        price_cents=_euros_to_cents(price),
-        duration_months=_int_or_none(duration_months),
-        duration_days=_int_or_none(duration_days),
-        libraries=libraries or None,
-    )
+    try:
+        plans_svc.create_plan(
+            session,
+            name=name,
+            plan_type=plan_type,
+            price_cents=_euros_to_cents(price),
+            duration_months=_int_or_none(duration_months),
+            duration_days=_int_or_none(duration_days),
+            libraries=libraries or None,
+        )
+    except plans_svc.PlanNoDuration:
+        return _no_duration(request, viewer, session)
     audit.record(session, viewer.id, "create_plan", detail={"name": name, "type": plan_type})
     return RedirectResponse("/plans", status_code=status.HTTP_303_SEE_OTHER)
 
 
 @router.post("/plans/{plan_id}/edit")
 def edit_plan(
+    request: Request,
     plan_id: int,
     name: str = Form(...),
     price: str = Form("0"),
@@ -95,16 +107,19 @@ def edit_plan(
     plan = session.get(Plan, plan_id)
     if plan is None:
         raise HTTPException(status_code=404)
-    plans_svc.update_plan(
-        session,
-        plan,
-        name=name,
-        price_cents=_euros_to_cents(price),
-        duration_months=_int_or_none(duration_months),
-        duration_days=_int_or_none(duration_days),
-        active=(active == "on"),
-        libraries=libraries or None,
-    )
+    try:
+        plans_svc.update_plan(
+            session,
+            plan,
+            name=name,
+            price_cents=_euros_to_cents(price),
+            duration_months=_int_or_none(duration_months),
+            duration_days=_int_or_none(duration_days),
+            active=(active == "on"),
+            libraries=libraries or None,
+        )
+    except plans_svc.PlanNoDuration:
+        return _no_duration(request, viewer, session)
     audit.record(session, viewer.id, "edit_plan", "plan", plan_id)
     return RedirectResponse("/plans", status_code=status.HTTP_303_SEE_OTHER)
 

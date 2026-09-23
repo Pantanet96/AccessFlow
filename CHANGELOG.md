@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Changing a user's plan drops the open renewal of the old plan, which could bill the old price or put an expiry on an unlimited plan.
 - Deleting a plan no longer fails with an error when invites reference it; a plan still used by a pending invite is shown as in use.
+- A paid plan now requires a duration; without one, subscriptions expired at once and renewals added no time.
 
 ## [1.3.3] - 2026-09-23
 
