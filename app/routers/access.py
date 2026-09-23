@@ -34,7 +34,11 @@ def suspend(
     session: Session = Depends(get_session),
 ):
     target = _managed_target(session, viewer, user_id)
-    access_service.suspend(session, target)
+    if not access_service.suspend(session, target):
+        return RedirectResponse(
+            f"/users/{user_id}/subscription?suspend_failed=1",
+            status_code=status.HTTP_303_SEE_OTHER,
+        )
     audit.record(session, viewer.id, "suspend_access", "app_user", user_id)
     return _redirect(user_id)
 

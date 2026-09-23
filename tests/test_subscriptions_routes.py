@@ -380,3 +380,21 @@ def test_overdue_user_home_offers_renewal_request(client, db_session, login_as):
     login_as(client, user.id)
     html = client.get("/").text
     assert f"/subscriptions/{sub.id}/request-renewal" in html
+
+
+def test_manual_suspend_reports_plex_failure(client, db_session, login_as, monkeypatch):
+    import app.services.plex_service as plex_service
+
+    monkeypatch.setattr(plex_service, "unshare",
+                        lambda *a, **k: (_ for _ in ()).throw(RuntimeError("503")))
+    admin = _mk(db_session, Role.admin, "AdmSusp")
+    user = _mk(db_session, Role.user, "SuspFail", manager_id=admin.id)
+    user.plex_email = "susp@ex.com"
+    db_session.add(user)
+    db_session.commit()
+    login_as(client, admin.id)
+    resp = client.post(f"/users/{user.id}/suspend")
+    # Locale-independent: CI compiles the catalogs, so the page is Italian.
+    assert "access not suspended" in resp.text or "accesso non sospeso" in resp.text
+    db_session.refresh(user)
+    assert user.access_suspended is False

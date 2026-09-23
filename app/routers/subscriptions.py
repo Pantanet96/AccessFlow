@@ -71,6 +71,7 @@ def subscription_detail(
         and sub.expiry_at is not None
     )
     reminder_sent = request.query_params.get("sent")
+    suspend_failed = bool(request.query_params.get("suspend_failed"))
     can_change_paid = can_manage and has_capability(viewer, Capability.change_plan_paid)
     can_change_any = can_manage and has_capability(viewer, Capability.change_plan_any)
     plans = sub_svc.list_plans(session) if (can_change_paid or can_change_any) else []
@@ -107,6 +108,7 @@ def subscription_detail(
             "can_renew": can_renew,
             "can_remind": can_remind,
             "reminder_sent": reminder_sent,
+            "suspend_failed": suspend_failed,
             "can_change_paid": can_change_paid,
             "can_change_any": can_change_any,
             "can_manage": can_manage,
