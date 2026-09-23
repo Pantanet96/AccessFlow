@@ -344,7 +344,7 @@
     </div>
     <p class="text-sm text-on-surface-variant mb-4">{{ _("Re-encrypts all stored secrets with a new APP_SECRET_KEY. After rotating you MUST update the env var and restart, or the app can't read its settings until you do.") }}</p>
     <form method="post" action="/settings/rotate-key"
-          onsubmit="return confirm('{{ _("Rotate the encryption key? You will need to update APP_SECRET_KEY and restart immediately afterwards.") }}');" class="space-y-4">
+          onsubmit='return confirm({{ _("Rotate the encryption key? You will need to update APP_SECRET_KEY and restart immediately afterwards.")|tojson }});' class="space-y-4">
       <label class="form-label">
         {{ _("New secret (leave blank to auto-generate)") }}
         <input name="new_secret" type="text" autocomplete="off" placeholder="{{ _('auto-generate') }}" class="form-input">

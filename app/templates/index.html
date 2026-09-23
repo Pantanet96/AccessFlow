@@ -75,7 +75,7 @@
     {% if pending_renewal %}
       <p class="pending flex items-center gap-gap-sm"><span class="material-symbols-outlined" aria-hidden="true">hourglass_top</span> {{ _("Renewal request sent — awaiting confirmation from your manager.") }}</p>
       <form method="post" action="/renewals/{{ pending_renewal.id }}/delete" class="m-0"
-            onsubmit="return confirm('{{ _("Are you sure you want to delete the renewal request?") }}');">
+            onsubmit='return confirm({{ _("Are you sure you want to delete the renewal request?")|tojson }});'>
         <button type="submit" class="btn-sm btn-red rounded">{{ _("Cancel request") }}</button>
       </form>
     {% else %}

@@ -91,7 +91,7 @@
               <button type="submit" class="btn-sm bg-primary-container text-on-primary font-semibold rounded border border-primary-container hover:bg-primary hover:border-primary transition-colors">{{ _("Confirm paid") }}</button>
             </form>
             <form method="post" action="/renewals/{{ row.renewal.id }}/delete" class="m-0"
-                  onsubmit="return confirm('{{ _("Are you sure you want to delete the renewal request?") }}');">
+                  onsubmit='return confirm({{ _("Are you sure you want to delete the renewal request?")|tojson }});'>
               <button type="submit" class="btn-sm btn-red rounded">{{ _("Delete") }}</button>
             </form>
           </div>

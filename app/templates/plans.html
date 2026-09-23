@@ -142,7 +142,7 @@
         </button>
         {% if not in_use[p.id] %}
         <form method="post" action="/plans/{{ p.id }}/delete" class="m-0"
-              onsubmit="return confirm('{{ _("Delete this plan?") }}');">
+              onsubmit='return confirm({{ _("Delete this plan?")|tojson }});'>
           <button type="submit" class="btn-sm btn-red inline-flex items-center gap-1 rounded-lg">
             <span class="material-symbols-outlined text-[16px]" aria-hidden="true">delete</span>
             {{ _("Delete") }}
