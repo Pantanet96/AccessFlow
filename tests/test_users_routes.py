@@ -324,3 +324,16 @@ def test_confirm_dialogs_survive_apostrophes(client, db_session, login_as):
     js_string = r'"(?:[^"\\]|\\.)*"'
     for handler in parser.found:
         assert re.fullmatch(rf"return confirm\({js_string}\);", handler), handler
+
+
+def test_deleted_user_cookie_stays_dead_after_reactivation(client, db_session, login_as):
+    u = _mk(db_session, Role.user, "Revoked")
+    login_as(client, u.id)
+    assert client.get("/profile", follow_redirects=False).status_code == 200
+    from app.services import users as users_svc
+
+    users_svc.soft_delete(db_session, u)
+    u.is_active = True  # e.g. restored by hand in the DB
+    db_session.add(u)
+    db_session.commit()
+    assert client.get("/profile", follow_redirects=False).status_code == 303

@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - A Telegram ID already linked to another account can no longer be set from the profile or imported from Overseerr.
 - A new Telegram bot token takes effect right away instead of after a restart.
 - The Telegram test no longer says the test message was sent when it was not.
+- Deleting a user now ends their open sessions for good, even if the account is later restored.
 
 ## [1.3.3] - 2026-09-23
 
