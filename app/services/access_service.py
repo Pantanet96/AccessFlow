@@ -152,6 +152,12 @@ def sync_overseerr_permissions(session: Session, user: AppUser) -> None:
 
 
 def remove_from_plex(session: Session, user: AppUser) -> None:
+    # Also suspend: resync_libraries / reconcile_all skip suspended users only,
+    # so an active flag would re-invite the user on the next daily run.
+    # "Reactivate access" is the way back (share() re-invites).
+    user.access_suspended = True
+    session.add(user)
+    session.commit()
     if user.plex_email:
         _safe(plex_service.remove_friend, user.plex_email)
     _ov_delete(user)
