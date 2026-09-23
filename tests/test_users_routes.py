@@ -262,3 +262,25 @@ def test_users_toolbar_has_mobile_filters_disclosure(client, db_session, login_a
     # i controlli restano tutti presenti, solo raggruppati
     assert 'id="filterRole"' in resp.text
     assert 'id="sortBy"' in resp.text
+
+
+def test_cannot_demote_manager_with_assigned_users(client, db_session, login_as):
+    # Same guard as delete: demoted, their users would point at a plain user
+    # (digests go on, reports drop them) and demote-then-delete skipped it.
+    boss = db_session.exec(select(AppUser).where(AppUser.role == Role.superadmin)).first()
+    mod = _mk(db_session, Role.moderator, "Keeper")
+    _mk(db_session, Role.user, "Kept", manager_id=mod.id)
+    login_as(client, boss.id)
+    resp = client.post(f"/users/{mod.id}/role", data={"role": "user"},
+                       follow_redirects=False)
+    assert resp.status_code == 400
+    db_session.expire_all()
+    assert db_session.get(AppUser, mod.id).role == Role.moderator
+
+    # A manager with nobody assigned can still be demoted.
+    empty = _mk(db_session, Role.moderator, "Idle")
+    resp = client.post(f"/users/{empty.id}/role", data={"role": "user"},
+                       follow_redirects=False)
+    assert resp.status_code == 303
+    db_session.expire_all()
+    assert db_session.get(AppUser, empty.id).role == Role.user
