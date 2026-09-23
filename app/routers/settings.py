@@ -3,6 +3,7 @@ from fastapi import APIRouter, Depends, Form, Query, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlmodel import Session
 
+import anyio
 import json
 import secrets
 from urllib.parse import urlparse
@@ -183,6 +184,11 @@ def save_telegram(
     settings_store.set_value(session, "telegram_bot_username", telegram_bot_username)
     if telegram_bot_token:  # blank keeps the existing token
         settings_store.set_value(session, "telegram_bot_token", telegram_bot_token)
+        if get_settings().enable_bot:
+            from app.bot.runner import restart_bot
+
+            # Sync route runs in a worker thread; the bot lives on the event loop.
+            anyio.from_thread.run(restart_bot, request.app)
     audit.record(session, viewer.id, "settings_telegram")
     return RedirectResponse("/settings?group=notifiche", status_code=303)
 
@@ -197,12 +203,14 @@ def test_telegram(
         me = telegram_service.get_me()
         msg = _("Bot OK: @%s") % me.get("username", "?")
         # If the SuperAdmin linked their Telegram, send a test message too.
+        ok = True
         if viewer.telegram_id:
-            telegram_service.send_message(
+            ok = telegram_service.send_message(
                 viewer.telegram_id, _("AccessFlow — test message.")
             )
-            msg += " " + _("(test message sent to your Telegram)")
-        result = {"ok": True, "text": msg}
+            msg += " " + (_("(test message sent to your Telegram)") if ok else
+                          _("(test message to your Telegram could not be sent)"))
+        result = {"ok": ok, "text": msg}
     except Exception as exc:  # noqa: BLE001
         result = {"ok": False, "text": _("Bot test failed: %s") % exc}
     return templates.TemplateResponse(

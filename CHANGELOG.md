@@ -5,6 +5,13 @@ All notable changes to AccessFlow are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+- A new Telegram bot token takes effect right away instead of after a restart.
+- The Telegram test no longer says the test message was sent when it was not.
+
 ## [1.3.3] - 2026-09-23
 
 ### Fixed

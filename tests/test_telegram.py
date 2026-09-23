@@ -149,3 +149,33 @@ def test_broadcast_route_permission(client, db_session, login_as, monkeypatch):
         "/broadcast", data={"message": "news"}, follow_redirects=False
     )
     assert resp.status_code == 200
+
+
+def test_restart_bot_swaps_and_survives_bad_token(monkeypatch):
+    import asyncio
+    from types import SimpleNamespace
+
+    from app import runtime_config
+    from app.bot import runner
+
+    stopped = []
+
+    async def fake_stop(b):
+        stopped.append(b)
+
+    async def fake_start():
+        return "new-bot"
+
+    async def broken_start():
+        raise RuntimeError("bad token")
+
+    monkeypatch.setattr(runner, "stop_bot", fake_stop)
+    monkeypatch.setattr(runner, "start_bot", fake_start)
+    monkeypatch.setattr(runtime_config, "telegram_config", lambda: {"token": "t", "username": ""})
+    app = SimpleNamespace(state=SimpleNamespace(telegram_bot="old-bot"))
+    asyncio.run(runner.restart_bot(app))
+    assert stopped == ["old-bot"] and app.state.telegram_bot == "new-bot"
+
+    monkeypatch.setattr(runner, "start_bot", broken_start)
+    asyncio.run(runner.restart_bot(app))
+    assert app.state.telegram_bot is None  # /healthz reports it down, app keeps running
