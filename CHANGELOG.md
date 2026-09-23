@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Key rotation now requires a 32-character secret, the same minimum the app enforces at startup.
 - Deleting a user now cancels their subscription and pending renewals, so they stop getting reminders and counting in reports.
 - During the grace period users keep their plan's libraries and Overseerr rights instead of getting the global defaults.
+- Sharing no longer falls back to all libraries when every configured library was renamed or deleted on Plex.
 - Overdue subscriptions stay visible and renewable instead of showing "No active subscription"; assigning a plan to an overdue user no longer creates a second subscription.
 
 ## [1.3.1] - 2026-09-10

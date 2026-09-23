@@ -222,7 +222,11 @@ def share(email: str, sections: list[str]) -> None:
     account, server = _account_and_server()
     if sections:
         live = {s.title for s in server.library.sections()}
-        sections = [t for t in sections if t in live]
+        wanted, sections = sections, [t for t in sections if t in live]
+        if not sections:
+            # Every configured title is gone. An empty list means "all
+            # libraries" to inviteFriend: refuse rather than widen access.
+            raise PlexShareNotFound(f"None of the libraries {wanted} exist on Plex")
     if _is_friend(account, email):
         account.updateFriend(email, server, sections=sections)
     else:
