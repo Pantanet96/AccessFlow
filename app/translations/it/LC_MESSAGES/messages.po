@@ -2652,3 +2652,6 @@ msgstr "La porta SMTP deve essere un numero tra 1 e 65535."
 
 msgid "A paid plan needs a duration in months or days."
 msgstr "Un piano a pagamento richiede una durata in mesi o giorni."
+
+msgid "This Telegram ID is already linked to another account."
+msgstr "Questo ID Telegram è già collegato a un altro account."

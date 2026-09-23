@@ -2634,3 +2634,6 @@ msgstr ""
 
 msgid "A paid plan needs a duration in months or days."
 msgstr ""
+
+msgid "This Telegram ID is already linked to another account."
+msgstr ""

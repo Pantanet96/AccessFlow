@@ -105,6 +105,14 @@ def rename(session: Session, user: AppUser, real_name: str) -> AppUser:
     return user
 
 
+def telegram_id_taken(session: Session, chat_id: str, user_id: int) -> bool:
+    """Another account already holds this chat: the bot link flow refuses it
+    (one chat must not receive or control two accounts), manual entry too."""
+    return session.exec(
+        select(AppUser).where(AppUser.telegram_id == chat_id, AppUser.id != user_id)
+    ).first() is not None
+
+
 def update_profile(
     session: Session,
     user: AppUser,
