@@ -2646,3 +2646,6 @@ msgstr "Plex non raggiungibile: accesso non sospeso. Riprova più tardi."
 
 msgid "Cannot demote a manager with assigned users. Reassign them first."
 msgstr "Impossibile declassare un manager con utenti assegnati. Riassegnali prima."
+
+msgid "SMTP port must be a number between 1 and 65535."
+msgstr "La porta SMTP deve essere un numero tra 1 e 65535."

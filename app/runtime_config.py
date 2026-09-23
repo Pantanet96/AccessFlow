@@ -94,11 +94,13 @@ def plex_config() -> dict:
 def smtp_config() -> dict:
     db = _read_all()
     s = get_settings()
-    port = db["smtp_port"]
+    port = (db["smtp_port"] or "").strip()
     tls = db["smtp_tls"]
     return {
         "host": db["smtp_host"] or s.smtp_host,
-        "port": int(port) if port else s.smtp_port,
+        # A bad stored value must not 500 every /settings render (the page that
+        # fixes it): fall back to the env port. save_smtp rejects new ones.
+        "port": int(port) if port.isdigit() else s.smtp_port,
         "user": db["smtp_user"] or s.smtp_user,
         "password": db["smtp_pass"] or s.smtp_pass,
         "from_addr": db["smtp_from"] or s.smtp_from,

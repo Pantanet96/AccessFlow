@@ -2407,3 +2407,6 @@ msgstr ""
 
 msgid "Cannot demote a manager with assigned users. Reassign them first."
 msgstr ""
+
+msgid "SMTP port must be a number between 1 and 65535."
+msgstr ""
