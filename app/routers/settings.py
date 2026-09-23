@@ -502,7 +502,7 @@ def save_template(
         or locale not in notification_templates.LOCALES
     ):
         return RedirectResponse("/settings/templates", status_code=303)
-    err = notification_templates.validate(text)
+    err = notification_templates.validate(text, tpl_type)
     if err:
         return templates.TemplateResponse(
             request, "settings_templates.html",

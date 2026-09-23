@@ -70,3 +70,23 @@ def test_telegram_defaults_escape_reserved_chars():
         for loc, src in by_locale.items():
             static = re.sub(r"\{\{.*?\}\}|\{%.*?%\}", "", src, flags=re.S)
             assert not bare.findall(static), (type_, loc, static)
+
+
+def test_validate_rejects_variables_the_type_does_not_get():
+    # Valid against the union of every type's variables, it crashed at send
+    # time (digest has no `days`) and aborted the run for every manager.
+    src = "{% if days > 1 %}soon{% endif %}"
+    assert nt.validate(src, "manager_digest") is not None
+    assert nt.validate(src, "user_expiry") is None
+    assert nt.validate(src, "user_overdue") is None  # same runtime context
+
+
+def test_type_variables_all_have_samples():
+    for type_, variables in nt.TYPES.items():
+        assert set(variables) <= set(nt.SAMPLE_CTX), type_
+
+
+def test_defaults_validate_against_their_own_type():
+    for (type_, part), by_locale in nt.DEFAULTS.items():
+        for loc, src in by_locale.items():
+            assert nt.validate(src, type_) is None, (type_, part, loc)

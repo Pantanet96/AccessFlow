@@ -24,9 +24,10 @@ LOCALES = ("it", "en")
 
 # type -> variables available to that template (shown in the editor)
 TYPES: dict[str, list[str]] = {
-    "user_expiry": ["name", "plan_name", "expiry_date", "days"],
+    # notify_expiry passes one context to both user_* types.
+    "user_expiry": ["name", "plan_name", "expiry_date", "days", "grace_left", "suspended"],
     "manager_collect": ["name", "user_name", "plan_name", "expiry_date", "days", "amount_eur"],
-    "user_overdue": ["name", "plan_name", "expiry_date", "grace_left", "suspended"],
+    "user_overdue": ["name", "plan_name", "expiry_date", "days", "grace_left", "suspended"],
     "manager_overdue": ["name", "user_name", "plan_name", "expiry_date", "amount_eur"],
     "manager_digest": ["name", "items", "count", "window_days", "total_eur"],
     "welcome": ["name", "plan_name", "expiry_date", "public_url", "telegram_link"],
@@ -388,10 +389,15 @@ def render_telegram(session: Session, type_: str, locale: str, ctx: dict) -> str
     return render_part(session, type_, "telegram", locale, ctx)
 
 
-def validate(src: str) -> str | None:
-    """None if `src` renders against SAMPLE_CTX, else the error message."""
+def validate(src: str, type_: str | None = None) -> str | None:
+    """None if `src` renders, else the error message.
+
+    With `type_`, only that type's variables are defined, as at send time.
+    Against the whole SAMPLE_CTX a digest template using `days` passed here,
+    then raised on `days > 1` when sent and aborted the digest run."""
+    ctx = SAMPLE_CTX if type_ is None else {k: SAMPLE_CTX[k] for k in TYPES[type_]}
     try:
-        _env.from_string(src).render(**SAMPLE_CTX)
+        _env.from_string(src).render(**ctx)
         return None
     except Exception as exc:  # noqa: BLE001 — surface any Jinja error to the editor
         return str(exc)
