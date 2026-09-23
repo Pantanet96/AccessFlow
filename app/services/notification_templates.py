@@ -143,9 +143,9 @@ DEFAULTS: dict[tuple[str, str], dict[str, str]] = {
         "<p>Please contact your manager to renew.</p>",
     ),
     ("user_expiry", "telegram"): _d(
-        "⏳ Ciao {{ name|tg }}! Il tuo *{{ plan_name|tg }}* scade il "
+        "⏳ Ciao {{ name|tg }}\\! Il tuo *{{ plan_name|tg }}* scade il "
         "{{ expiry_date|tg }} \\(tra {{ days }}g\\)\\. Rinnova col tuo referente\\.",
-        "⏳ Hi {{ name|tg }}! Your *{{ plan_name|tg }}* expires on "
+        "⏳ Hi {{ name|tg }}\\! Your *{{ plan_name|tg }}* expires on "
         "{{ expiry_date|tg }} \\(in {{ days }}d\\)\\. Renew with your manager\\.",
     ),
     # ---- manager_collect ----
@@ -284,10 +284,10 @@ DEFAULTS: dict[tuple[str, str], dict[str, str]] = {
         "<a href=\"{{ telegram_link }}\">{{ telegram_link }}</a></p>{% endif %}",
     ),
     ("welcome", "telegram"): _d(
-        "🎉 Ciao {{ name|tg }}! Il tuo *{{ plan_name|tg }}* è attivo "
+        "🎉 Ciao {{ name|tg }}\\! Il tuo *{{ plan_name|tg }}* è attivo "
         "\\(scadenza: {{ expiry_date|tg }}\\)\\."
         "{% if public_url %}\nRichieste: {{ public_url|tg }}{% endif %}",
-        "🎉 Hi {{ name|tg }}! Your *{{ plan_name|tg }}* is active "
+        "🎉 Hi {{ name|tg }}\\! Your *{{ plan_name|tg }}* is active "
         "\\(expires: {{ expiry_date|tg }}\\)\\."
         "{% if public_url %}\nRequests: {{ public_url|tg }}{% endif %}",
     ),

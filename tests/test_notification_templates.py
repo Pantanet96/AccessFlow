@@ -1,3 +1,5 @@
+import re
+
 from app.services import notification_templates as nt
 from app.services import settings_store
 
@@ -56,3 +58,15 @@ def test_plain_text_keeps_list_items_apart(db_session):
         assert line.count("- ") <= 1, f"steps merged onto one line: {line!r}"
     # Each step is its own line, bulleted.
     assert sum(line.startswith("- ") for line in text.splitlines()) == html.count("<li>")
+
+
+def test_telegram_defaults_escape_reserved_chars():
+    # MarkdownV2 rejects the whole message (400) on any bare reserved char in
+    # the static text; *bold* / _italic_ markup is the only intended use.
+    bare = re.compile(r"(?<!\\)([\[\]()~`>#+=|{}.!-])")
+    for (type_, part), by_locale in nt.DEFAULTS.items():
+        if part != "telegram":
+            continue
+        for loc, src in by_locale.items():
+            static = re.sub(r"\{\{.*?\}\}|\{%.*?%\}", "", src, flags=re.S)
+            assert not bare.findall(static), (type_, loc, static)
