@@ -166,6 +166,12 @@ def change_plan(
 ) -> Subscription:
     old_plan = session.get(Plan, sub.plan_id)
     from_non_paid = old_plan is None or old_plan.is_unlimited or old_plan.is_trial
+    if sub.plan_id != new_plan.id:
+        # An open renewal is priced and timed for the old plan: paid after the
+        # switch it billed the old price, or put an expiry on an unlimited sub.
+        pending = get_pending_renewal(session, sub.id)
+        if pending is not None:
+            session.delete(pending)
     sub.plan_id = new_plan.id
     upfront_charge = False
     if new_plan.is_unlimited:
