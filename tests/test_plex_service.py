@@ -202,3 +202,31 @@ def test_invite_withdraws_a_still_open_invite_and_retries(wired):
         ("invite", "a@b.it", ["Film"]),
         ("invite", "a@b.it", ["Film"]),
     ]
+
+
+def test_unshare_deletes_the_share_row(wired):
+    # updateFriend(sections=[]) is a silent no-op in plexapi: the row must go.
+    account, _ = wired(
+        FakeAccount(
+            users=[_user("a@b.it")],
+            shares=[_Elem(id="77", email="a@b.it", username="")],
+        )
+    )
+    plex_service.unshare("a@b.it")
+    assert (
+        "query",
+        "https://plex.tv/api/servers/MID/shared_servers/77",
+        "DELETE",
+    ) in account.calls
+    assert not [c for c in account.calls if c[0] == "update"]
+
+
+def test_unshare_raises_when_share_list_unreadable(wired):
+    # A failed lookup must not pass for "removed": suspend() reports it.
+    class Down(FakeAccount):
+        def query(self, url, method=None, **kwargs):
+            raise RuntimeError("(503) plex.tv down")
+
+    wired(Down(users=[_user("a@b.it")]))
+    with pytest.raises(RuntimeError, match="503"):
+        plex_service.unshare("a@b.it")

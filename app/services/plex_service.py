@@ -146,11 +146,9 @@ def _find_share_id(account, machine_id: str, email: str) -> str | None:
 
     Reads the share list directly instead of `account.users()`: a withdrawn
     invite can leave the share row behind after the user record is gone, and
-    that orphan is exactly what makes the next invite 400."""
-    try:
-        data = account.query(MyPlexAccount.FRIENDINVITE.format(machineId=machine_id))
-    except Exception:  # noqa: BLE001 - no share list, nothing to reconcile
-        return None
+    that orphan is exactly what makes the next invite 400. Raises if plex.tv
+    can't be read: callers decide whether "unknown" is ok."""
+    data = account.query(MyPlexAccount.FRIENDINVITE.format(machineId=machine_id))
     for elem in data if data is not None else []:
         attrib = elem.attrib
         candidates = {
@@ -205,7 +203,10 @@ def _resolve_existing_share(account, server, email: str, sections) -> bool:
     # invite counts as "already sharing" too, and it shows up in neither
     # `users()` nor `shared_servers` -- only in the pending invite list.
     machine_id = _machine_id(server)
-    share_id = _find_share_id(account, machine_id, email)
+    try:
+        share_id = _find_share_id(account, machine_id, email)
+    except Exception:  # noqa: BLE001 - no share list, nothing to reconcile
+        share_id = None
     if share_id is not None:
         _delete_share(account, machine_id, share_id)
     elif not _cancel_pending_invite(account, email):
@@ -229,10 +230,17 @@ def share(email: str, sections: list[str]) -> None:
 
 
 def unshare(email: str) -> None:
-    """Remove all shared libraries for `email` (keeps the friend)."""
+    """Remove all shared libraries for `email` (keeps the friend).
+
+    Deletes the `shared_servers` row. Not `updateFriend(sections=[])`: plexapi
+    reads an empty list on an existing share as "nothing to change", logs a
+    warning and sends no request, so the user kept full access. A later
+    `share()` re-creates the row (updateFriend POSTs when there is none)."""
     account, server = _account_and_server()
-    if _is_friend(account, email):
-        account.updateFriend(email, server, sections=[])
+    machine_id = _machine_id(server)
+    share_id = _find_share_id(account, machine_id, email)
+    if share_id is not None:
+        _delete_share(account, machine_id, share_id)
 
 
 def get_user_sections(email: str) -> list[str]:
