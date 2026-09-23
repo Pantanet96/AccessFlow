@@ -139,6 +139,23 @@ def test_cannot_renew_unlimited_or_trial(db_session):
 
 # ---- change_plan ----
 
+def test_change_plan_drops_pending_renewal_of_old_plan(db_session):
+    # Paying it after moving to F&F set an expiry on an unlimited sub.
+    u = _user(db_session)
+    bronze = _plan(db_session, "bronze")
+    ff = _plan(db_session, "family_friends")
+    sub = svc.create_subscription(db_session, u, bronze)
+    svc.create_renewal(db_session, sub, actor_id=None, collected_by=None)
+    svc.change_plan(db_session, sub, ff)
+    assert svc.get_pending_renewal(db_session, sub.id) is None
+
+    # Same plan re-saved: the open renewal is still valid, keep it.
+    sub2 = svc.create_subscription(db_session, _user(db_session), bronze)
+    svc.create_renewal(db_session, sub2, actor_id=None, collected_by=None)
+    svc.change_plan(db_session, sub2, bronze)
+    assert svc.get_pending_renewal(db_session, sub2.id) is not None
+
+
 def test_change_plan_paid_to_paid_keeps_expiry(db_session):
     u = _user(db_session)
     bronze = _plan(db_session, "bronze")
