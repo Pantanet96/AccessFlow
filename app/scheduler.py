@@ -29,6 +29,7 @@ def _run_expiry_scan() -> None:
 
     from app.db import engine
     from app.services.access_service import reconcile_all, resync_libraries
+    from app.services.invites import expire_invites
     from app.services.notifications import (
         prune_old_notifications,
         run_expiry_scan,
@@ -46,6 +47,8 @@ def _run_expiry_scan() -> None:
         # Re-apply configured libraries to active users (propagates plan/default
         # changes; drops titles deleted on Plex). Never auto-shares new libraries.
         ("resync_libraries", resync_libraries),
+        # Pending invites past their 30 days: expire + withdraw the Plex share.
+        ("expire_invites", expire_invites),
         # Weekly per-manager collect digest (only fires on each manager's weekday).
         ("manager_digests", run_manager_digests),
         # Trim notification_log to the admin-configured retention window (no-op at 0).

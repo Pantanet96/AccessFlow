@@ -2640,3 +2640,30 @@ msgstr ""
 
 msgid "(test message to your Telegram could not be sent)"
 msgstr ""
+
+msgid "Invite history"
+msgstr ""
+
+msgid "Accepted"
+msgstr ""
+
+msgid "Expires at the next daily check"
+msgstr ""
+
+msgid "Push the expiry to 30 days from today."
+msgstr ""
+
+msgid "+30 days"
+msgstr ""
+
+msgid "Invites not accepted yet"
+msgstr ""
+
+msgid "Invited on"
+msgstr ""
+
+msgid "extended an invite"
+msgstr ""
+
+msgid "invite expired"
+msgstr ""

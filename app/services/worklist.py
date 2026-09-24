@@ -10,6 +10,7 @@ ponytail: per-user O(n) scan with a couple of queries each. Fine for the small
 user base this app targets; revisit with aggregate SQL only if it gets slow.
 """
 from app.models import Plan, Role, utcnow
+from app.services import invites as invites_svc
 from app.services import subscriptions as sub_svc
 from app.services import users as users_svc
 
@@ -52,4 +53,5 @@ def build_worklist(session, viewer) -> dict:
     to_collect.sort(key=lambda x: x["days_left"])          # most overdue first
     pending.sort(key=lambda x: (x["days_left"] if x["days_left"] is not None else 9999))
     return {"pending": pending, "to_collect": to_collect,
-            "paid_suspended": paid_suspended, "no_sub": no_sub}
+            "paid_suspended": paid_suspended, "no_sub": no_sub,
+            "invites": invites_svc.pending_for(session, viewer)}

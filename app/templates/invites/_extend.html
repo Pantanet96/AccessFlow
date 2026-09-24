@@ -1,0 +1,10 @@
+{# expects `row` from invites_svc.pending_for; `next_url` optional #}{% if row.can_extend %}
+<form method="post" action="/invites/{{ row.invite.id }}/extend">
+  <input type="hidden" name="next" value="{{ next_url or '/invites' }}">
+  <button type="submit" class="btn-sm inline-flex items-center gap-1"
+          title="{{ _("Push the expiry to 30 days from today.") }}">
+    <span class="material-symbols-outlined text-[16px] leading-none" aria-hidden="true">more_time</span>
+    {{ _("+30 days") }}
+  </button>
+</form>
+{% endif %}

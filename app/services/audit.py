@@ -40,6 +40,8 @@ _ACTION_LABELS = {
     "create_invite": N_("created an invite"),
     "delete_invite": N_("withdrew an invite"),
     "resend_invite": N_("resent an invite email"),
+    "extend_invite": N_("extended an invite"),
+    "invite_expired": N_("invite expired"),
     "import_plex_users": N_("imported users from Plex"),
     "create_plan": N_("created a plan"),
     "edit_plan": N_("edited a plan"),
