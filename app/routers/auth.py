@@ -16,6 +16,7 @@ from app.auth.session import (
 from app.db import get_session
 from app.i18n import gettext as _
 from app.models import AppUser
+from app.security import password_problem
 from app import runtime_config
 from app.services import audit, plex_oauth
 from app.templating import templates
@@ -100,6 +101,11 @@ def login_submit(
 
     # 4. Success: forgive counters for this username + IP.
     throttle.reset(username, ip)
+    weak = password_problem(password, user.username) is not None
+    if user.password_weak != weak:
+        user.password_weak = weak
+        session.add(user)
+        session.commit()
     audit.record(session, user.id, "login", detail={"method": "local"})
     response = RedirectResponse("/", status_code=303)
     set_session_cookie(response, user)

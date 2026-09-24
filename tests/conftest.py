@@ -28,6 +28,7 @@ def _fresh_throttle():
     from app.auth import throttle
 
     throttle._BUCKETS.clear()
+    throttle._PLEX.clear()
 
 
 @pytest.fixture

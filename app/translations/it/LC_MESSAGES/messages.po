@@ -2685,3 +2685,27 @@ msgstr "ha prolungato un invito"
 
 msgid "invite expired"
 msgstr "invito scaduto"
+
+msgid "The password must be at least 12 characters."
+msgstr "La password deve avere almeno 12 caratteri."
+
+msgid "The password must be at most 72 bytes."
+msgstr "La password può avere al massimo 72 byte."
+
+msgid "The password must not contain the username."
+msgstr "La password non deve contenere lo username."
+
+msgid "This password is too common."
+msgstr "Questa password è troppo comune."
+
+msgid "Your password does not meet the requirements (at least 12 characters, not a common password, without the username)."
+msgstr "La tua password non rispetta i requisiti (almeno 12 caratteri, non comune, senza lo username)."
+
+msgid "Change it"
+msgstr "Cambiala"
+
+msgid "The file INITIAL_SUPERADMIN_PASSWORD.txt is still in the data folder: delete it from the server."
+msgstr "Il file INITIAL_SUPERADMIN_PASSWORD.txt è ancora nella cartella dei dati: eliminalo dal server."
+
+msgid "At least 12 characters, not a common password, without the username."
+msgstr "Almeno 12 caratteri, non una password comune, senza lo username."

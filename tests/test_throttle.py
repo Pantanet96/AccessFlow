@@ -3,14 +3,16 @@ is exercised in milliseconds."""
 import app.auth.throttle as t
 
 
-def _clock(now):
+def _clock(now, monkeypatch):
+    # monkeypatch, not assignment: t.time IS the time module, and a bare
+    # assignment froze time.monotonic for every test that ran after this one.
     t._BUCKETS.clear()
-    t.time.monotonic = lambda: now[0]
+    monkeypatch.setattr(t.time, "monotonic", lambda: now[0])
 
 
 def test_lockout_state_machine(monkeypatch):
     now = [1000.0]
-    _clock(now)
+    _clock(now, monkeypatch)
     U, IP = "admin", "10.0.0.5"
 
     # Fresh: unlocked.
@@ -40,7 +42,7 @@ def test_lockout_state_machine(monkeypatch):
 
 def test_ip_lockout_defeats_username_rotation(monkeypatch):
     now = [5000.0]
-    _clock(now)
+    _clock(now, monkeypatch)
     IP = "10.0.0.9"
     # Same IP, different usernames each time still trips the IP key.
     for i in range(t.MAX_FAILS):
@@ -50,7 +52,7 @@ def test_ip_lockout_defeats_username_rotation(monkeypatch):
 
 def test_username_lockout_defeats_ip_rotation(monkeypatch):
     now = [9000.0]
-    _clock(now)
+    _clock(now, monkeypatch)
     # Same username, rotating IPs still trips the username key.
     for i in range(t.MAX_FAILS):
         t.register_failure("victim", f"1.2.3.{i}")
@@ -59,7 +61,7 @@ def test_username_lockout_defeats_ip_rotation(monkeypatch):
 
 def test_ip_locked_ignores_username_key(monkeypatch):
     now = [7000.0]
-    _clock(now)
+    _clock(now, monkeypatch)
     # A username lock (rotating IPs) must NOT register as an IP lock: the login
     # hard-block keys on ip_locked only, so this is what stops the lockout DoS.
     for i in range(t.MAX_FAILS):
@@ -68,7 +70,38 @@ def test_ip_locked_ignores_username_key(monkeypatch):
     assert t.ip_locked("5.5.5.5") is None                   # but the IP is not
 
     # A genuinely hammered IP does trip ip_locked.
-    _clock(now)
+    _clock(now, monkeypatch)
     for _ in range(t.MAX_FAILS):
         t.register_failure("whoever", "5.5.5.5")
     assert t.ip_locked("5.5.5.5") is not None
+
+
+def test_lock_escalates_and_is_forgotten_after_a_quiet_day(monkeypatch):
+    now = [20000.0]
+    _clock(now, monkeypatch)
+    IP = "10.9.9.9"
+
+    def lock():
+        for _ in range(t.MAX_FAILS):
+            t.register_failure("x", IP)
+        rem = t.ip_locked(IP)
+        now[0] += rem  # sit the lock out
+        return rem
+
+    minutes = [round(lock() / 60) for _ in range(len(t.LOCK_STEPS) + 1)]
+    assert minutes == [5, 10, 15, 30, 60, 120, 240, 240]
+
+    now[0] += t.FORGET_SECONDS
+    assert round(lock() / 60) == 5
+
+
+def test_success_resets_escalation(monkeypatch):
+    now = [30000.0]
+    _clock(now, monkeypatch)
+    for _ in range(t.MAX_FAILS):
+        t.register_failure("admin", "10.1.1.1")
+    now[0] += t.ip_locked("10.1.1.1")
+    t.reset("admin", "10.1.1.1")
+    for _ in range(t.MAX_FAILS):
+        t.register_failure("admin", "10.1.1.1")
+    assert round(t.ip_locked("10.1.1.1") / 60) == 5
