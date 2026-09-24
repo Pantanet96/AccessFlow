@@ -124,3 +124,42 @@ def test_plex_login_server_owner_becomes_superadmin(client, db_session, monkeypa
     ).one()
     assert sa.plex_account_id == "5000"
     assert sa.plex_email == "owner@example.com"
+
+
+def _login(client, monkeypatch, account):
+    _start_pin(client, monkeypatch)
+    monkeypatch.setattr(po, "poll_pin", lambda pid: "tok")
+    monkeypatch.setattr(po, "fetch_account", lambda t: account)
+    return client.get("/login/plex/callback", follow_redirects=False)
+
+
+def test_reused_email_does_not_take_over_a_linked_user(client, db_session, monkeypatch):
+    # Mario moved his Plex account to a new email; someone registered the old one.
+    db_session.add(AppUser(role=Role.user, real_name="Mario",
+                           plex_email="mario@example.com", plex_account_id="9001"))
+    db_session.commit()
+
+    resp = _login(client, monkeypatch, {"id": "6666", "email": "mario@example.com"})
+    assert resp.status_code == 403
+    assert COOKIE_NAME not in resp.cookies
+    db_session.commit()
+    mario = db_session.exec(select(AppUser).where(AppUser.real_name == "Mario")).one()
+    assert mario.plex_account_id == "9001"
+
+
+def test_reused_owner_email_does_not_become_superadmin(client, db_session, monkeypatch):
+    from app.services import settings_store
+
+    settings_store.set_value(db_session, "plex_account_email", "owner@example.com")
+    sa = db_session.exec(select(AppUser).where(AppUser.role == Role.superadmin)).one()
+    sa.plex_account_id = "5000"
+    db_session.add(sa)
+    db_session.commit()
+
+    resp = _login(client, monkeypatch, {"id": "6666", "email": "owner@example.com"})
+    assert resp.status_code == 403
+    assert COOKIE_NAME not in resp.cookies
+
+    # The real owner still gets in.
+    resp = _login(client, monkeypatch, {"id": "5000", "email": "owner@example.com"})
+    assert resp.status_code == 303 and COOKIE_NAME in resp.cookies
