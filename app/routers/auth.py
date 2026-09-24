@@ -122,8 +122,26 @@ def logout(
     return response
 
 
+def _plex_limited(request: Request) -> HTMLResponse | None:
+    # Public and anonymous, yet each hit blocks a worker thread on plex.tv (the
+    # callback up to ~3s): a flood would starve the whole app.
+    remaining = throttle.plex_rate_limited(_client_ip(request))
+    if remaining is None:
+        return None
+    msg = _("Too many attempts. Try again in about %(minutes)d minute(s).") % {
+        "minutes": (remaining + 59) // 60
+    }
+    return templates.TemplateResponse(
+        request, "login.html",
+        {"error": msg, "local_login_visible": runtime_config.local_login_visible()},
+        status_code=429,
+    )
+
+
 @router.get("/login/plex")
-def plex_start():
+def plex_start(request: Request):
+    if (limited := _plex_limited(request)) is not None:
+        return limited
     pin = plex_oauth.create_pin()
     forward = runtime_config.public_base_url() + "/login/plex/callback"
     url = plex_oauth.build_auth_url(pin["code"], forward)
@@ -145,6 +163,8 @@ def plex_callback(request: Request, session: Session = Depends(get_session)):
     state = read_value(raw, salt=_PIN_SALT) if raw else None
     if not state:
         return RedirectResponse("/login", status_code=303)
+    if (limited := _plex_limited(request)) is not None:
+        return limited
 
     auth_token = plex_oauth.wait_for_pin(state["id"])
 

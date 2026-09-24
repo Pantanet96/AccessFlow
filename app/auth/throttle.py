@@ -12,6 +12,7 @@ import time
 
 MAX_FAILS = 5             # lock after this many fails within the window
 WINDOW_SECONDS = 15 * 60  # 15 min: counting window AND lockout duration
+PLEX_MAX_HITS = 20        # anonymous Plex sign-in requests per IP per window
 
 # key -> (fail_count, first_fail_monotonic)
 _BUCKETS: dict[str, tuple[int, float]] = {}
@@ -72,12 +73,7 @@ def register_failure(username: str, ip: str) -> int | None:
     now = time.monotonic()
     locked_for: int | None = None
     with _LOCK:
-        # Prune expired entries so a spray of unique usernames can't grow the
-        # dict without bound (the lazy per-key cleanup never sees those keys again).
-        stale = [k for k, (_, first) in _BUCKETS.items()
-                 if now - first >= WINDOW_SECONDS]
-        for k in stale:
-            del _BUCKETS[k]
+        _prune(now)
         for k in _keys(username, ip):
             count, first = _BUCKETS.get(k, (0, now))
             if now - first >= WINDOW_SECONDS:   # stale window -> restart count
@@ -88,6 +84,31 @@ def register_failure(username: str, ip: str) -> int | None:
                 rem = int(WINDOW_SECONDS - (now - first)) + 1
                 locked_for = rem if locked_for is None else max(locked_for, rem)
     return locked_for
+
+
+def _prune(now: float) -> None:
+    # Drop expired entries so a spray of unique usernames/IPs can't grow the
+    # dict without bound (the lazy per-key cleanup never sees those keys again).
+    # Caller holds _LOCK.
+    stale = [k for k, (_, first) in _BUCKETS.items()
+             if now - first >= WINDOW_SECONDS]
+    for k in stale:
+        del _BUCKETS[k]
+
+
+def plex_rate_limited(ip: str) -> int | None:
+    """Count one anonymous Plex sign-in request (each one waits on plex.tv in a
+    worker thread) for this IP. Remaining seconds once over PLEX_MAX_HITS, else
+    None. A real sign-in is 2 requests, so the cap leaves room for retries."""
+    now = time.monotonic()
+    key = f"plex:{ip or 'unknown'}"
+    with _LOCK:
+        _prune(now)
+        count, first = _BUCKETS.get(key, (0, now))
+        _BUCKETS[key] = (count + 1, first)
+        if count + 1 > PLEX_MAX_HITS:
+            return int(WINDOW_SECONDS - (now - first)) + 1
+    return None
 
 
 def reset(username: str, ip: str) -> None:
