@@ -9,6 +9,13 @@ from app.services.invite_activation import activate_pending_invite, sync_plex_fi
 _sync_plex_fields = sync_plex_fields
 
 
+def _bound_elsewhere(user: AppUser, acc_id: str | None) -> bool:
+    # plex.tv frees an email once its owner changes it, and anyone can then
+    # sign up with it; the account id is never reused. Email only makes the
+    # first link — after that, a different account id is someone else.
+    return bool(user.plex_account_id) and user.plex_account_id != acc_id
+
+
 def resolve_or_activate_user(session: Session, account: dict) -> AppUser | None:
     acc_id = account.get("id")
     acc_id = str(acc_id) if acc_id is not None else None
@@ -21,7 +28,7 @@ def resolve_or_activate_user(session: Session, account: dict) -> AppUser | None:
         sa = session.exec(
             select(AppUser).where(AppUser.role == Role.superadmin)
         ).first()
-        if sa is not None and sa.is_active:
+        if sa is not None and sa.is_active and not _bound_elsewhere(sa, acc_id):
             _sync_plex_fields(sa, account)
             session.add(sa)
             session.commit()
@@ -48,7 +55,7 @@ def resolve_or_activate_user(session: Session, account: dict) -> AppUser | None:
             select(AppUser).where(func.lower(AppUser.plex_email) == email)
         ).first()
         if user is not None:
-            if not user.is_active:
+            if not user.is_active or _bound_elsewhere(user, acc_id):
                 return None
             _sync_plex_fields(user, account)
             session.add(user)

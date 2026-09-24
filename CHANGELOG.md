@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Dates, times and report months follow the app's timezone instead of UTC; a payment just after midnight on the 1st was counted in the previous month.
 
+### Security
+
+- Plex sign-in no longer matches a user already linked to a different Plex account by email alone; a reused email could take over that user, or the superadmin.
+
 ## [1.3.4] - 2026-09-23
 
 ### Fixed
