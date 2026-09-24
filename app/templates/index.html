@@ -144,7 +144,7 @@
     <span class="material-symbols-outlined text-primary-container" aria-hidden="true">checklist</span>
     {{ _("To do") }}
   </h2>
-  {% if not (worklist.pending or worklist.to_collect or worklist.paid_suspended or worklist.no_sub) %}
+  {% if not (worklist.pending or worklist.to_collect or worklist.paid_suspended or worklist.no_sub or worklist.invites) %}
   <p class="flex items-center gap-gap-sm text-on-surface-variant">
     <span class="material-symbols-outlined text-status-active" aria-hidden="true">task_alt</span>
     {{ _("All clear — nothing needs attention.") }}
@@ -193,6 +193,26 @@
     <ul class="m-0 list-none divide-y divide-outline-variant p-0">
       {% for it in worklist.paid_suspended %}
       <li class="py-2"><a class="text-primary no-underline hover:underline" href="/users/{{ it.user.id }}/subscription">{{ it.user.real_name }}</a></li>
+      {% endfor %}
+    </ul>
+  </article>
+  {% endif %}
+
+  {% if worklist.invites %}
+  {% set next_url = '/' %}
+  <article class="cinematic-shadow mb-gap-md rounded-xl bg-surface-container p-gap-md">
+    <h3 class="mb-gap-sm flex items-center gap-gap-sm text-base font-semibold text-on-surface">
+      <span class="material-symbols-outlined text-on-surface-variant" aria-hidden="true">mail</span>
+      {{ _("Invites not accepted yet") }} ({{ worklist.invites|length }})
+    </h3>
+    <ul class="m-0 list-none divide-y divide-outline-variant p-0">
+      {% for row in worklist.invites %}
+      <li class="py-2 flex flex-wrap items-center justify-between gap-gap-sm">
+        <span><strong>{{ row.invite.real_name }}</strong> <small class="text-on-surface-variant">{{ row.invite.email }}</small><br>
+          <small class="text-on-surface-variant">{{ _("Invited on") }} {{ row.invite.plex_invite_sent_at | date }} ·
+          {% if row.days_left is none %}—{% elif row.days_left > 0 %}{{ _("%(d)d day(s) left") % {'d': row.days_left} }}{% elif row.days_left == 0 %}{{ _("Expires today") }}{% else %}{{ _("Expires at the next daily check") }}{% endif %}</small></span>
+        {% include "invites/_extend.html" %}
+      </li>
       {% endfor %}
     </ul>
   </article>

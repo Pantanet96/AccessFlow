@@ -1,0 +1,2 @@
+{# expects `row` from invites_svc.pending_for #}{% if row.invite.expires_at %}{{ row.invite.expires_at | date }}
+<small class="block text-on-surface-variant">{% if row.days_left > 0 %}{{ _("%(d)d day(s) left") % {'d': row.days_left} }}{% elif row.days_left == 0 %}{{ _("Expires today") }}{% else %}{{ _("Expires at the next daily check") }}{% endif %}</small>{% else %}—{% endif %}

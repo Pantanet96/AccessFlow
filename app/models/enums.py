@@ -46,3 +46,4 @@ class NotificationChannel(str, enum.Enum):
 class InviteStatus(str, enum.Enum):
     pending = "pending"
     accepted = "accepted"
+    expired = "expired"

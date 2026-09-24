@@ -31,7 +31,8 @@ TYPES: dict[str, list[str]] = {
     "manager_overdue": ["name", "user_name", "plan_name", "expiry_date", "amount_eur"],
     "manager_digest": ["name", "items", "count", "window_days", "total_eur"],
     "welcome": ["name", "plan_name", "expiry_date", "public_url", "telegram_link"],
-    "invite": ["name", "email", "login_url", "libraries", "plan_name", "inviter_name"],
+    "invite": ["name", "email", "login_url", "libraries", "plan_name", "inviter_name",
+               "expires_date"],
 }
 
 # Types that don't use every channel. An invitee has no AppUser and no Telegram
@@ -70,6 +71,7 @@ SAMPLE_CTX = {
     "login_url": "https://accessflow.example.com/login",
     "libraries": ["Film", "Serie TV"],
     "inviter_name": "Admin",
+    "expires_date": "2026-08-21",
 }
 
 
@@ -305,6 +307,8 @@ DEFAULTS: dict[tuple[str, str], dict[str, str]] = {
         "<p>L'invito è stato inviato a <strong>{{ email|e }}</strong>: usa "
         "<strong>questo stesso indirizzo</strong> in ogni passaggio, altrimenti "
         "l'accesso non verrà riconosciuto.</p>"
+        "{% if expires_date %}<p>L'invito scade il <strong>{{ expires_date }}</strong>."
+        "</p>{% endif %}"
         "<p><strong>Se hai già un account Plex</strong></p>"
         "<ol>"
         "<li>Apri la mail di Plex e accetta la condivisione "
@@ -327,6 +331,8 @@ DEFAULTS: dict[tuple[str, str], dict[str, str]] = {
         "<p>The invite was sent to <strong>{{ email|e }}</strong>: use "
         "<strong>that same address</strong> at every step, or your access "
         "will not be recognised.</p>"
+        "{% if expires_date %}<p>The invite expires on <strong>{{ expires_date }}</strong>."
+        "</p>{% endif %}"
         "<p><strong>If you already have a Plex account</strong></p>"
         "<ol>"
         "<li>Open the email from Plex and accept the share "

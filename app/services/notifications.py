@@ -366,6 +366,7 @@ def notify_invite(session: Session, invite, *, resend: bool = False) -> bool:
         "libraries": libraries,
         "plan_name": plan.name if plan else "",
         "inviter_name": (inviter.real_name if inviter else "") or "AccessFlow",
+        "expires_date": local_date(invite.expires_at).isoformat() if invite.expires_at else "",
     }
     locale = get_settings().default_locale
     subject, html, text = render_email(session, "invite", locale, ctx)

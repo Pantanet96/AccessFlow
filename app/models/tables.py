@@ -194,6 +194,7 @@ class Invite(SQLModel, table=True):
     token: str = Field(unique=True, index=True)
     status: InviteStatus = Field(default=InviteStatus.pending, index=True)
     plex_invite_sent_at: datetime | None = None
+    expires_at: datetime | None = None  # pending past this -> expired by the daily scan
     created_by: int | None = Field(default=None, foreign_key="app_user.id")
     created_at: datetime = Field(default_factory=utcnow)
 

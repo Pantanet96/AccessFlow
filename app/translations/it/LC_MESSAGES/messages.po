@@ -2658,3 +2658,30 @@ msgstr "Questo ID Telegram è già collegato a un altro account."
 
 msgid "(test message to your Telegram could not be sent)"
 msgstr "(impossibile inviare il messaggio di prova sul tuo Telegram)"
+
+msgid "Invite history"
+msgstr "Storico inviti"
+
+msgid "Accepted"
+msgstr "Accettato"
+
+msgid "Expires at the next daily check"
+msgstr "Scade al prossimo controllo giornaliero"
+
+msgid "Push the expiry to 30 days from today."
+msgstr "Sposta la scadenza a 30 giorni da oggi."
+
+msgid "+30 days"
+msgstr "+30 giorni"
+
+msgid "Invites not accepted yet"
+msgstr "Inviti non ancora accettati"
+
+msgid "Invited on"
+msgstr "Invitato il"
+
+msgid "extended an invite"
+msgstr "ha prolungato un invito"
+
+msgid "invite expired"
+msgstr "invito scaduto"

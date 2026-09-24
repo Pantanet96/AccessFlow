@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Invites expire after 30 days (date stated in the invite email); the daily scan withdraws the Plex share of expired ones.
+- Pending invites on the home page with days left and a "+30 days" button, also for a manager's own users.
+- Invite history (accepted, expired) on the invites page.
+
 ### Fixed
 
 - Dates, times and report months follow the app's timezone instead of UTC; a payment just after midnight on the 1st was counted in the previous month.

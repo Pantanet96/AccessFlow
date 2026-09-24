@@ -113,17 +113,19 @@
 <table class="responsive w-full text-left border-collapse">
   <thead>
     <tr class="border-b border-outline-variant text-on-surface-variant text-xs uppercase tracking-wide">
-      <th class="px-4 py-3">{{ _("Email") }}</th><th class="px-4 py-3">{{ _("Real name") }}</th><th class="px-4 py-3">{{ _("Role") }}</th><th class="px-4 py-3">{{ _("Sent") }}</th><th class="px-4 py-3"></th>
+      <th class="px-4 py-3">{{ _("Email") }}</th><th class="px-4 py-3">{{ _("Real name") }}</th><th class="px-4 py-3">{{ _("Role") }}</th><th class="px-4 py-3">{{ _("Sent") }}</th><th class="px-4 py-3">{{ _("Expires") }}</th><th class="px-4 py-3"></th>
     </tr>
   </thead>
   <tbody>
     {% set ROLE_BADGE = {'superadmin': 'suspended', 'admin': 'suspended', 'moderator': 'active', 'user': 'cancelled'} %}
-    {% for i in pending %}
+    {% for row in pending %}{% set i = row.invite %}
     <tr class="border-b border-outline-variant last:border-0 hover:bg-surface-container/60">
       <td class="px-4 py-3" data-label="{{ _('Email') }}">{{ i.email }}</td><td class="px-4 py-3" data-label="{{ _('Real name') }}">{{ i.real_name }}</td>
       <td class="px-4 py-3" data-label="{{ _('Role') }}"><span class="badge badge--{{ ROLE_BADGE.get(i.intended_role.value, 'cancelled') }}">{{ i.intended_role.value }}</span></td><td class="px-4 py-3" data-label="{{ _('Sent') }}">{{ i.plex_invite_sent_at | date }}</td>
+      <td class="px-4 py-3" data-label="{{ _('Expires') }}">{% include "invites/_expiry.html" %}</td>
       <td class="px-4 py-3" data-label="">
         <div class="row-actions">
+          {% include "invites/_extend.html" %}
           <form method="post" action="/invites/{{ i.id }}/resend">
             <button type="submit" class="btn-sm inline-flex items-center gap-1"
                     title="{{ _("Send the invite email again. The Plex share is left as it is.") }}">
@@ -145,4 +147,26 @@
   </tbody>
 </table>
 </div>
+
+{% if history %}
+<h3 class="text-xl font-semibold text-on-surface mt-gap-lg mb-gap-md">{{ _("Invite history") }} ({{ history|length }})</h3>
+<div class="bg-surface-container-low rounded-xl border border-outline-variant overflow-x-auto">
+<table class="responsive w-full text-left border-collapse">
+  <thead>
+    <tr class="border-b border-outline-variant text-on-surface-variant text-xs uppercase tracking-wide">
+      <th class="px-4 py-3">{{ _("Email") }}</th><th class="px-4 py-3">{{ _("Real name") }}</th><th class="px-4 py-3">{{ _("Sent") }}</th><th class="px-4 py-3">{{ _("Outcome") }}</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for i in history %}
+    <tr class="border-b border-outline-variant last:border-0 hover:bg-surface-container/60">
+      <td class="px-4 py-3" data-label="{{ _('Email') }}">{{ i.email }}</td><td class="px-4 py-3" data-label="{{ _('Real name') }}">{{ i.real_name }}</td>
+      <td class="px-4 py-3" data-label="{{ _('Sent') }}">{{ i.plex_invite_sent_at | date }}</td>
+      <td class="px-4 py-3" data-label="{{ _('Outcome') }}">{% if i.status.value == 'accepted' %}<span class="badge badge--active">{{ _("Accepted") }}</span>{% else %}<span class="badge badge--expired">{{ _("Expired") }}</span>{% endif %}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endif %}
 {% endblock %}

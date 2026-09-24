@@ -3,17 +3,18 @@ import json
 import logging
 import secrets
 
-from fastapi import APIRouter, Depends, Form, Request
+from fastapi import APIRouter, Depends, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlmodel import Session, select
 
-from app.auth.deps import require_capability
+from app.auth.deps import require_capability, require_user
 from app.db import get_session
 from app.i18n import gettext as _
 from app.models import AppUser, Invite, InviteStatus, Role, utcnow
 from app.permissions import Capability, outranks
 from app import runtime_config
 from app.services import audit, notifications, plex_import, plex_service
+from app.services import invites as invites_svc
 from app.services import subscriptions as sub_svc
 from app.services import users as users_svc
 from app.templating import templates
@@ -35,10 +36,11 @@ def _invitable_roles(viewer: AppUser) -> list[Role]:
 
 
 def _render(request, viewer, session, error=None, message=None, status_code=200):
-    pending = list(
+    pending = invites_svc.pending_for(session, viewer)
+    history = list(
         session.exec(
             select(Invite)
-            .where(Invite.status == InviteStatus.pending)
+            .where(Invite.status != InviteStatus.pending)
             .order_by(Invite.created_at.desc())
         ).all()
     )
@@ -48,6 +50,7 @@ def _render(request, viewer, session, error=None, message=None, status_code=200)
         {
             "current_user": viewer,
             "pending": pending,
+            "history": history,
             "candidates": users_svc.manager_candidates(session),
             "plans": sub_svc.list_plans(session),
             "roles": _invitable_roles(viewer),
@@ -126,6 +129,7 @@ def create_invite(
         token=secrets.token_urlsafe(16),
         status=InviteStatus.pending,
         plex_invite_sent_at=utcnow(),
+        expires_at=invites_svc.new_expiry(),
         created_by=viewer.id,
     )
     session.add(invite)
@@ -216,6 +220,25 @@ def resend_invite_email(
         request, viewer, session,
         message=_("Invite email sent again to %s.") % invite.email,
     )
+
+
+@router.post("/invites/{invite_id}/extend")
+def extend_invite(
+    invite_id: int,
+    next: str = Form("/invites"),
+    viewer: AppUser = Depends(require_user),
+    session: Session = Depends(get_session),
+):
+    """Another 30 days for a pending invite (managers too, for their own users:
+    the home page lists those with this button)."""
+    invite = session.get(Invite, invite_id)
+    if invite is None or invite.status != InviteStatus.pending:
+        return RedirectResponse("/invites", status_code=303)
+    if not invites_svc.can_extend(viewer, invite):
+        raise HTTPException(status_code=403)
+    invites_svc.extend(session, invite, viewer.id)
+    return RedirectResponse(next if next in ("/", "/invites") else "/invites",
+                            status_code=303)
 
 
 @router.post("/invites/{invite_id}/delete")
