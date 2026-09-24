@@ -18,6 +18,7 @@ python-dateutil==2.9.0.post0
 bcrypt==4.0.1
 cryptography==50.0.1
 python-multipart==0.0.32
+segno==1.6.6  # QR code for the two-step verification setup (pure Python, no deps)
 httpx==0.28.1
 
 # Dropped: aiosmtplib — it was unused (mail_service uses stdlib smtplib), so

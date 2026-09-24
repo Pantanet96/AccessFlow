@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Repeated failed logins from the same IP lock it for longer each time: 5, 10, 15, 30, 60, 120, then 240 minutes; the count starts over after a day without failures.
 - New local passwords need at least 12 characters, must not contain the username or be a common password, and are capped at bcrypt's 72 bytes.
 - The superadmin sees a warning while their password does not meet the rules, or while INITIAL_SUPERADMIN_PASSWORD.txt is still on the server.
+- Optional two-step verification (TOTP authenticator app) for local login, with 10 one-time recovery codes; `SUPERADMIN_MFA_RESET=true` turns it off if the phone is lost.
 
 ## [1.4.1] - 2026-09-24
 

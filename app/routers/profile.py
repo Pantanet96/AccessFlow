@@ -4,10 +4,10 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlmodel import Session
 
 from app import runtime_config
-from app.auth import throttle
+from app.auth import mfa, throttle
 from app.auth.deps import require_user
 from app.auth.session import set_session_cookie
-from app.db import get_session
+from app.db import engine, get_session
 from app.i18n import gettext as _
 from app.models import AppUser, Role
 from app.security import hash_password, password_problem, verify_password
@@ -133,6 +133,8 @@ def profile_form(
     tg_message: str | None = None,
     tg_error: str | None = None,
     tg: str | None = None,
+    mfa_message: str | None = None,
+    mfa_error: str | None = None,
 ):
     # `tg` is a deliver()-status code carried across the post/redirect of a
     # profile save; map it to the localized confirmation message/warning.
@@ -152,7 +154,14 @@ def profile_form(
         "pwd_error": pwd_error,
         "tg_message": tg_message,
         "tg_error": tg_error,
+        "mfa_message": mfa_message,
+        "mfa_error": mfa_error,
     }
+    if user.password_hash:
+        # Own short session: this handler is also called directly (no Depends).
+        with Session(engine) as s:
+            ctx["mfa_enabled"] = mfa.enabled(s, user.id)
+            ctx["mfa_recovery_left"] = mfa.recovery_left(s, user.id)
     ctx.update(_overseerr_sync_ctx(user))
     return templates.TemplateResponse(request, "profile.html", ctx)
 
@@ -203,6 +212,99 @@ def profile_password(
         set_session_cookie(resp, user)
         return resp
     return profile_form(request, user=user, pwd_message=message, pwd_error=error)
+
+
+def _pw_throttle(request: Request, user: AppUser) -> tuple[str, str]:
+    # Same keys as the password change: one budget for current-password guesses.
+    ip = request.client.host if request.client else "unknown"
+    return f"pwchange:{user.id}", f"pw:{ip}"
+
+
+def _too_many(locked: int) -> str:
+    return _("Too many attempts. Try again in about %(minutes)d minute(s).") % {
+        "minutes": (locked + 59) // 60
+    }
+
+
+def _mfa_setup_page(request, user, session, error=None, codes=None, status_code=200):
+    ctx = {"current_user": user, "error": error, "codes": codes}
+    if codes is None:
+        secret = mfa.pending_secret(session, user.id) or mfa.start_setup(session, user.id)
+        uri = mfa.otpauth_uri(secret, user.username or str(user.id))
+        ctx.update(secret=secret, qr=mfa.qr_svg(uri))
+    return templates.TemplateResponse(request, "profile_mfa.html", ctx, status_code=status_code)
+
+
+@router.get("/profile/mfa", response_class=HTMLResponse)
+def profile_mfa_setup(
+    request: Request,
+    user: AppUser = Depends(require_user),
+    session: Session = Depends(get_session),
+):
+    if not user.password_hash or mfa.enabled(session, user.id):
+        return RedirectResponse("/profile", status_code=303)
+    return _mfa_setup_page(request, user, session)
+
+
+@router.post("/profile/mfa/enable", response_class=HTMLResponse)
+def profile_mfa_enable(
+    request: Request,
+    current_password: str = Form(...),
+    code: str = Form(...),
+    user: AppUser = Depends(require_user),
+    session: Session = Depends(get_session),
+):
+    if not user.password_hash or mfa.enabled(session, user.id):
+        return RedirectResponse("/profile", status_code=303)
+    # Password required too: a stolen session must not be able to turn MFA on
+    # and lock the real owner out.
+    tkey, tip = _pw_throttle(request, user)
+    if (locked := throttle.check_locked(tkey, tip)) is not None:
+        return _mfa_setup_page(request, user, session, _too_many(locked), status_code=429)
+    if not verify_password(current_password, user.password_hash):
+        throttle.register_failure(tkey, tip)
+        return _mfa_setup_page(request, user, session, _("Current password is incorrect."),
+                               status_code=400)
+    codes = mfa.enable(session, user.id, code)
+    if codes is None:
+        throttle.register_failure(tkey, tip)
+        return _mfa_setup_page(request, user, session,
+                               _("Invalid code. Check the time on your phone and try again."),
+                               status_code=400)
+    throttle.reset(tkey, tip)
+    # Log out every other session: one may be the reason MFA is going on.
+    user.session_gen = (user.session_gen or 0) + 1
+    session.add(user)
+    session.commit()
+    audit.record(session, user.id, "enable_mfa", "app_user", user.id)
+    resp = _mfa_setup_page(request, user, session, codes=codes)
+    set_session_cookie(resp, user)
+    return resp
+
+
+@router.post("/profile/mfa/disable", response_class=HTMLResponse)
+def profile_mfa_disable(
+    request: Request,
+    current_password: str = Form(...),
+    code: str = Form(...),
+    user: AppUser = Depends(require_user),
+    session: Session = Depends(get_session),
+):
+    if not user.password_hash or not mfa.enabled(session, user.id):
+        return RedirectResponse("/profile", status_code=303)
+    tkey, tip = _pw_throttle(request, user)
+    if (locked := throttle.check_locked(tkey, tip)) is not None:
+        return profile_form(request, user=user, mfa_error=_too_many(locked))
+    if not verify_password(current_password, user.password_hash) or \
+            mfa.verify(session, user.id, code) is None:
+        throttle.register_failure(tkey, tip)
+        return profile_form(request, user=user,
+                            mfa_error=_("Wrong password or code."))
+    throttle.reset(tkey, tip)
+    mfa.disable(session, user.id)
+    audit.record(session, user.id, "disable_mfa", "app_user", user.id)
+    return profile_form(request, user=user,
+                        mfa_message=_("Two-step verification turned off."))
 
 
 @router.post("/profile", response_class=HTMLResponse)

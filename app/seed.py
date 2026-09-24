@@ -84,6 +84,15 @@ def seed_superadmin(session: Session) -> None:
         select(AppUser).where(AppUser.role == Role.superadmin)
     ).first()
     if existing is not None:
+        if settings.superadmin_mfa_reset:
+            from app.auth import mfa
+
+            mfa.disable(session, existing.id)
+            logger.warning(
+                "SUPERADMIN_MFA_RESET: two-step verification turned off for '%s'. "
+                "Remove the variable, then turn it on again from the profile.",
+                existing.username,
+            )
         # Normalize the old default display name without requiring a DB wipe.
         if existing.real_name == "Super Admin":
             existing.real_name = "Admin"
