@@ -7,7 +7,10 @@
 
 FastAPI + Jinja2/HTMX + SQLite, shipped as a single Docker container that sits behind your reverse proxy.
 
+[![Latest release](https://img.shields.io/github/v/release/Pantanet96/AccessFlow?logo=github)](https://github.com/Pantanet96/AccessFlow/releases/latest)
+[![CI](https://github.com/Pantanet96/AccessFlow/actions/workflows/ci.yml/badge.svg)](https://github.com/Pantanet96/AccessFlow/actions/workflows/ci.yml)
 [![Docker Image](https://img.shields.io/badge/docker-pantanet96%2Faccessflow-2496ED?logo=docker&logoColor=white)](https://hub.docker.com/r/pantanet96/accessflow)
+[![Docker Pulls](https://img.shields.io/docker/pulls/pantanet96/accessflow?logo=docker&logoColor=white)](https://hub.docker.com/r/pantanet96/accessflow)
 ![Python](https://img.shields.io/badge/python-3.12-blue?logo=python&logoColor=white)
 ![FastAPI](https://img.shields.io/badge/FastAPI-async-009688?logo=fastapi&logoColor=white)
 [![License: MIT](https://img.shields.io/badge/license-MIT-brightgreen)](LICENSE)
@@ -57,10 +60,15 @@ Rame (copper) theme by default; Inchiostro and Muschio variants also available f
 - **Multi-manager support** — every user has a manager who collects their payments; multiple people can run their own client base under the same server.
 - **Flexible plans** — free/trial plans out of the box, custom paid plans created on demand.
 - **Two-step renewals** — a renewal stays *pending* until the payment is actually collected, then extends the expiration.
+- **Invites that expire** — invite someone to Plex from the portal with a guide email; an invite not accepted in 30 days expires and its Plex share is withdrawn. Extend it by 30 days in one click; accepted and expired invites stay in the history.
 - **Automatic reminders** — expiration notices via email and Telegram, deduplicated, configurable schedule.
+- **Automatic suspension** — past the grace days, Plex libraries are unshared and Overseerr access is turned off; both come back as soon as the renewal is paid.
+- **Overseerr / Jellyseerr integration** — request permissions follow the plan (trial users are view-only) and the Plex access; Telegram IDs can be synced from Overseerr.
+- **Manager to-do list** — the home page lists payments to confirm, subscriptions to collect, paid-but-suspended users and invites not accepted yet.
 - **Financial reports** — revenue collected, pending, and projected, straight from recorded payments.
 - **Telegram bot** — users link their account for reminders; admins can broadcast.
 - **3 color themes** — Rame, Inchiostro, Muschio — switchable per-user from Settings.
+- **Hardened login** — optional two-step verification (TOTP app + recovery codes), escalating lockout on failed logins, password rules.
 - **Audit log, soft-delete, nightly backups** — out of the box.
 - **i18n** — English source strings, translatable via `.po` catalogs.
 
@@ -95,8 +103,10 @@ needed from the Plans page — there are no predefined ones.
 ### Typical workflows
 
 **1. Adding a new paying user**
-   1. The admin/moderator invites the person on Plex from the portal (sends the Plex invite).
+   1. The admin invites the person on Plex from the portal (sends the Plex invite and a guide email).
    2. The person accepts and logs in with their own Plex account (PIN flow, no password to manage).
+      An invite not accepted within 30 days expires and the Plex share is withdrawn; the
+      admin, or the future user's manager, can extend it by 30 days from the home page.
    3. They're assigned a paid plan → the subscription starts and the **initial payment
       is recorded right away** (it goes into the reports as revenue).
    4. It's also possible to pay several months in advance: you set the number of
@@ -168,7 +178,9 @@ Ships a Community Applications template → [docs/UNRAID.md](docs/UNRAID.md).
 ## Security
 
 - `APP_SECRET_KEY` is mandatory (random, ≥32 chars) — the app won't start without one.
-- SuperAdmin password auto-generates on first boot if left blank; change it from `/profile`.
+- SuperAdmin password auto-generates on first boot if left blank (written to a file in the data folder); change it from `/profile`.
+- Optional two-step verification (TOTP) for the local login, with one-time recovery codes.
+- Failed logins lock the IP out for longer each time (5 min up to 4 h); new passwords need 12+ characters.
 - Set `FORWARDED_ALLOW_IPS` to your reverse proxy's subnet — never `*` on a directly exposed app.
 - Runs as an unprivileged container user; secrets are encrypted at rest.
 
@@ -228,6 +240,8 @@ The Docker build compiles the catalogs automatically.
 
 ## Background workers
 
-The web container also runs, in-process: a daily APScheduler job (expiration scan
-at the `NOTIFY_HOUR` hour, nightly DB backup) and the Telegram bot in polling mode.
+The web container also runs, in-process: a daily APScheduler job at the `NOTIFY_HOUR`
+hour (expiration scan and reminders, auto-suspension, expired invites, manager digests),
+Plex reconciliation and DB backups every few hours, and the Telegram bot in polling mode.
+Dates, reminders and report months follow the `TZ` timezone.
 They're toggled with `ENABLE_SCHEDULER` / `ENABLE_BOT`.
