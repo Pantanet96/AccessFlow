@@ -1,0 +1,47 @@
+# Dependabot only opens PRs; nothing merges without a review. CI (tests,
+# pip-audit, docker build) runs on each one.
+version: 2
+updates:
+  - package-ecosystem: pip
+    directory: /
+    schedule:
+      interval: monthly
+    groups:
+      python-minor:
+        update-types: [minor, patch]
+    ignore:
+      # Blocked, not just held: passlib 1.7.4 breaks on bcrypt >= 4.1
+      # (see requirements.txt). Needs passlib replaced first.
+      - dependency-name: bcrypt
+      # Major API changes; bump by hand.
+      - dependency-name: python-telegram-bot
+        update-types: [version-update:semver-major]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    groups:
+      actions:
+        patterns: ["*"]
+
+  - package-ecosystem: docker
+    directory: /
+    schedule:
+      interval: monthly
+    ignore:
+      # CI tests on Python 3.12: a newer interpreter in the image would ship
+      # untested. Move both together, by hand.
+      - dependency-name: python
+        update-types: [version-update:semver-major, version-update:semver-minor]
+      - dependency-name: node
+        update-types: [version-update:semver-major]
+
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: monthly
+    ignore:
+      # Tailwind 4 is a rewrite (new config format); stay on 3.x.
+      - dependency-name: tailwindcss
+        update-types: [version-update:semver-major]
