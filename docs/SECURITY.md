@@ -24,7 +24,7 @@ Five failed logins from one IP within 15 minutes lock that IP out, each time for
 
 ### Two-step verification
 
-Turn it on from `/profile` with any TOTP authenticator app. You get 10 one-time recovery codes: store them away from the phone. Secret and codes are encrypted like the other secrets (see above).
+Turn it on from `/profile` with any TOTP authenticator app. Once on, the code is asked after the password and after "Sign in with Plex" too: a Plex sign-in link can be phished (whoever started it gets the session when you approve it on plex.tv), the code stops that. You get 10 one-time recovery codes: store them away from the phone. Secret and codes are encrypted like the other secrets (see above).
 
 Lost the phone and the codes? Set `SUPERADMIN_MFA_RESET=true`, restart, log in with the password, then remove the variable and turn it on again.
 

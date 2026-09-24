@@ -179,7 +179,7 @@ Ships a Community Applications template → [docs/UNRAID.md](docs/UNRAID.md).
 
 - `APP_SECRET_KEY` is mandatory (random, ≥32 chars) — the app won't start without one.
 - SuperAdmin password auto-generates on first boot if left blank (written to a file in the data folder); change it from `/profile`.
-- Optional two-step verification (TOTP) for the local login, with one-time recovery codes.
+- Optional two-step verification (TOTP), asked after both the password and the Plex sign-in, with one-time recovery codes.
 - Failed logins lock the IP out for longer each time (5 min up to 4 h); new passwords need 12+ characters.
 - Set `FORWARDED_ALLOW_IPS` to your reverse proxy's subnet — never `*` on a directly exposed app.
 - Runs as an unprivileged container user; secrets are encrypted at rest.

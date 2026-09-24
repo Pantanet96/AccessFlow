@@ -178,3 +178,32 @@ def test_plex_sign_in_is_rate_limited_per_ip(client, monkeypatch):
     # The callback shares the budget: replaying a valid PIN cookie is capped too.
     monkeypatch.setattr(po, "wait_for_pin", lambda pid: pytest.fail("reached plex.tv"))
     assert client.get("/login/plex/callback", follow_redirects=False).status_code == 429
+
+
+def test_plex_login_asks_the_second_factor_when_enabled(client, db_session, monkeypatch):
+    import time
+
+    from app.auth import mfa
+    from app.models import AuditLog
+
+    user = AppUser(role=Role.admin, real_name="Ada", plex_email="ada@example.com")
+    db_session.add(user)
+    db_session.commit()
+    secret = mfa.start_setup(db_session, user.id)
+    step = int(time.time() // mfa.STEP)
+    assert mfa.enable(db_session, user.id, mfa._code(secret, step - 1)) is not None
+
+    # A phished PIN approval alone is not a session.
+    resp = _login(client, monkeypatch, {"id": "9100", "email": "ada@example.com"})
+    assert resp.headers["location"] == "/login/mfa"
+    assert COOKIE_NAME not in resp.cookies
+    assert client.get("/", follow_redirects=False).status_code == 303
+
+    ok = client.post("/login/mfa", data={"code": mfa._code(secret, step)},
+                     follow_redirects=False)
+    assert ok.status_code == 303 and COOKIE_NAME in ok.cookies
+    db_session.expire_all()
+    last = db_session.exec(
+        select(AuditLog).where(AuditLog.actor_id == user.id).order_by(AuditLog.id.desc())
+    ).first()
+    assert '"method": "plex"' in last.detail

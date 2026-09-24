@@ -110,23 +110,28 @@ def login_submit(
         session.add(user)
         session.commit()
     if mfa.enabled(session, user.id):
-        # No session yet: the password only earns the code prompt. The cookie
-        # carries session_gen so a password change in between voids it.
-        response = RedirectResponse("/login/mfa", status_code=303)
-        response.set_cookie(
-            _MFA_COOKIE,
-            sign_value({"uid": user.id, "gen": user.session_gen or 0}, salt=_MFA_SALT),
-            max_age=_MFA_MAX_AGE, httponly=True, samesite="lax",
-            secure=runtime_config.cookies_secure(),
-        )
-        return response
+        return _mfa_challenge(user, "local")
     audit.record(session, user.id, "login", detail={"method": "local"})
     response = RedirectResponse("/", status_code=303)
     set_session_cookie(response, user)
     return response
 
 
-def _mfa_user(request: Request, session: Session) -> AppUser | None:
+def _mfa_challenge(user: AppUser, method: str) -> RedirectResponse:
+    # No session yet: the first factor only earns the code prompt. The cookie
+    # carries session_gen so a password change in between voids it.
+    response = RedirectResponse("/login/mfa", status_code=303)
+    response.set_cookie(
+        _MFA_COOKIE,
+        sign_value({"uid": user.id, "gen": user.session_gen or 0, "method": method},
+                   salt=_MFA_SALT),
+        max_age=_MFA_MAX_AGE, httponly=True, samesite="lax",
+        secure=runtime_config.cookies_secure(),
+    )
+    return response
+
+
+def _mfa_state(request: Request, session: Session) -> tuple[AppUser, str] | None:
     raw = request.cookies.get(_MFA_COOKIE)
     state = read_value(raw, salt=_MFA_SALT, max_age=_MFA_MAX_AGE) if raw else None
     if not state:
@@ -134,12 +139,12 @@ def _mfa_user(request: Request, session: Session) -> AppUser | None:
     user = session.get(AppUser, state["uid"])
     if user is None or not user.is_active or (user.session_gen or 0) != state["gen"]:
         return None
-    return user
+    return user, state.get("method", "local")
 
 
 @router.get("/login/mfa", response_class=HTMLResponse)
 def login_mfa_form(request: Request, session: Session = Depends(get_session)):
-    if _mfa_user(request, session) is None:
+    if _mfa_state(request, session) is None:
         return RedirectResponse("/login/local", status_code=303)
     return templates.TemplateResponse(request, "login_mfa.html", {"error": None})
 
@@ -150,12 +155,13 @@ def login_mfa_submit(
     code: str = Form(...),
     session: Session = Depends(get_session),
 ):
-    user = _mfa_user(request, session)
-    if user is None:
+    pending = _mfa_state(request, session)
+    if pending is None:
         return RedirectResponse("/login/local", status_code=303)
+    user, method = pending
     ip = _client_ip(request)
-    # Per-account key, hard: only someone who already has the password can
-    # reach this, so locking it can't be used to keep the owner out.
+    # Per-account key, hard: only someone who already passed the first factor
+    # can reach this, so locking it can't be used to keep the owner out.
     tkey = f"mfa:{user.id}"
     locked = throttle.check_locked(tkey, ip)
     if locked is None:
@@ -163,7 +169,7 @@ def login_mfa_submit(
         if kind is not None:
             throttle.reset(tkey, ip)
             audit.record(session, user.id, "login",
-                         detail={"method": "local", "mfa": kind})
+                         detail={"method": method, "mfa": kind})
             response = RedirectResponse("/", status_code=303)
             response.delete_cookie(_MFA_COOKIE)
             set_session_cookie(response, user)
@@ -265,6 +271,12 @@ def plex_callback(request: Request, session: Session = Depends(get_session)):
             status_code=403,
         )
 
+    # Plex sign-in is phishable: whoever started the PIN gets the session once
+    # the victim approves it on plex.tv. A second factor, if set, still applies.
+    if mfa.enabled(session, user.id):
+        response = _mfa_challenge(user, "plex")
+        response.delete_cookie(_PIN_COOKIE)
+        return response
     audit.record(session, user.id, "login", detail={"method": "plex"})
     response = RedirectResponse("/", status_code=303)
     response.delete_cookie(_PIN_COOKIE)
