@@ -90,6 +90,9 @@ class AppUser(SQLModel, table=True):
     # Onboarding modal shown once per account; replay from /profile sets
     # ?tutorial=1 instead of flipping this back to False.
     tutorial_seen: bool = Field(default=False)
+    # Set at each local login from the typed password (the only moment it is
+    # in clear): the stored hash can't be checked against the policy.
+    password_weak: bool = Field(default=False)
 
     @property
     def effective_notify_email(self) -> str | None:

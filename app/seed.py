@@ -41,6 +41,13 @@ def seed_plans(session: Session) -> None:
     session.commit()
 
 
+def initial_password_file():
+    """Where the one-time generated SuperAdmin password is written (data dir)."""
+    from pathlib import Path
+
+    return Path(get_settings().database_path).parent / "INITIAL_SUPERADMIN_PASSWORD.txt"
+
+
 def _surface_generated_password(username: str, password: str) -> None:
     """Make the one-time generated SuperAdmin password available to the operator
     without printing it into the app logs (which often ship to aggregators). Write
@@ -48,12 +55,10 @@ def _surface_generated_password(username: str, password: str) -> None:
     the password if the file can't be written, so bootstrap never leaves the
     operator locked out."""
     import os
-    from pathlib import Path
 
     try:
-        data_dir = Path(get_settings().database_path).parent
-        data_dir.mkdir(parents=True, exist_ok=True)
-        cred_path = data_dir / "INITIAL_SUPERADMIN_PASSWORD.txt"
+        cred_path = initial_password_file()
+        cred_path.parent.mkdir(parents=True, exist_ok=True)
         fd = os.open(cred_path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
         with os.fdopen(fd, "w") as fh:
             fh.write(

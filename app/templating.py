@@ -130,6 +130,21 @@ templates.env.globals["nav_items"] = nav_items
 templates.env.globals["nav_primary"] = nav_primary
 templates.env.globals["nav_overflow"] = nav_overflow
 templates.env.globals["active_broadcast"] = _active_broadcast
+
+
+def _security_warnings(current_user) -> dict:
+    """What the superadmin still has to fix about their own login."""
+    if current_user is None or current_user.role.value != "superadmin":
+        return {}
+    from app.seed import initial_password_file
+
+    return {
+        "weak_password": current_user.password_weak,
+        "initial_file": initial_password_file().exists(),
+    }
+
+
+templates.env.globals["security_warnings"] = _security_warnings
 templates.env.filters["euros"] = _euros
 templates.env.filters["money"] = _money
 templates.env.filters["date"] = _date

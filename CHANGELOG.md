@@ -5,6 +5,14 @@ All notable changes to AccessFlow are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Security
+
+- Repeated failed logins from the same IP lock it for longer each time: 5, 10, 15, 30, 60, 120, then 240 minutes; the count starts over after a day without failures.
+- New local passwords need at least 12 characters, must not contain the username or be a common password, and are capped at bcrypt's 72 bytes.
+- The superadmin sees a warning while their password does not meet the rules, or while INITIAL_SUPERADMIN_PASSWORD.txt is still on the server.
+
 ## [1.4.1] - 2026-09-24
 
 ### Changed

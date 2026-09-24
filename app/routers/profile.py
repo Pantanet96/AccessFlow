@@ -10,7 +10,7 @@ from app.auth.session import set_session_cookie
 from app.db import get_session
 from app.i18n import gettext as _
 from app.models import AppUser, Role
-from app.security import hash_password, verify_password
+from app.security import hash_password, password_problem, verify_password
 from app.services import (
     audit,
     overseerr_service,
@@ -184,13 +184,14 @@ def profile_password(
     elif not verify_password(current_password, user.password_hash):
         throttle.register_failure(tkey, tip)
         error = _("Current password is incorrect.")
-    elif len(new_password) < 8:
-        error = _("New password must be at least 8 characters.")
+    elif (problem := password_problem(new_password, user.username)) is not None:
+        error = _(problem)
     elif new_password != confirm_password:
         error = _("The new passwords do not match.")
     else:
         throttle.reset(tkey, tip)
         user.password_hash = hash_password(new_password)
+        user.password_weak = False  # it just passed the policy
         # Invalidate every existing session cookie (a changed password should log
         # out other devices / any stolen cookie); re-issue one for THIS session.
         user.session_gen = (user.session_gen or 0) + 1
