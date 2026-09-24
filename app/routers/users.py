@@ -6,7 +6,7 @@ from sqlmodel import Session, select
 from app.auth.deps import require_capability, require_role, require_user
 from app.db import get_session
 from app.i18n import gettext as _
-from app.models import AppUser, Plan, Role, Subscription, SubscriptionStatus, utcnow
+from app.models import AppUser, Plan, Role, Subscription, SubscriptionStatus, local_date, utcnow
 from app.permissions import Capability
 from app.config import get_settings
 from app.services import access_service, audit, plex_import, plex_service, users as users_svc
@@ -80,7 +80,7 @@ def _subscription_info(session, user_ids):
         p.id: p for p in
         session.exec(select(Plan).where(Plan.id.in_(plan_ids))).all()
     } if plan_ids else {}
-    today = utcnow().date()
+    today = local_date(utcnow())
     info, plans_in_use = {}, set()
     for s in subs:
         is_active = s.status == SubscriptionStatus.active
@@ -90,7 +90,7 @@ def _subscription_info(session, user_ids):
         if s.expiry_at is None:
             cat = "unlimited"
         else:
-            dleft = (s.expiry_at.date() - today).days
+            dleft = (local_date(s.expiry_at) - today).days
             cat = "expired" if dleft < 0 else ("soon" if dleft <= 7 else "later")
         plan = plan_map.get(s.plan_id)
         name = plan.name if plan else "—"

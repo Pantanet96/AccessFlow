@@ -406,3 +406,23 @@ def test_out_of_range_month_falls_back(client, db_session, login_as):
     for m in ("0001-01", "9999-12"):
         assert client.get(f"/reports?month={m}").status_code == 200
         assert client.get(f"/reports/export.csv?month={m}").status_code == 200
+
+
+def test_month_is_cut_on_local_time(db_session):
+    # 2026-03-31 23:30 UTC is 01:30 on 1 April in Rome: it belongs to April.
+    bronze = _plan(db_session, "bronze")
+    s = _sub(db_session, _user(db_session, "Midnight"), bronze, datetime(2026, 5, 1))
+    _paid_renewal(db_session, s, bronze, 500, datetime(2026, 3, 31, 23, 30))
+
+    april = datetime(2026, 4, 15)
+    assert rep.earnings(db_session, april)["current_collected"] == 500
+    assert rep.earnings(db_session, april)["prev"] == 0
+    series = {m["month"]: m["collected_cents"] for m in rep.monthly_series(db_session, 2, april)}
+    assert series == {"2026-03": 0, "2026-04": 500}
+
+
+def test_dates_render_on_local_time():
+    from app.templating import _date, _datetime
+
+    assert _date(datetime(2026, 3, 14, 23, 30)) == "2026-03-15"
+    assert _datetime(datetime(2026, 1, 10, 8, 0)) == "2026-01-10 09:00"

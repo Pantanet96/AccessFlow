@@ -23,6 +23,9 @@ from app.models import (
     Role,
     Subscription,
     SubscriptionStatus,
+    from_local,
+    local_date,
+    to_local,
     utcnow,
 )
 
@@ -31,8 +34,19 @@ from app.models import (
 UNASSIGNED = 0
 
 
-def _month_start(ref: datetime) -> datetime:
-    return ref.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+def _local_month(ref: datetime) -> datetime:
+    """Start of `ref`'s calendar month on the app's wall clock (naive local)."""
+    return to_local(ref).replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+
+
+def month_bounds(ref: datetime, offset: int = 0) -> tuple[datetime, datetime]:
+    """[start, end) in naive UTC of the local month `offset` months from `ref`'s.
+
+    Months are cut on the app's timezone, not UTC: a payment at 00:30 Rome on
+    the 1st belongs to the new month. Math stays local (DST differs between
+    months), only the bounds are converted for the queries."""
+    start = _local_month(ref) + relativedelta(months=offset)
+    return from_local(start), from_local(start + relativedelta(months=1))
 
 
 def _scope_user_ids(session: Session, manager_id: int | None) -> set[int] | None:
@@ -154,10 +168,8 @@ def earnings(
     session: Session, ref: datetime | None = None, manager_id: int | None = None
 ) -> dict:
     ref = ref or utcnow()
-    cur_start = _month_start(ref)
-    next_start = cur_start + relativedelta(months=1)
-    prev_start = cur_start - relativedelta(months=1)
-    nn_start = next_start + relativedelta(months=1)
+    prev_start, cur_start = month_bounds(ref, -1)
+    next_start, nn_start = month_bounds(ref, 1)
 
     uids = _scope_user_ids(session, manager_id)
     sub_ids = _scope_sub_ids(session, manager_id)
@@ -208,18 +220,16 @@ def monthly_series(
     """[{"month": "YYYY-MM", "collected_cents": n}], oldest first, ending on
     `ref`'s month. One query bucketed in Python — 12 round-trips buy nothing."""
     ref = ref or utcnow()
-    end = _month_start(ref) + relativedelta(months=1)
-    start = end - relativedelta(months=months)
-
-    buckets: dict[str, int] = {}
-    cur = start
-    while cur < end:
-        buckets[cur.strftime("%Y-%m")] = 0
-        cur += relativedelta(months=1)
+    first = _local_month(ref) - relativedelta(months=months - 1)
+    buckets = {
+        (first + relativedelta(months=i)).strftime("%Y-%m"): 0
+        for i in range(months)
+    }
+    start, end = from_local(first), month_bounds(ref)[1]
 
     sub_ids = _scope_sub_ids(session, manager_id)
     for r in _paid_in(session, start, end, sub_ids):
-        key = r.paid_at.strftime("%Y-%m")
+        key = to_local(r.paid_at).strftime("%Y-%m")
         if key in buckets:
             buckets[key] += r.amount_cents
     return [{"month": k, "collected_cents": v} for k, v in buckets.items()]
@@ -357,7 +367,7 @@ def upcoming_expiries(
                 "plan": plan.name if plan else "?",
                 "amount_cents": plan.price_cents if plan else 0,
                 "expiry": sub.expiry_at,
-                "days_left": (sub.expiry_at.date() - ref.date()).days,
+                "days_left": (local_date(sub.expiry_at) - local_date(ref)).days,
                 "pending_renewal": pending,
             }
         )

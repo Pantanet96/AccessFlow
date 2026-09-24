@@ -9,7 +9,8 @@ from app import runtime_config
 from app.auth.deps import require_capability, require_user
 from app.db import get_session
 from app.models import (
-    AppUser, Plan, Renewal, RenewalStatus, Role, Subscription, SubscriptionStatus, utcnow,
+    AppUser, Plan, Renewal, RenewalStatus, Role, Subscription, SubscriptionStatus, local_date,
+    utcnow,
 )
 from app.permissions import Capability, has_capability
 from app.services import audit, notifications
@@ -215,7 +216,7 @@ def set_expiry(
         sub.expiry_at = datetime.strptime(expiry_date, "%Y-%m-%d")
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid date")
-    if sub.expiry_at.date() >= utcnow().date():
+    if local_date(sub.expiry_at) >= local_date(utcnow()):
         # Moved back into the future: no longer overdue. The daily scan flips
         # it to expired again once the new date passes.
         sub.status = SubscriptionStatus.active

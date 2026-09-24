@@ -9,14 +9,14 @@ Buckets (all scoped via users_svc.list_users_for):
 ponytail: per-user O(n) scan with a couple of queries each. Fine for the small
 user base this app targets; revisit with aggregate SQL only if it gets slow.
 """
-from app.models import Plan, Role, utcnow
+from app.models import Plan, Role, local_date, utcnow
 from app.services import subscriptions as sub_svc
 from app.services import users as users_svc
 
 
 def build_worklist(session, viewer) -> dict:
     users = users_svc.list_users_for(session, viewer)
-    today = utcnow().date()
+    today = local_date(utcnow())
     pending, to_collect, paid_suspended, no_sub = [], [], [], []
 
     for u in users:
@@ -31,7 +31,7 @@ def build_worklist(session, viewer) -> dict:
             continue
         plan = session.get(Plan, sub.plan_id)
         pend = sub_svc.get_pending_renewal(session, sub.id)
-        days_left = (sub.expiry_at.date() - today).days if sub.expiry_at else None
+        days_left = (local_date(sub.expiry_at) - today).days if sub.expiry_at else None
 
         if pend is not None:
             pending.append({"user": u, "sub": sub, "plan": plan,

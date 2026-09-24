@@ -332,9 +332,9 @@ def create_app() -> FastAPI:
             )
             days_left = None
             if sub and sub.expiry_at:
-                from app.models import utcnow
+                from app.models import local_date, utcnow
 
-                days_left = (sub.expiry_at.date() - utcnow().date()).days
+                days_left = (local_date(sub.expiry_at) - local_date(utcnow())).days
             ctx.update(
                 {
                     "sub": sub,

@@ -3,7 +3,6 @@ import csv
 import io
 from datetime import datetime
 
-from dateutil.relativedelta import relativedelta
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import HTMLResponse, Response
 from sqlmodel import Session
@@ -12,7 +11,7 @@ from app import runtime_config
 from app.auth.deps import require_capability
 from app.db import get_session
 from app.i18n import gettext as _
-from app.models import AppUser, utcnow
+from app.models import AppUser, from_local, local_date, to_local, utcnow
 from app.permissions import Capability
 from app.services import reports as reports_svc
 from app.services import users as users_svc
@@ -48,17 +47,18 @@ def reports_page(
     viewer: AppUser = Depends(require_capability(Capability.view_reports)),
     session: Session = Depends(get_session),
 ):
-    ref = _parse_month(month) or utcnow()
+    picked = _parse_month(month)
+    # A picked month is local wall clock; the services take UTC instants.
+    ref = from_local(picked) if picked else utcnow()
     mid = _parse_manager(manager)
-    m_start = ref.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-    m_end = m_start + relativedelta(months=1)
+    m_start, m_end = reports_svc.month_bounds(ref)
 
     return templates.TemplateResponse(
         request,
         "reports.html",
         {
             "current_user": viewer,
-            "month": m_start.strftime("%Y-%m"),
+            "month": to_local(ref).strftime("%Y-%m"),
             "manager": manager if mid is not None else "",
             "managers": users_svc.manager_candidates(session),
             "unassigned_id": reports_svc.UNASSIGNED,
@@ -93,8 +93,7 @@ def reports_export_csv(
     mid = _parse_manager(manager)
     start = end = None
     if ref is not None:
-        start = ref
-        end = ref + relativedelta(months=1)
+        start, end = reports_svc.month_bounds(from_local(ref))
 
     buf = io.StringIO()
     writer = csv.writer(buf)
@@ -106,7 +105,7 @@ def reports_export_csv(
     ])
     for r in reports_svc.paid_renewals(session, start, end, mid):
         writer.writerow([
-            r["paid_at"].strftime("%Y-%m-%d") if r["paid_at"] else "",
+            local_date(r["paid_at"]).isoformat() if r["paid_at"] else "",
             _cell(r["user"]), _cell(r["plan"]), f"{r['amount_cents'] / 100:.2f}",
             # No manager == the superadmin's own book; same label as the page.
             _cell(r["causale"]), _cell(r["collected_by"]),
