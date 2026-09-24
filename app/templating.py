@@ -5,6 +5,7 @@ from fastapi.templating import Jinja2Templates
 
 from app import __version__
 from app.i18n import gettext as _, install_jinja_i18n
+from app.models import to_local
 
 BASE_DIR = Path(__file__).resolve().parent
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
@@ -48,12 +49,14 @@ def _money(amount) -> str:  # value already in major units (e.g. amount_eur)
     return _fmt_money(float(amount))
 
 
+# Stored datetimes are naive UTC; people read the app's wall clock (settings.tz),
+# the same one the reminder mails already use.
 def _date(value) -> str:
-    return value.strftime("%Y-%m-%d") if value else "∞"
+    return to_local(value).strftime("%Y-%m-%d") if value else "∞"
 
 
 def _datetime(value) -> str:
-    return value.strftime("%Y-%m-%d %H:%M") if value else "—"
+    return to_local(value).strftime("%Y-%m-%d %H:%M") if value else "—"
 
 
 def _active_broadcast(current_user):

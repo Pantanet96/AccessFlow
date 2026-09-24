@@ -20,15 +20,30 @@ def utcnow() -> datetime:
     return datetime.now(timezone.utc).replace(tzinfo=None)
 
 
+def _tz() -> ZoneInfo:
+    from app.config import get_settings
+
+    return ZoneInfo(get_settings().tz)
+
+
+def to_local(dt: datetime) -> datetime:
+    """Naive-UTC (or aware) datetime -> naive wall clock in the app's timezone."""
+    aware = dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
+    return aware.astimezone(_tz()).replace(tzinfo=None)
+
+
+def from_local(dt: datetime) -> datetime:
+    """Naive wall clock in the app's timezone -> naive UTC (what the DB stores)."""
+    return dt.replace(tzinfo=_tz()).astimezone(timezone.utc).replace(tzinfo=None)
+
+
 def local_date(dt: datetime) -> date:
     """Calendar day of a naive-UTC datetime in the app's timezone (settings.tz).
 
     Day counts and weekdays that reach people (reminder steps, digest day) must
     follow the wall clock the scheduler runs on, not UTC: a scan at 00:30 Rome
     is still the previous day in UTC."""
-    from app.config import get_settings
-
-    return dt.replace(tzinfo=timezone.utc).astimezone(ZoneInfo(get_settings().tz)).date()
+    return to_local(dt).date()
 
 
 class AppUser(SQLModel, table=True):

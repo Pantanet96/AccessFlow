@@ -178,7 +178,7 @@
     <label class="flex flex-col gap-1 text-sm font-medium text-on-surface-variant">
       {{ _("Expiry date (manual override)") }}
       <input type="date" name="expiry_date" required
-             value="{{ sub.expiry_at.strftime('%Y-%m-%d') if sub.expiry_at else '' }}"
+             value="{{ sub.expiry_at | date if sub.expiry_at else '' }}"
              class="mt-1 rounded-lg border border-outline-variant bg-surface-container-low px-3 py-2 text-on-surface focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary">
       <small class="block text-xs text-on-surface-variant mt-1 max-w-xs">{{ _("Force the expiry date for corrections. Access cut/restore still follows the Suspend/Reactivate buttons and the daily job.") }}</small>
     </label>
