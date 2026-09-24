@@ -1,0 +1,31 @@
+name: Docker Hub description
+
+# Keeps the Docker Hub page in sync with README.md.
+on:
+  push:
+    branches: [main]
+    paths: [README.md, .github/workflows/dockerhub-description.yml]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  description:
+    runs-on: ubuntu-latest
+    # Own token: editing the description needs read/write/delete scope, more
+    # than the push token (DOCKERHUB_TOKEN) should carry. Skipped until set.
+    env:
+      HAS_TOKEN: ${{ secrets.DOCKERHUB_DESCRIPTION_TOKEN != '' }}
+    steps:
+      - uses: actions/checkout@v7
+        if: env.HAS_TOKEN == 'true'
+      - uses: peter-evans/dockerhub-description@1b9a80c056b620d92cedb9d9b5a223409c68ddfa  # v5.0.0
+        if: env.HAS_TOKEN == 'true'
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_DESCRIPTION_TOKEN }}
+          repository: pantanet96/accessflow
+          short-description: ${{ github.event.repository.description }}
+          # Screenshots and logo are relative paths: point them at GitHub.
+          enable-url-completion: true
