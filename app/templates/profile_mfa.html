@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block title %}{{ _("Two-step verification") }}{% endblock %}
+{% block content %}
+<div class="max-w-xl mx-auto">
+  <section class="sub-card">
+    <div class="flex items-center gap-2 mb-5">
+      <span class="material-symbols-outlined text-primary-container" aria-hidden="true">phonelink_lock</span>
+      <h2 class="text-lg font-semibold text-on-surface">{{ _("Two-step verification") }}</h2>
+    </div>
+
+    {% if codes %}
+    <p class="flex items-center gap-1.5 text-sm text-status-active mb-4">
+      <span class="material-symbols-outlined text-[18px]" aria-hidden="true">check_circle</span>
+      {{ _("Two-step verification is on.") }}
+    </p>
+    <p class="text-sm text-on-surface mb-2"><strong>{{ _("Save these recovery codes now: they are shown only once.") }}</strong></p>
+    <p class="text-sm text-on-surface-variant mb-4">{{ _("Each one signs you in once if you lose your phone. Keep them somewhere safe, away from the phone.") }}</p>
+    <ul class="grid grid-cols-2 gap-2 font-mono text-sm list-none p-0 mb-6">
+      {% for c in codes %}<li class="rounded bg-surface-container-high px-3 py-2 text-on-surface">{{ c }}</li>{% endfor %}
+    </ul>
+    <a href="/profile" class="btn-brand no-underline">{{ _("Done") }}</a>
+    {% else %}
+    <ol class="text-sm text-on-surface space-y-2 mb-5 pl-5 list-decimal">
+      <li>{{ _("Scan this QR code with your authenticator app.") }}</li>
+      <li>{{ _("Type the 6-digit code it shows, with your current password.") }}</li>
+    </ol>
+    <div class="flex justify-center mb-3"><div class="rounded-lg bg-white p-3">{{ qr | safe }}</div></div>
+    <p class="text-xs text-on-surface-variant text-center mb-6">{{ _("Can't scan it? Enter this key by hand:") }}<br>
+      <code class="font-mono text-sm text-on-surface break-all">{{ secret }}</code></p>
+
+    {% if error %}
+    <p class="flex items-center gap-1.5 text-sm text-status-expired mb-4" role="alert">
+      <span class="material-symbols-outlined text-[18px]" aria-hidden="true">error</span>
+      {{ error }}
+    </p>
+    {% endif %}
+
+    <form method="post" action="/profile/mfa/enable" class="space-y-4">
+      <div>
+        <label for="mfa_code" class="form-label mb-1">{{ _("Code") }}</label>
+        <input id="mfa_code" type="text" name="code" autocomplete="one-time-code" inputmode="numeric" required autofocus
+               class="w-full rounded-lg border border-outline-variant bg-surface-container-high px-3 py-2 text-sm text-on-surface tracking-widest focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors">
+      </div>
+      <div>
+        <label for="mfa_password" class="form-label mb-1">{{ _("Current password") }}</label>
+        <input id="mfa_password" type="password" name="current_password" autocomplete="current-password" required
+               class="w-full rounded-lg border border-outline-variant bg-surface-container-high px-3 py-2 text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors">
+      </div>
+      <div class="flex items-center gap-3 pt-2">
+        <button type="submit" class="btn-brand">{{ _("Turn on") }}</button>
+        <a href="/profile" class="text-sm text-on-surface-variant no-underline hover:text-on-surface">{{ _("Cancel") }}</a>
+      </div>
+    </form>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}

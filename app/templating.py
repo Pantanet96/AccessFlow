@@ -136,11 +136,20 @@ def _security_warnings(current_user) -> dict:
     """What the superadmin still has to fix about their own login."""
     if current_user is None or current_user.role.value != "superadmin":
         return {}
+    from sqlmodel import Session
+
+    from app.auth import mfa
+    from app.db import engine
     from app.seed import initial_password_file
 
+    mfa_off = False
+    if current_user.password_hash:
+        with Session(engine) as s:
+            mfa_off = not mfa.enabled(s, current_user.id)
     return {
         "weak_password": current_user.password_weak,
         "initial_file": initial_password_file().exists(),
+        "mfa_off": mfa_off,
     }
 
 

@@ -250,6 +250,51 @@
       </div>
     </form>
   </section>
+
+  <section class="sub-card">
+    <div class="flex items-center gap-2 mb-5">
+      <span class="material-symbols-outlined text-primary-container" aria-hidden="true">phonelink_lock</span>
+      <h2 class="text-lg font-semibold text-on-surface">{{ _("Two-step verification") }}</h2>
+    </div>
+    {% if mfa_message %}
+    <p class="flex items-center gap-1.5 text-sm text-status-active mb-4">
+      <span class="material-symbols-outlined text-[18px]" aria-hidden="true">check_circle</span>
+      {{ mfa_message }}
+    </p>
+    {% endif %}
+    {% if mfa_error %}
+    <p class="flex items-center gap-1.5 text-sm text-status-expired mb-4">
+      <span class="material-symbols-outlined text-[18px]" aria-hidden="true">error</span>
+      {{ mfa_error }}
+    </p>
+    {% endif %}
+    {% if mfa_enabled %}
+    <p class="text-sm text-on-surface mb-1">{{ _("Active: after your password, sign-in asks for a code from your authenticator app.") }}</p>
+    <p class="text-xs text-on-surface-variant mb-4">{{ _("Recovery codes left: %(n)d") % {'n': mfa_recovery_left} }}</p>
+    <form method="post" action="/profile/mfa/disable" class="space-y-4">
+      <div>
+        <label for="mfa_off_password" class="form-label mb-1">{{ _("Current password") }}</label>
+        <input id="mfa_off_password" type="password" name="current_password" autocomplete="current-password" required
+               class="w-full rounded-lg border border-outline-variant bg-surface-container-high px-3 py-2 text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors">
+      </div>
+      <div>
+        <label for="mfa_off_code" class="form-label mb-1">{{ _("Code or recovery code") }}</label>
+        <input id="mfa_off_code" type="text" name="code" autocomplete="one-time-code" required
+               class="w-full rounded-lg border border-outline-variant bg-surface-container-high px-3 py-2 text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors">
+      </div>
+      <button type="submit" class="inline-flex items-center gap-2 rounded-lg border border-outline-variant text-status-expired font-semibold text-sm px-5 py-2.5 hover:bg-surface-container-high transition-colors">
+        <span class="material-symbols-outlined text-[18px]" aria-hidden="true">no_encryption</span>
+        {{ _("Turn off") }}
+      </button>
+    </form>
+    {% else %}
+    <p class="text-sm text-on-surface-variant mb-4">{{ _("Protect your account with a code from an authenticator app (Google Authenticator, Aegis, 1Password...) in addition to your password.") }}</p>
+    <a href="/profile/mfa" class="inline-flex items-center gap-2 rounded-lg border border-outline-variant text-on-surface font-semibold text-sm px-5 py-2.5 no-underline hover:bg-surface-container-high transition-colors">
+      <span class="material-symbols-outlined text-[18px]" aria-hidden="true">enhanced_encryption</span>
+      {{ _("Turn on") }}
+    </a>
+    {% endif %}
+  </section>
   {% endif %}
 
 </div>

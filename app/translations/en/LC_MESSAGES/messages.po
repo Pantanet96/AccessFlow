@@ -2691,3 +2691,78 @@ msgstr ""
 
 msgid "At least 12 characters, not a common password, without the username."
 msgstr ""
+
+msgid "Two-step verification"
+msgstr ""
+
+msgid "Enter the 6-digit code from your authenticator app, or one of your recovery codes."
+msgstr ""
+
+msgid "Code"
+msgstr ""
+
+msgid "Verify"
+msgstr ""
+
+msgid "Invalid code."
+msgstr ""
+
+msgid "Invalid code. Check the time on your phone and try again."
+msgstr ""
+
+msgid "Wrong password or code."
+msgstr ""
+
+msgid "Two-step verification turned off."
+msgstr ""
+
+msgid "Active: after your password, sign-in asks for a code from your authenticator app."
+msgstr ""
+
+msgid "Recovery codes left: %(n)d"
+msgstr ""
+
+msgid "Code or recovery code"
+msgstr ""
+
+msgid "Turn off"
+msgstr ""
+
+msgid "Protect your account with a code from an authenticator app (Google Authenticator, Aegis, 1Password...) in addition to your password."
+msgstr ""
+
+msgid "Turn on"
+msgstr ""
+
+msgid "Two-step verification is on."
+msgstr ""
+
+msgid "Save these recovery codes now: they are shown only once."
+msgstr ""
+
+msgid "Each one signs you in once if you lose your phone. Keep them somewhere safe, away from the phone."
+msgstr ""
+
+msgid "Scan this QR code with your authenticator app."
+msgstr ""
+
+msgid "Type the 6-digit code it shows, with your current password."
+msgstr ""
+
+msgid "Can't scan it? Enter this key by hand:"
+msgstr ""
+
+msgid "Cancel"
+msgstr ""
+
+msgid "Two-step verification is off. Recommended for the superadmin account."
+msgstr ""
+
+msgid "Turn it on"
+msgstr ""
+
+msgid "turned on two-step verification"
+msgstr ""
+
+msgid "turned off two-step verification"
+msgstr ""

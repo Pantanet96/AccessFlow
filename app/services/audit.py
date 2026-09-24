@@ -22,6 +22,8 @@ _ACTION_LABELS = {
     "send_reminder": N_("manually sent an expiry reminder"),
     "update_profile": N_("updated their profile"),
     "change_password": N_("changed their password"),
+    "enable_mfa": N_("turned on two-step verification"),
+    "disable_mfa": N_("turned off two-step verification"),
     "telegram_sync_overseerr": N_("synced Telegram ID with Overseerr"),
     "create_subscription": N_("assigned a plan"),
     "change_plan": N_("changed the plan"),

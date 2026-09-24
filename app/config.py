@@ -29,6 +29,9 @@ class Settings(BaseSettings):
     # SuperAdmin seed
     superadmin_username: str = "admin"
     superadmin_password: str = "change-me"
+    # Lost phone and recovery codes: set to true and restart to turn the
+    # superadmin's two-step verification off. Remove it afterwards.
+    superadmin_mfa_reset: bool = False
 
     # Plex
     plex_token: str = ""

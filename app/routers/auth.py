@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlmodel import Session
 
-from app.auth import throttle
+from app.auth import mfa, throttle
 from app.auth.deps import get_current_user
 from app.auth.plex_login import resolve_or_activate_user
 from app.auth.service import authenticate_local
@@ -25,6 +25,9 @@ router = APIRouter()
 
 _PIN_COOKIE = "plex_pin"
 _PIN_SALT = "plex-pin"
+_MFA_COOKIE = "mfa_pending"
+_MFA_SALT = "mfa-pending"
+_MFA_MAX_AGE = 300  # password checked, code still owed: 5 minutes to type it
 
 
 @router.get("/login", response_class=HTMLResponse)
@@ -106,10 +109,74 @@ def login_submit(
         user.password_weak = weak
         session.add(user)
         session.commit()
+    if mfa.enabled(session, user.id):
+        # No session yet: the password only earns the code prompt. The cookie
+        # carries session_gen so a password change in between voids it.
+        response = RedirectResponse("/login/mfa", status_code=303)
+        response.set_cookie(
+            _MFA_COOKIE,
+            sign_value({"uid": user.id, "gen": user.session_gen or 0}, salt=_MFA_SALT),
+            max_age=_MFA_MAX_AGE, httponly=True, samesite="lax",
+            secure=runtime_config.cookies_secure(),
+        )
+        return response
     audit.record(session, user.id, "login", detail={"method": "local"})
     response = RedirectResponse("/", status_code=303)
     set_session_cookie(response, user)
     return response
+
+
+def _mfa_user(request: Request, session: Session) -> AppUser | None:
+    raw = request.cookies.get(_MFA_COOKIE)
+    state = read_value(raw, salt=_MFA_SALT, max_age=_MFA_MAX_AGE) if raw else None
+    if not state:
+        return None
+    user = session.get(AppUser, state["uid"])
+    if user is None or not user.is_active or (user.session_gen or 0) != state["gen"]:
+        return None
+    return user
+
+
+@router.get("/login/mfa", response_class=HTMLResponse)
+def login_mfa_form(request: Request, session: Session = Depends(get_session)):
+    if _mfa_user(request, session) is None:
+        return RedirectResponse("/login/local", status_code=303)
+    return templates.TemplateResponse(request, "login_mfa.html", {"error": None})
+
+
+@router.post("/login/mfa")
+def login_mfa_submit(
+    request: Request,
+    code: str = Form(...),
+    session: Session = Depends(get_session),
+):
+    user = _mfa_user(request, session)
+    if user is None:
+        return RedirectResponse("/login/local", status_code=303)
+    ip = _client_ip(request)
+    # Per-account key, hard: only someone who already has the password can
+    # reach this, so locking it can't be used to keep the owner out.
+    tkey = f"mfa:{user.id}"
+    locked = throttle.check_locked(tkey, ip)
+    if locked is None:
+        kind = mfa.verify(session, user.id, code)
+        if kind is not None:
+            throttle.reset(tkey, ip)
+            audit.record(session, user.id, "login",
+                         detail={"method": "local", "mfa": kind})
+            response = RedirectResponse("/", status_code=303)
+            response.delete_cookie(_MFA_COOKIE)
+            set_session_cookie(response, user)
+            return response
+        locked = throttle.register_failure(tkey, ip)
+    if locked is not None:
+        msg = _("Too many attempts. Try again in about %(minutes)d minute(s).") % {
+            "minutes": (locked + 59) // 60
+        }
+        return templates.TemplateResponse(
+            request, "login_mfa.html", {"error": msg}, status_code=429)
+    return templates.TemplateResponse(
+        request, "login_mfa.html", {"error": _("Invalid code.")}, status_code=401)
 
 
 @router.post("/logout")

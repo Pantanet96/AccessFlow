@@ -137,12 +137,13 @@
     <main class="flex-1 w-full max-w-app mx-auto px-gap-md py-gap-lg">
       {% if current_user %}
         {% set sw = security_warnings(current_user) %}
-        {% if sw.weak_password or sw.initial_file %}
+        {% if sw.weak_password or sw.initial_file or sw.mfa_off %}
         <div class="flex items-start gap-gap-sm mb-gap-lg rounded-lg py-3 px-4 bg-status-suspended/10 border-l-4 border-status-suspended text-on-surface">
           <span class="material-symbols-outlined text-status-suspended" aria-hidden="true">shield</span>
           <div class="flex-1">
             {% if sw.weak_password %}<p>{{ _("Your password does not meet the requirements (at least 12 characters, not a common password, without the username).") }} <a class="text-primary" href="/profile">{{ _("Change it") }}</a></p>{% endif %}
             {% if sw.initial_file %}<p>{{ _("The file INITIAL_SUPERADMIN_PASSWORD.txt is still in the data folder: delete it from the server.") }}</p>{% endif %}
+            {% if sw.mfa_off %}<p>{{ _("Two-step verification is off. Recommended for the superadmin account.") }} <a class="text-primary" href="/profile/mfa">{{ _("Turn it on") }}</a></p>{% endif %}
           </div>
         </div>
         {% endif %}
