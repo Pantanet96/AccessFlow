@@ -1,3 +1,4 @@
+import pytest
 from sqlmodel import select
 
 import app.services.plex_oauth as po
@@ -163,3 +164,17 @@ def test_reused_owner_email_does_not_become_superadmin(client, db_session, monke
     # The real owner still gets in.
     resp = _login(client, monkeypatch, {"id": "5000", "email": "owner@example.com"})
     assert resp.status_code == 303 and COOKIE_NAME in resp.cookies
+
+
+def test_plex_sign_in_is_rate_limited_per_ip(client, monkeypatch):
+    # Each hit waits on plex.tv in a worker thread; an anonymous flood must stop.
+    from app.auth import throttle
+
+    for _ in range(throttle.PLEX_MAX_HITS):
+        assert _start_pin(client, monkeypatch).status_code == 303
+    resp = _start_pin(client, monkeypatch)
+    assert resp.status_code == 429
+
+    # The callback shares the budget: replaying a valid PIN cookie is capped too.
+    monkeypatch.setattr(po, "wait_for_pin", lambda pid: pytest.fail("reached plex.tv"))
+    assert client.get("/login/plex/callback", follow_redirects=False).status_code == 429

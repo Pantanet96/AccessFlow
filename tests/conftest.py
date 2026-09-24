@@ -22,6 +22,14 @@ from fastapi.testclient import TestClient
 from app.main import create_app
 
 
+@pytest.fixture(autouse=True)
+def _fresh_throttle():
+    # In-process counters: every test shares the "testclient" IP.
+    from app.auth import throttle
+
+    throttle._BUCKETS.clear()
+
+
 @pytest.fixture
 def client():
     # Context manager runs lifespan -> migrate + seed against the temp DB.

@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Security
 
 - Plex sign-in no longer matches a user already linked to a different Plex account by email alone; a reused email could take over that user, or the superadmin.
+- Plex sign-in is rate limited per IP; a flood of anonymous requests could tie up the app waiting on plex.tv.
 
 ## [1.3.4] - 2026-09-23
 
