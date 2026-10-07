@@ -2,6 +2,7 @@
 from datetime import date, datetime, timezone
 from zoneinfo import ZoneInfo
 
+from pydantic import NaiveDatetime
 from sqlmodel import Field, SQLModel
 
 from app.models.enums import (
@@ -83,7 +84,7 @@ class AppUser(SQLModel, table=True):
     grace_days: int = Field(default=0)  # days after expiry before auto-suspend (0..15)
     overseerr_prev_permissions: int | None = None  # saved before disabling, restored on enable
 
-    created_at: datetime = Field(default_factory=utcnow)
+    created_at: NaiveDatetime = Field(default_factory=utcnow)
     # Last broadcast.id this user has dismissed the in-app banner for; a newer
     # broadcast (matching their role, if targeted) shows again until dismissed.
     dismissed_broadcast_id: int | None = Field(default=None)
@@ -123,12 +124,12 @@ class Subscription(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     user_id: int = Field(foreign_key="app_user.id", index=True)
     plan_id: int = Field(foreign_key="plan.id")
-    start_at: datetime = Field(default_factory=utcnow)
-    expiry_at: datetime | None = None  # None = unlimited
+    start_at: NaiveDatetime = Field(default_factory=utcnow)
+    expiry_at: NaiveDatetime | None = None  # None = unlimited
     status: SubscriptionStatus = Field(
         default=SubscriptionStatus.active, index=True
     )
-    created_at: datetime = Field(default_factory=utcnow)
+    created_at: NaiveDatetime = Field(default_factory=utcnow)
 
 
 class Renewal(SQLModel, table=True):
@@ -141,11 +142,11 @@ class Renewal(SQLModel, table=True):
     amount_cents: int = 0
     status: RenewalStatus = Field(default=RenewalStatus.pending, index=True)
     causale: str | None = None  # transaction text, set when marked paid
-    due_at: datetime | None = None
-    paid_at: datetime | None = Field(default=None, index=True)
+    due_at: NaiveDatetime | None = None
+    paid_at: NaiveDatetime | None = Field(default=None, index=True)
     created_by: int | None = Field(default=None, foreign_key="app_user.id")
     collected_by: int | None = Field(default=None, foreign_key="app_user.id")
-    created_at: datetime = Field(default_factory=utcnow)
+    created_at: NaiveDatetime = Field(default_factory=utcnow)
 
 
 class NotificationLog(SQLModel, table=True):
@@ -168,7 +169,7 @@ class NotificationLog(SQLModel, table=True):
     dedup_key: str = Field(unique=True, index=True)
     status: str = Field(default="sent", index=True)  # "sent" | "failed"
     error: str | None = None  # human-readable reason when status == "failed"
-    sent_at: datetime = Field(default_factory=utcnow)
+    sent_at: NaiveDatetime = Field(default_factory=utcnow)
 
 
 class Broadcast(SQLModel, table=True):
@@ -180,7 +181,7 @@ class Broadcast(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     message: str
     only_role: Role | None = Field(default=None)
-    created_at: datetime = Field(default_factory=utcnow)
+    created_at: NaiveDatetime = Field(default_factory=utcnow)
 
 
 class Invite(SQLModel, table=True):
@@ -196,10 +197,10 @@ class Invite(SQLModel, table=True):
     libraries: str | None = None  # JSON list of section titles; null = global default
     token: str = Field(unique=True, index=True)
     status: InviteStatus = Field(default=InviteStatus.pending, index=True)
-    plex_invite_sent_at: datetime | None = None
-    expires_at: datetime | None = None  # pending past this -> expired by the daily scan
+    plex_invite_sent_at: NaiveDatetime | None = None
+    expires_at: NaiveDatetime | None = None  # pending past this -> expired by the daily scan
     created_by: int | None = Field(default=None, foreign_key="app_user.id")
-    created_at: datetime = Field(default_factory=utcnow)
+    created_at: NaiveDatetime = Field(default_factory=utcnow)
 
 
 class AppSetting(SQLModel, table=True):
@@ -218,4 +219,4 @@ class AuditLog(SQLModel, table=True):
     target_type: str | None = None
     target_id: str | None = None
     detail: str | None = None  # JSON-encoded
-    created_at: datetime = Field(default_factory=utcnow)
+    created_at: NaiveDatetime = Field(default_factory=utcnow)
