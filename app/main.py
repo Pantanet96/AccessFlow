@@ -151,7 +151,10 @@ def create_app() -> FastAPI:
         response = await call_next(request)
         response.headers.setdefault("X-Content-Type-Options", "nosniff")
         response.headers.setdefault("X-Frame-Options", "DENY")
-        response.headers.setdefault("Referrer-Policy", "no-referrer")
+        # Not no-referrer: that makes browsers send `Origin: null` on every
+        # POST, and on plain http (no Sec-Fetch-*) the CSRF check needs the
+        # real Origin. same-origin still sends nothing to other sites.
+        response.headers.setdefault("Referrer-Policy", "same-origin")
         response.headers.setdefault("Content-Security-Policy", _CSP)
         return response
 

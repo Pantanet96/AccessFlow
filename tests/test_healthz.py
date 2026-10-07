@@ -83,3 +83,19 @@ def test_security_headers_present(client):
     # No external script/style sources allowed -> CDN inclusions are gone.
     assert "cdn.jsdelivr.net" not in resp.text
     assert "unpkg.com" not in resp.text
+
+
+def test_csrf_on_plain_http_lan(client):
+    """Issue #5: over plain http on a LAN IP browsers send no Sec-Fetch-*
+    headers, so the CSRF check falls back to Origin. With Referrer-Policy
+    no-referrer every form POST carried `Origin: null` and the login always
+    failed. same-origin keeps the real Origin on our own forms only."""
+    assert client.get("/login").headers["Referrer-Policy"] == "same-origin"
+    creds = {"username": "admin", "password": "test-admin-pw"}
+    ok = client.post("/login", data=creds, follow_redirects=False,
+                     headers={"Origin": "http://testserver"})
+    assert ok.status_code == 303
+    # What a cross-site form (or a no-referrer page) sends: still rejected.
+    bad = client.post("/login", data=creds, follow_redirects=False,
+                      headers={"Origin": "null"})
+    assert bad.status_code == 403
