@@ -44,8 +44,10 @@ jobs:
         with:
           node-version: "22"
           cache: npm
-      # Reads package-lock.json; no install needed.
-      - run: npm audit --audit-level=high
+      # Reads package-lock.json; no install needed. Dev deps (Tailwind 3 and
+      # its build-time chain) are skipped: they only run in the Dockerfile's
+      # assets stage on our own CSS, and the image ships just app.css.
+      - run: npm audit --audit-level=high --omit=dev
 
   build:
     runs-on: ubuntu-latest
