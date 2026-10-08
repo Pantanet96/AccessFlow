@@ -15,6 +15,8 @@ FastAPI + Jinja2/HTMX + SQLite, shipped as a single Docker container that sits b
 ![FastAPI](https://img.shields.io/badge/FastAPI-async-009688?logo=fastapi&logoColor=white)
 [![License: MIT](https://img.shields.io/badge/license-MIT-brightgreen)](LICENSE)
 
+**[Full documentation](docs/GUIDE.md)**
+
 ## What problem does it solve?
 
 You share your Plex server with friends, family or other people, and keeping track of it by hand gets messy: who has been invited, who accepted, who still has access to which libraries, and when each person's access ends.
