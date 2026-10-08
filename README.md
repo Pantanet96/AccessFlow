@@ -3,7 +3,7 @@
   <h1>AccessFlow</h1>
 </div>
 
-**Self-hosted portal to manage users, subscriptions, and invites for a personal Plex server.**
+**Self-hosted portal to manage invites for your Plex users.**
 
 FastAPI + Jinja2/HTMX + SQLite, shipped as a single Docker container that sits behind your reverse proxy.
 
@@ -14,6 +14,54 @@ FastAPI + Jinja2/HTMX + SQLite, shipped as a single Docker container that sits b
 ![Python](https://img.shields.io/badge/python-3.12-blue?logo=python&logoColor=white)
 ![FastAPI](https://img.shields.io/badge/FastAPI-async-009688?logo=fastapi&logoColor=white)
 [![License: MIT](https://img.shields.io/badge/license-MIT-brightgreen)](LICENSE)
+
+## What problem does it solve?
+
+You share your Plex server with friends, family or other people, and keeping track of it by hand gets messy: who has been invited, who accepted, who still has access to which libraries, and when each person's access ends.
+
+AccessFlow does that for you: it invites people to Plex, gives each one a plan with an expiry date, reminds them before it runs out, and removes their library access when it does.
+
+## What it does
+
+**Invite → Assign a plan → Remind → Suspend**
+
+Invite someone from the portal, give them a plan (free, trial or timed), get a reminder before their access expires, and have their libraries unshared automatically if it lapses. Paid plans are supported too, with renewals you confirm by hand.
+
+- **Invites** — send the Plex invite and a guide email from the portal; unaccepted ones expire after 30 days and the share is withdrawn
+- **Plans and expiry** — free, trial and custom timed plans; each plan sets which libraries the user can see
+- **Automatic reminders** — expiry notices via email and Telegram, on a configurable schedule
+- **Automatic suspension** — past the grace period, libraries are unshared; access comes back when the user is renewed
+- **Overseerr / Jellyseerr** — request permissions follow the plan and the Plex access
+- **Multiple managers** — several admins or moderators can each look after their own users
+- **Secure login** — optional two-step verification (TOTP), login lockout, password rules
+- **Also** — Telegram bot, reports, audit log, nightly backups, 3 themes, translatable UI
+
+## Screenshots
+
+| Dashboard | Users |
+|---|---|
+| ![Dashboard](docs/screenshots/Index.png) | ![Users](docs/screenshots/Users.png) |
+
+| Collect | Reports |
+|---|---|
+| ![Collect](docs/screenshots/Requests.png) | ![Reports](docs/screenshots/Reports.png) |
+
+Three themes (Rame, Inchiostro, Muschio), switchable from Settings.
+
+## Quick start
+
+```bash
+cp .env.example .env   # fill in the secrets, never commit the real .env
+docker compose up -d
+```
+
+App at `http://localhost:8000`, meant to sit behind your reverse proxy. The image is `pantanet96/accessflow` on Docker Hub; on Unraid use the [Community Applications template](docs/UNRAID.md).
+
+Upgrade with `docker compose pull && docker compose up -d`.
+
+## Documentation
+
+Roles, plans, workflows, deploy details, security, configuration, background jobs, translations and local development are in the **[full guide](docs/GUIDE.md)**. Security details: [docs/SECURITY.md](docs/SECURITY.md).
 
 ## Star history
 
@@ -28,220 +76,3 @@ FastAPI + Jinja2/HTMX + SQLite, shipped as a single Docker container that sits b
 </a>
 
 </div>
-
-## Screenshots
-
-| Dashboard | Users |
-|---|---|
-| ![Dashboard](docs/screenshots/Index.png) | ![Users](docs/screenshots/Users.png) |
-
-| Collect | Reports |
-|---|---|
-| ![Collect](docs/screenshots/Requests.png) | ![Reports](docs/screenshots/Reports.png) |
-
-Rame (copper) theme by default; Inchiostro and Muschio variants also available from Settings:
-
-![Dashboard — Inchiostro theme](docs/screenshots/Index_ink_theme.png)
-
-## Contents
-
-- [Features](#features)
-- [How it works](#how-it-works)
-- [Deploy](#deploy)
-- [Security](#security)
-- [Local development](#local-development)
-- [Configuration](#configuration)
-- [i18n](#i18n)
-- [Background workers](#background-workers)
-
-## Features
-
-- **Role-based access** — SuperAdmin, Admin, Moderator, User, each scoped to only what they need.
-- **Multi-manager support** — every user has a manager who collects their payments; multiple people can run their own client base under the same server.
-- **Flexible plans** — free/trial plans out of the box, custom paid plans created on demand.
-- **Two-step renewals** — a renewal stays *pending* until the payment is actually collected, then extends the expiration.
-- **Invites that expire** — invite someone to Plex from the portal with a guide email; an invite not accepted in 30 days expires and its Plex share is withdrawn. Extend it by 30 days in one click; accepted and expired invites stay in the history.
-- **Automatic reminders** — expiration notices via email and Telegram, deduplicated, configurable schedule.
-- **Automatic suspension** — past the grace days, Plex libraries are unshared and Overseerr access is turned off; both come back as soon as the renewal is paid.
-- **Overseerr / Jellyseerr integration** — request permissions follow the plan (trial users are view-only) and the Plex access; Telegram IDs can be synced from Overseerr.
-- **Manager to-do list** — the home page lists payments to confirm, subscriptions to collect, paid-but-suspended users and invites not accepted yet.
-- **Financial reports** — revenue collected, pending, and projected, straight from recorded payments.
-- **Telegram bot** — users link their account for reminders; admins can broadcast.
-- **3 color themes** — Rame, Inchiostro, Muschio — switchable per-user from Settings.
-- **Hardened login** — optional two-step verification (TOTP app + recovery codes), escalating lockout on failed logins, password rules.
-- **Audit log, soft-delete, nightly backups** — out of the box.
-- **i18n** — English source strings, translatable via `.po` catalogs.
-
-## How it works
-
-Manages the lifecycle of a Plex server's users: who has access, what plan they're on,
-when it expires, who collects the payment. The idea is to stop having to track "who
-owes me and when" by hand.
-
-### Roles
-
-- **SuperAdmin** — full access, local login (username/password). Configures the system.
-- **Admin** — manages users, plans, reports, settings.
-- **Moderator** — manages *only the users assigned to them* (their "clients") and
-  collects their payments. Cannot touch free plans or global settings.
-- **User** — sees only their own subscription.
-
-Every regular user has a **manager** (an Admin or Moderator): the person who brought
-them in and collects their payments. This way multiple people can manage their own
-users under the same server, each one seeing only their own.
-
-### Plans
-
-By default only two special plans exist:
-
-- **Family & Friends** — free, never expires.
-- **Trial** — timed trial period (max 30 days), not renewable.
-
-**Paid plans** (with custom price and duration) are created by the SuperAdmin as
-needed from the Plans page — there are no predefined ones.
-
-### Typical workflows
-
-**1. Adding a new paying user**
-   1. The admin invites the person on Plex from the portal (sends the Plex invite and a guide email).
-   2. The person accepts and logs in with their own Plex account (PIN flow, no password to manage).
-      An invite not accepted within 30 days expires and the Plex share is withdrawn; the
-      admin, or the future user's manager, can extend it by 30 days from the home page.
-   3. They're assigned a paid plan → the subscription starts and the **initial payment
-      is recorded right away** (it goes into the reports as revenue).
-   4. It's also possible to pay several months in advance: you set the number of
-      periods and the expiration is calculated accordingly.
-
-**2. Renewal (two-step)**
-   1. At expiration the manager creates a **renewal** → it stays *pending* until collected.
-   2. When the client pays, the manager marks it as paid, indicating the **payment
-      method** (e.g. "PayPal", "cash"). Only then is the expiration extended and the
-      revenue counted.
-   - Multiple periods can be renewed at once.
-
-**3. Expiration reminders (automatic)**
-   - A daily job checks who's about to expire and sends reminders via **email** and
-     **Telegram** (default: 7/3/1 days before, and 0/3 days after for overdue follow-ups).
-   - Reminders are deduplicated (they don't repeat on the same day).
-   - The manager receives a "to be collected" notice.
-
-**4. Reports**
-   - User count per plan + revenue summary: previous month / collected this
-     month / to be collected this month / next month's projection.
-   - Every euro in the reports comes from a recorded payment (initial setup or a paid renewal).
-
-**5. Telegram**
-   - Users link their own Telegram account to the portal to receive reminders.
-   - Admin can send manual broadcasts.
-
-Other automations: audit log of every action, soft-delete with orphan protection,
-nightly backup of the SQLite database.
-
----
-
-## Deploy
-
-The image is published on Docker Hub (**public** repo): `pantanet96/accessflow`.
-
-```bash
-cp .env.example .env   # fill in the secrets, never commit the real .env
-docker compose up -d
-```
-
-App at `http://localhost:8000`, behind your reverse proxy (NPM / Traefik / Caddy).
-Health check: `GET /healthz`.
-
-`docker-compose.yml`:
-
-```yaml
-services:
-  app:
-    image: pantanet96/accessflow:latest
-    env_file: .env
-    ports:
-      - "8000:8000"
-    volumes:
-      - appdata:/data
-    restart: unless-stopped
-volumes:
-  appdata:
-```
-
-**Upgrading**: `docker compose pull && docker compose up -d`.
-
-> The image honors `X-Forwarded-Proto` (`--proxy-headers`), so behind an HTTPS proxy URLs come out as `https`.
-
-### Unraid
-
-Ships a Community Applications template → [docs/UNRAID.md](docs/UNRAID.md).
-
-## Security
-
-- `APP_SECRET_KEY` is mandatory (random, ≥32 chars) — the app won't start without one.
-- SuperAdmin password auto-generates on first boot if left blank (written to a file in the data folder); change it from `/profile`.
-- Optional two-step verification (TOTP), asked after both the password and the Plex sign-in, with one-time recovery codes.
-- Failed logins lock the IP out for longer each time (5 min up to 4 h); new passwords need 12+ characters.
-- Set `FORWARDED_ALLOW_IPS` to your reverse proxy's subnet — never `*` on a directly exposed app.
-- Runs as an unprivileged container user; secrets are encrypted at rest.
-
-Full details → [docs/SECURITY.md](docs/SECURITY.md).
-
----
-
-## Local development
-
-```bash
-python -m venv .venv
-. .venv/Scripts/activate          # Windows: .venv\Scripts\activate
-pip install -r requirements-dev.txt   # prod deps + pytest (prod uses requirements.txt)
-export DATABASE_PATH=./data/app.db   # avoids the container's /data path
-uvicorn app.main:app --reload
-pytest
-```
-
-## Configuration
-
-Everything via environment / `.env` — see [.env.example](.env.example).
-
-### Identity shown to Plex
-
-Every request the app makes to Plex carries `AccessFlow` as product, device and
-device name, so `plex.tv` → Settings → Authorized Devices and Tautulli's logs
-name the app instead of `Linux` + the container hostname. The platform *version*
-is left alone and reports the host kernel release (a container shares the host
-kernel), so you end up with e.g. `AccessFlow / 6.6.78-Unraid`.
-
-Running more than one instance against the same Plex account? Give each a
-distinct device name so you can tell their tokens apart when revoking one:
-
-```yaml
-services:
-  app:
-    environment:
-      PLEXAPI_HEADER_DEVICE_NAME: "AccessFlow-staging"
-```
-
-Leave `PLEXAPI_HEADER_PRODUCT` as is — Plex and Tautulli group activity by
-product, and changing it splits your own history in their dashboards.
-
-## i18n
-
-Source strings are in English. Translations live in `app/translations/<locale>/LC_MESSAGES/messages.po`.
-After changing templates/strings:
-
-```bash
-pybabel extract -F babel.cfg -o messages.pot .
-pybabel update -i messages.pot -d app/translations
-# edit the .po files, then:
-pybabel compile -d app/translations
-```
-
-The Docker build compiles the catalogs automatically.
-
-## Background workers
-
-The web container also runs, in-process: a daily APScheduler job at the `NOTIFY_HOUR`
-hour (expiration scan and reminders, auto-suspension, expired invites, manager digests),
-Plex reconciliation and DB backups every few hours, and the Telegram bot in polling mode.
-Dates, reminders and report months follow the `TZ` timezone.
-They're toggled with `ENABLE_SCHEDULER` / `ENABLE_BOT`.
