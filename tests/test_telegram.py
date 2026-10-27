@@ -179,3 +179,15 @@ def test_restart_bot_swaps_and_survives_bad_token(monkeypatch):
     monkeypatch.setattr(runner, "start_bot", broken_start)
     asyncio.run(runner.restart_bot(app))
     assert app.state.telegram_bot is None  # /healthz reports it down, app keeps running
+
+
+def test_dismiss_cannot_hide_future_broadcasts(client, db_session, login_as):
+    user = _mk(db_session, Role.user, "FutureBanner")
+    broadcast_svc.broadcast(db_session, "Banner one qzx")
+    login_as(client, user.id)
+    for big in (10**12, 2**70, -(2**70)):  # +-2**70 overflowed SQLite INTEGER: 500
+        resp = client.post("/broadcast/dismiss", data={"id": big, "next": "/"},
+                           follow_redirects=False)
+        assert resp.status_code == 303
+    broadcast_svc.broadcast(db_session, "Banner two qzx")
+    assert "Banner two qzx" in client.get("/").text

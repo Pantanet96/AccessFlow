@@ -9,7 +9,7 @@ Details behind the summary in the [README](../README.md#security).
   ```bash
   python -c "import secrets;print(secrets.token_urlsafe(48))"
   ```
-- Only in dev/test you can bypass the check with `ALLOW_INSECURE_SECRET=true`. Never in production.
+- Only in dev/test you can bypass the check with `ALLOW_INSECURE_SECRET=true`; it is ignored when the `PUBLIC_BASE_URL` environment variable starts with `https://`. Never in production.
 - Application secrets (Plex token, SMTP password, Telegram token) are encrypted at rest with Fernet, using `APP_SECRET_KEY` as the key material.
 
 ## SuperAdmin account
@@ -28,6 +28,10 @@ Turn it on from `/profile` with any TOTP authenticator app. Once on, the code is
 
 Lost the phone and the codes? Set `SUPERADMIN_MFA_RESET=true`, restart, log in with the password, then remove the variable and turn it on again.
 
+### Sessions
+
+A sign-in lasts 14 days; activity does not extend it. Signing out, or changing the password, ends that account's sessions on every device.
+
 ## CSRF
 
 Every form submission must come from the app's own pages: the browser's `Sec-Fetch-Site` header (https) or `Origin` header (plain http) is checked, and a request carrying neither is refused. Every current browser sends them; a browser extension that strips `Origin` will see "CSRF check failed".
@@ -39,6 +43,10 @@ Every form submission must come from the app's own pages: the browser's `Sec-Fet
 Do **not** leave it as `*` on an app exposed directly to the internet: a spoofable `X-Forwarded-For` header would let an attacker bypass the per-IP login lockout.
 
 The image also honors `X-Forwarded-Proto` (`--proxy-headers`), so behind an HTTPS proxy generated URLs come out as `https`. When `PUBLIC_BASE_URL` starts with `https://`, the session and sign-in cookies get the `Secure` flag and the `__Host-` prefix automatically: no other subdomain can set or overwrite them. Switching `PUBLIC_BASE_URL` between http and https signs everyone out once.
+
+## Integrations
+
+Plex and Overseerr URLs are set by the superadmin and trusted as such: private addresses are allowed, because Overseerr usually runs on one (`http://overseerr:5055`).
 
 ## Container image
 
