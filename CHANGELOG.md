@@ -5,15 +5,23 @@ All notable changes to AccessFlow are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.5.4] - 2026-10-27
+## [1.5.5] - 2026-10-27
 
 ### Security
 
 - On https, session and sign-in cookies use the `__Host-` prefix, so another subdomain can't plant them. Everyone signs in again once after updating.
 - Saving an https public URL from a page opened over plain http is refused, since it would sign the admin out for good.
 - Form submissions carrying neither an `Origin` nor a `Sec-Fetch-Site` header are refused.
-- `ALLOW_INSECURE_SECRET` no longer bypasses the key check when the `PUBLIC_BASE_URL` environment variable is https.
 - Suspend, reactivate and grace check the role up front; dismissing a banner can't hide future ones.
+- `ALLOW_INSECURE_SECRET` with an https `PUBLIC_BASE_URL` logs a warning at startup.
+
+### Fixed
+
+- The app starts again with `ALLOW_INSECURE_SECRET` and an https `PUBLIC_BASE_URL`, as before 1.5.4.
+
+## [1.5.4] - 2026-10-27 [YANKED]
+
+Withdrawn: it refused to start with `ALLOW_INSECURE_SECRET` and an https `PUBLIC_BASE_URL`. Use 1.5.5.
 
 ## [1.5.3] - 2026-10-07
 
