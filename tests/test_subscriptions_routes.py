@@ -414,3 +414,13 @@ def test_double_click_create_renewal_makes_one(client, db_session, login_as):
         .where(Renewal.status == RenewalStatus.pending)
     ).all()
     assert len(pending) == 1
+
+
+def test_plain_user_cannot_suspend_reactivate_or_grace(client, db_session, login_as):
+    me = _mk(db_session, Role.user, "PlainMe")
+    other = _mk(db_session, Role.user, "PlainOther")
+    login_as(client, me.id)
+    for action in ("suspend", "reactivate", "grace"):
+        for target in (me, other):
+            resp = client.post(f"/users/{target.id}/{action}", follow_redirects=False)
+            assert resp.status_code == 403, (action, target.real_name)

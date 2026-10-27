@@ -3,13 +3,16 @@ from fastapi import APIRouter, Depends, Form, HTTPException, status
 from fastapi.responses import RedirectResponse
 from sqlmodel import Session
 
-from app.auth.deps import require_role, require_user
+from app.auth.deps import require_role
 from app.db import get_session
 from app.models import AppUser, Role
 from app.services import access_service, audit
 from app.services import users as users_svc
 
 router = APIRouter()
+
+# can_manage_user scopes the target too; this refuses plain users up front.
+_staff = require_role(Role.superadmin, Role.admin, Role.moderator)
 
 
 def _redirect(user_id: int) -> RedirectResponse:
@@ -30,7 +33,7 @@ def _managed_target(session: Session, viewer: AppUser, user_id: int) -> AppUser:
 @router.post("/users/{user_id}/suspend")
 def suspend(
     user_id: int,
-    viewer: AppUser = Depends(require_user),
+    viewer: AppUser = Depends(_staff),
     session: Session = Depends(get_session),
 ):
     target = _managed_target(session, viewer, user_id)
@@ -46,7 +49,7 @@ def suspend(
 @router.post("/users/{user_id}/reactivate")
 def reactivate(
     user_id: int,
-    viewer: AppUser = Depends(require_user),
+    viewer: AppUser = Depends(_staff),
     session: Session = Depends(get_session),
 ):
     target = _managed_target(session, viewer, user_id)
@@ -59,7 +62,7 @@ def reactivate(
 def set_grace(
     user_id: int,
     grace_days: str = Form("0"),
-    viewer: AppUser = Depends(require_user),
+    viewer: AppUser = Depends(_staff),
     session: Session = Depends(get_session),
 ):
     target = _managed_target(session, viewer, user_id)
