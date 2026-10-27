@@ -9,7 +9,7 @@ Details behind the summary in the [README](../README.md#security).
   ```bash
   python -c "import secrets;print(secrets.token_urlsafe(48))"
   ```
-- Only in dev/test you can bypass the check with `ALLOW_INSECURE_SECRET=true`. Never in production.
+- Only in dev/test you can bypass the check with `ALLOW_INSECURE_SECRET=true`; it is ignored when `PUBLIC_BASE_URL` starts with `https://`. Never in production.
 - Application secrets (Plex token, SMTP password, Telegram token) are encrypted at rest with Fernet, using `APP_SECRET_KEY` as the key material.
 
 ## SuperAdmin account
@@ -28,6 +28,10 @@ Turn it on from `/profile` with any TOTP authenticator app. Once on, the code is
 
 Lost the phone and the codes? Set `SUPERADMIN_MFA_RESET=true`, restart, log in with the password, then remove the variable and turn it on again.
 
+### Sessions
+
+A sign-in lasts 14 days; activity does not extend it. Signing out, or changing the password, ends that account's sessions on every device.
+
 ## Reverse proxy / IP spoofing
 
 `FORWARDED_ALLOW_IPS` tells uvicorn which source IPs are allowed to set `X-Forwarded-*` headers. Set it to your reverse proxy's IP or subnet (e.g. `172.18.0.0/16`).
@@ -35,6 +39,10 @@ Lost the phone and the codes? Set `SUPERADMIN_MFA_RESET=true`, restart, log in w
 Do **not** leave it as `*` on an app exposed directly to the internet: a spoofable `X-Forwarded-For` header would let an attacker bypass the per-IP login lockout.
 
 The image also honors `X-Forwarded-Proto` (`--proxy-headers`), so behind an HTTPS proxy generated URLs come out as `https`, and the session cookie gets the `Secure` flag automatically when `PUBLIC_BASE_URL` starts with `https://`.
+
+## Integrations
+
+Plex and Overseerr URLs are set by the superadmin and trusted as such: private addresses are allowed, because Overseerr usually runs on one (`http://overseerr:5055`).
 
 ## Container image
 
