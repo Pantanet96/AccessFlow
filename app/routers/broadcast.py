@@ -53,9 +53,9 @@ def broadcast_dismiss(
     session: Session = Depends(get_session),
 ):
     # Never past the newest banner: a bigger id would pre-dismiss future ones
-    # (and past 2**63 overflow SQLite).
+    # (and past +-2**63 overflow SQLite). 0 = nothing dismissed.
     latest = session.exec(select(func.max(Broadcast.id))).one() or 0
-    viewer.dismissed_broadcast_id = min(id, latest)
+    viewer.dismissed_broadcast_id = max(0, min(id, latest))
     session.add(viewer)
     session.commit()
     safe_next = safe_next_url(next, "/")
