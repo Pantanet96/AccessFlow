@@ -74,13 +74,6 @@ class Settings(BaseSettings):
         """True if APP_SECRET_KEY is a known default or too short (Fix #1)."""
         return is_weak_secret(self.app_secret_key)
 
-    def secret_refused(self) -> bool:
-        """Startup refuses APP_SECRET_KEY: weak, unless ALLOW_INSECURE_SECRET is
-        set on a non-https deploy (an https PUBLIC_BASE_URL means production)."""
-        return self.secret_is_weak() and (
-            not self.allow_insecure_secret or self.cookies_secure()
-        )
-
     def cookies_secure(self) -> bool:
         """Set the Secure cookie flag only on HTTPS deploys (Fix #4)."""
         return self.public_base_url.lower().startswith("https://")
