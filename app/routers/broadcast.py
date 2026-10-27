@@ -1,12 +1,12 @@
 """Manual broadcast, Telegram + email (admin + superadmin)."""
 from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
-from sqlmodel import Session
+from sqlmodel import Session, func, select
 
 from app.auth.deps import require_role, require_user
 from app.db import get_session
 from app.security import safe_next_url
-from app.models import AppUser, Role
+from app.models import AppUser, Broadcast, Role
 from app.services import audit
 from app.services import broadcast as broadcast_svc
 from app.templating import templates
@@ -52,7 +52,10 @@ def broadcast_dismiss(
     viewer: AppUser = Depends(require_user),
     session: Session = Depends(get_session),
 ):
-    viewer.dismissed_broadcast_id = id
+    # Never past the newest banner: a bigger id would pre-dismiss future ones
+    # (and past 2**63 overflow SQLite).
+    latest = session.exec(select(func.max(Broadcast.id))).one() or 0
+    viewer.dismissed_broadcast_id = min(id, latest)
     session.add(viewer)
     session.commit()
     safe_next = safe_next_url(next, "/")
