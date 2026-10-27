@@ -355,6 +355,12 @@ msgstr ""
 msgid "That doesn't look like a valid URL: %s"
 msgstr ""
 
+#: app/routers/settings.py
+msgid ""
+"Open AccessFlow over https before saving an https address, or you will be "
+"signed out and unable to sign back in."
+msgstr ""
+
 #: app/routers/settings.py:559
 msgid "New secret must be at least 32 characters."
 msgstr ""

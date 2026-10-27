@@ -227,11 +227,28 @@ def test_plex_select_and_disconnect(client, db_session, login_as):
 
 # ---- Public base URL (Settings -> System) ----
 
+# Browsers send Sec-Fetch-* only to secure origins: this is a page served over https.
+_ON_HTTPS = {"Sec-Fetch-Site": "same-origin"}
+
+
+def test_https_public_url_refused_from_plain_http_page(client, db_session, login_as):
+    # Over http the __Host- cookies it switches to can't be set: the admin would be
+    # signed out with no way back in to undo it.
+    login_as(client, _superadmin(db_session).id)
+    resp = client.post("/settings/public-url", data={"public_base_url": "https://x.test"},
+                       headers={"Origin": "http://testserver"})
+    assert resp.status_code == 400
+    assert runtime_config.public_base_url() != "https://x.test"
+    ok = client.post("/settings/public-url", data={"public_base_url": "http://192.168.1.5:8000"},
+                     headers={"Origin": "http://testserver"}, follow_redirects=False)
+    assert ok.status_code == 303
+
 def test_public_url_saved_and_normalized(client, db_session, login_as):
     login_as(client, _superadmin(db_session).id)
     resp = client.post(
         "/settings/public-url",
         data={"public_base_url": "accessflow.example.com/"},
+        headers=_ON_HTTPS,
         follow_redirects=False,
     )
     assert resp.status_code == 303
@@ -254,7 +271,8 @@ def test_public_url_blank_falls_back_to_env(client, db_session, login_as):
 
     admin_id = _superadmin(db_session).id
     login_as(client, admin_id)
-    client.post("/settings/public-url", data={"public_base_url": "https://x.test"})
+    client.post("/settings/public-url", data={"public_base_url": "https://x.test"},
+                headers=_ON_HTTPS)
     # https renames the session cookie (__Host- prefix): that signs the admin out.
     client.cookies.set("__Host-pum_session", make_token(admin_id))
     client.post("/settings/public-url", data={"public_base_url": ""})

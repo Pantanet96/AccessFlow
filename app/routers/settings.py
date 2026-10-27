@@ -594,6 +594,24 @@ def save_public_url(
             ),
             status_code=400,
         )
+    # An https URL turns on __Host- Secure cookies, which a browser on plain http
+    # refuses: the admin would be signed out with no way back in to undo it.
+    # The browser's own headers, not request.url.scheme (wrong behind a proxy
+    # outside FORWARDED_ALLOW_IPS): Sec-Fetch-* only reaches secure origins.
+    on_plain_http = request.headers.get("sec-fetch-site") is None and (
+        request.headers.get("origin") or ""
+    ).startswith("http://")
+    if url.startswith("https://") and on_plain_http:
+        return templates.TemplateResponse(
+            request,
+            "settings.html",
+            _context(
+                session, viewer, group="sistema",
+                error=_("Open AccessFlow over https before saving an https address, "
+                        "or you will be signed out and unable to sign back in."),
+            ),
+            status_code=400,
+        )
     # Blank clears the override and falls back to the PUBLIC_BASE_URL env var.
     settings_store.set_value(session, "public_base_url", url)
     audit.record(session, viewer.id, "settings_public_url", detail={"url": url})
