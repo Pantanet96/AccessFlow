@@ -34,7 +34,9 @@ def _fresh_throttle():
 @pytest.fixture
 def client():
     # Context manager runs lifespan -> migrate + seed against the temp DB.
-    with TestClient(create_app()) as c:
+    # Origin is what a browser sends on our own forms; the CSRF check refuses
+    # POSTs without it (or Sec-Fetch-Site).
+    with TestClient(create_app(), headers={"Origin": "http://testserver"}) as c:
         yield c
 
 

@@ -28,6 +28,10 @@ Turn it on from `/profile` with any TOTP authenticator app. Once on, the code is
 
 Lost the phone and the codes? Set `SUPERADMIN_MFA_RESET=true`, restart, log in with the password, then remove the variable and turn it on again.
 
+## CSRF
+
+Every form submission must come from the app's own pages: the browser's `Sec-Fetch-Site` header (https) or `Origin` header (plain http) is checked, and a request carrying neither is refused. Every current browser sends them; a browser extension that strips `Origin` will see "CSRF check failed".
+
 ## Reverse proxy / IP spoofing
 
 `FORWARDED_ALLOW_IPS` tells uvicorn which source IPs are allowed to set `X-Forwarded-*` headers. Set it to your reverse proxy's IP or subnet (e.g. `172.18.0.0/16`).
