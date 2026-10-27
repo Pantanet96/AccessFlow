@@ -99,3 +99,15 @@ def test_csrf_on_plain_http_lan(client):
     bad = client.post("/login", data=creds, follow_redirects=False,
                       headers={"Origin": "null"})
     assert bad.status_code == 403
+
+
+def test_csrf_refuses_unsafe_request_without_origin_or_fetch_metadata(client):
+    """Spec-compliant browsers send Origin on every POST, plus Sec-Fetch-Site on
+    https: a request carrying neither is not one of our forms."""
+    client.headers.pop("Origin", None)
+    creds = {"username": "admin", "password": "test-admin-pw"}
+    assert client.post("/login", data=creds, follow_redirects=False).status_code == 403
+    ok = client.post("/login", data=creds, follow_redirects=False,
+                     headers={"Sec-Fetch-Site": "same-origin"})
+    assert ok.status_code == 303
+    assert client.get("/login").status_code == 200  # safe methods untouched

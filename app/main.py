@@ -168,20 +168,22 @@ def create_app() -> FastAPI:
         Origin/Sec-Fetch-Site check on every unsafe method instead — no per-form
         token needed, and it also covers the unauthenticated login form.
 
-        Non-browser clients (no Origin, no Sec-Fetch-Site — e.g. curl, health
-        probes, the test client) are allowed: CSRF is a browser-only threat."""
+        A request carrying neither header is refused: every current browser
+        sends Origin on POST (Fetch spec), so only legacy browsers and scripts
+        land there. Health probes are GETs and never reach this check."""
         if request.method not in _SAFE_METHODS:
             sfs = request.headers.get("sec-fetch-site")
             if sfs is not None:
                 # Modern browsers: only a same-origin (or user-initiated "none")
                 # request is trusted; "same-site" (sibling subdomain) and
                 # "cross-site" are rejected.
-                if sfs not in ("same-origin", "none"):
-                    return PlainTextResponse("CSRF check failed", status_code=403)
+                ok = sfs in ("same-origin", "none")
             else:
+                # Plain http (no Sec-Fetch-*): the real Origin must be ours.
                 origin = request.headers.get("origin")
-                if origin and origin.rstrip("/") not in _allowed_origins(request):
-                    return PlainTextResponse("CSRF check failed", status_code=403)
+                ok = bool(origin) and origin.rstrip("/") in _allowed_origins(request)
+            if not ok:
+                return PlainTextResponse("CSRF check failed", status_code=403)
         return await call_next(request)
 
     @app.middleware("http")
