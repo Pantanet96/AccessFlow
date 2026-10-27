@@ -9,7 +9,7 @@ Details behind the summary in the [README](../README.md#security).
   ```bash
   python -c "import secrets;print(secrets.token_urlsafe(48))"
   ```
-- Only in dev/test you can bypass the check with `ALLOW_INSECURE_SECRET=true`; it is ignored when `PUBLIC_BASE_URL` starts with `https://`. Never in production.
+- Only in dev/test you can bypass the check with `ALLOW_INSECURE_SECRET=true`; it is ignored when the `PUBLIC_BASE_URL` environment variable starts with `https://`. Never in production.
 - Application secrets (Plex token, SMTP password, Telegram token) are encrypted at rest with Fernet, using `APP_SECRET_KEY` as the key material.
 
 ## SuperAdmin account
