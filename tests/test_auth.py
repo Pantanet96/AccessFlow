@@ -157,3 +157,62 @@ def test_leftover_initial_password_file_banner(client):
     finally:
         f.unlink()
     client.post("/logout")
+
+
+# ---- __Host- cookies on https deploys ----
+
+CREDS = {"username": "admin", "password": "test-admin-pw"}
+
+
+def _https(db_session):
+    from app.services import settings_store
+
+    settings_store.set_value(db_session, "public_base_url", "https://af.example.com")
+
+
+def _admin_token(db_session):
+    from sqlmodel import select
+
+    from app.auth.session import make_token
+    from app.models import AppUser
+
+    admin = db_session.exec(select(AppUser).where(AppUser.username == "admin")).one()
+    return make_token(admin.id, admin.session_gen or 0)
+
+
+def _set_cookie(resp, name):
+    return next(c for c in resp.headers.get_list("set-cookie") if c.startswith(name + "="))
+
+
+def test_https_login_sets_host_prefixed_session_cookie(client, db_session):
+    _https(db_session)
+    c = _set_cookie(client.post("/login", data=CREDS, follow_redirects=False),
+                    "__Host-pum_session")
+    assert "Secure" in c and "Path=/" in c and "Domain" not in c
+
+
+def test_https_ignores_unprefixed_session_cookie(client, db_session):
+    # A sibling subdomain can set "pum_session" on the parent domain, never "__Host-pum_session".
+    _https(db_session)
+    token = _admin_token(db_session)
+    client.cookies.set("pum_session", token)
+    assert client.get("/", follow_redirects=False).headers["location"] == "/login"
+    client.cookies.clear()
+    client.cookies.set("__Host-pum_session", token)
+    assert client.get("/", follow_redirects=False).status_code == 200
+
+
+def test_https_logout_deletes_cookie_with_secure(client, db_session):
+    _https(db_session)
+    client.cookies.set("__Host-pum_session", _admin_token(db_session))
+    c = _set_cookie(client.post("/logout", follow_redirects=False), "__Host-pum_session")
+    assert "Max-Age=0" in c and "Secure" in c
+
+
+def test_https_plex_pin_cookie_is_host_prefixed(client, db_session, monkeypatch):
+    import app.services.plex_oauth as po
+
+    _https(db_session)
+    monkeypatch.setattr(po, "create_pin", lambda: {"id": 42, "code": "ABCD"})
+    resp = client.get("/login/plex", follow_redirects=False)
+    assert "Secure" in _set_cookie(resp, "__Host-plex_pin")

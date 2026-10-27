@@ -2,7 +2,7 @@
 from fastapi import Depends, HTTPException, Request, status
 from sqlmodel import Session
 
-from app.auth.session import COOKIE_NAME, read_token
+from app.auth.session import COOKIE_NAME, get_cookie, read_token
 from app.db import get_session
 from app.models import AppUser, Role
 from app.permissions import Capability, has_capability
@@ -11,7 +11,7 @@ from app.permissions import Capability, has_capability
 def get_current_user(
     request: Request, session: Session = Depends(get_session)
 ) -> AppUser | None:
-    token = request.cookies.get(COOKIE_NAME)
+    token = get_cookie(request, COOKIE_NAME)
     if not token:
         return None
     parsed = read_token(token)

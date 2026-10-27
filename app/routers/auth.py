@@ -9,7 +9,10 @@ from app.auth.plex_login import resolve_or_activate_user
 from app.auth.service import authenticate_local
 from app.auth.session import (
     clear_session_cookie,
+    delete_cookie,
+    get_cookie,
     read_value,
+    set_cookie,
     set_session_cookie,
     sign_value,
 )
@@ -121,18 +124,17 @@ def _mfa_challenge(user: AppUser, method: str) -> RedirectResponse:
     # No session yet: the first factor only earns the code prompt. The cookie
     # carries session_gen so a password change in between voids it.
     response = RedirectResponse("/login/mfa", status_code=303)
-    response.set_cookie(
-        _MFA_COOKIE,
+    set_cookie(
+        response, _MFA_COOKIE,
         sign_value({"uid": user.id, "gen": user.session_gen or 0, "method": method},
                    salt=_MFA_SALT),
-        max_age=_MFA_MAX_AGE, httponly=True, samesite="lax",
-        secure=runtime_config.cookies_secure(),
+        _MFA_MAX_AGE,
     )
     return response
 
 
 def _mfa_state(request: Request, session: Session) -> tuple[AppUser, str] | None:
-    raw = request.cookies.get(_MFA_COOKIE)
+    raw = get_cookie(request, _MFA_COOKIE)
     state = read_value(raw, salt=_MFA_SALT, max_age=_MFA_MAX_AGE) if raw else None
     if not state:
         return None
@@ -171,7 +173,7 @@ def login_mfa_submit(
             audit.record(session, user.id, "login",
                          detail={"method": method, "mfa": kind})
             response = RedirectResponse("/", status_code=303)
-            response.delete_cookie(_MFA_COOKIE)
+            delete_cookie(response, _MFA_COOKIE)
             set_session_cookie(response, user)
             return response
         locked = throttle.register_failure(tkey, ip)
@@ -225,20 +227,13 @@ def plex_start(request: Request):
     forward = runtime_config.public_base_url() + "/login/plex/callback"
     url = plex_oauth.build_auth_url(pin["code"], forward)
     response = RedirectResponse(url, status_code=303)
-    response.set_cookie(
-        _PIN_COOKIE,
-        sign_value({"id": pin["id"]}, salt=_PIN_SALT),
-        max_age=600,
-        httponly=True,
-        samesite="lax",
-        secure=runtime_config.cookies_secure(),
-    )
+    set_cookie(response, _PIN_COOKIE, sign_value({"id": pin["id"]}, salt=_PIN_SALT), 600)
     return response
 
 
 @router.get("/login/plex/callback")
 def plex_callback(request: Request, session: Session = Depends(get_session)):
-    raw = request.cookies.get(_PIN_COOKIE)
+    raw = get_cookie(request, _PIN_COOKIE)
     state = read_value(raw, salt=_PIN_SALT) if raw else None
     if not state:
         return RedirectResponse("/login", status_code=303)
@@ -275,10 +270,10 @@ def plex_callback(request: Request, session: Session = Depends(get_session)):
     # the victim approves it on plex.tv. A second factor, if set, still applies.
     if mfa.enabled(session, user.id):
         response = _mfa_challenge(user, "plex")
-        response.delete_cookie(_PIN_COOKIE)
+        delete_cookie(response, _PIN_COOKIE)
         return response
     audit.record(session, user.id, "login", detail={"method": "plex"})
     response = RedirectResponse("/", status_code=303)
-    response.delete_cookie(_PIN_COOKIE)
+    delete_cookie(response, _PIN_COOKIE)
     set_session_cookie(response, user)
     return response
