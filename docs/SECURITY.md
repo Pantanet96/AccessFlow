@@ -34,7 +34,7 @@ Lost the phone and the codes? Set `SUPERADMIN_MFA_RESET=true`, restart, log in w
 
 Do **not** leave it as `*` on an app exposed directly to the internet: a spoofable `X-Forwarded-For` header would let an attacker bypass the per-IP login lockout.
 
-The image also honors `X-Forwarded-Proto` (`--proxy-headers`), so behind an HTTPS proxy generated URLs come out as `https`, and the session cookie gets the `Secure` flag automatically when `PUBLIC_BASE_URL` starts with `https://`.
+The image also honors `X-Forwarded-Proto` (`--proxy-headers`), so behind an HTTPS proxy generated URLs come out as `https`. When `PUBLIC_BASE_URL` starts with `https://`, the session and sign-in cookies get the `Secure` flag and the `__Host-` prefix automatically: no other subdomain can set or overwrite them. Switching `PUBLIC_BASE_URL` between http and https signs everyone out once.
 
 ## Container image
 

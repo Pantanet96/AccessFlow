@@ -10,7 +10,7 @@ from urllib.parse import urlparse
 
 from app import runtime_config
 from app.auth.deps import require_role
-from app.auth.session import read_value, sign_value
+from app.auth.session import delete_cookie, get_cookie, read_value, set_cookie, sign_value
 from app.config import get_settings, is_weak_secret
 from app.db import get_session
 from app.i18n import gettext as _
@@ -227,14 +227,7 @@ def plex_connect(viewer: AppUser = Depends(_admin)):
     forward = runtime_config.public_base_url() + "/settings/plex/callback"
     url = plex_oauth.build_auth_url(pin["code"], forward)
     response = RedirectResponse(url, status_code=303)
-    response.set_cookie(
-        _PIN_COOKIE,
-        sign_value({"id": pin["id"]}, salt=_PIN_SALT),
-        max_age=600,
-        httponly=True,
-        samesite="lax",
-        secure=runtime_config.cookies_secure(),
-    )
+    set_cookie(response, _PIN_COOKIE, sign_value({"id": pin["id"]}, salt=_PIN_SALT), 600)
     return response
 
 
@@ -244,7 +237,7 @@ def plex_callback(
     viewer: AppUser = Depends(_admin),
     session: Session = Depends(get_session),
 ):
-    raw = request.cookies.get(_PIN_COOKIE)
+    raw = get_cookie(request, _PIN_COOKIE)
     state = read_value(raw, salt=_PIN_SALT) if raw else None
     if not state:
         return RedirectResponse("/settings", status_code=303)
@@ -272,7 +265,7 @@ def plex_callback(
         "settings_plex_select.html",
         {"current_user": viewer, "servers": servers, "email": email},
     )
-    response.delete_cookie(_PIN_COOKIE)
+    delete_cookie(response, _PIN_COOKIE)
     return response
 
 

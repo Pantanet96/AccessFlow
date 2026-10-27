@@ -250,8 +250,13 @@ def test_public_url_rejects_junk(client, db_session, login_as):
 def test_public_url_blank_falls_back_to_env(client, db_session, login_as):
     from app.config import get_settings
 
-    login_as(client, _superadmin(db_session).id)
+    from app.auth.session import make_token
+
+    admin_id = _superadmin(db_session).id
+    login_as(client, admin_id)
     client.post("/settings/public-url", data={"public_base_url": "https://x.test"})
+    # https renames the session cookie (__Host- prefix): that signs the admin out.
+    client.cookies.set("__Host-pum_session", make_token(admin_id))
     client.post("/settings/public-url", data={"public_base_url": ""})
     assert runtime_config.public_base_url() == get_settings().public_base_url.rstrip("/")
 
