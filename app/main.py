@@ -65,14 +65,21 @@ def warm_plex_cache() -> None:
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     settings = get_settings()
-    # ponytail: env PUBLIC_BASE_URL only, the DB isn't migrated yet here; an
-    # https override saved only in Settings slips through.
-    if settings.secret_refused():
+    if settings.secret_is_weak() and not settings.allow_insecure_secret:
         raise RuntimeError(
             "APP_SECRET_KEY è debole o di default. Imposta una chiave casuale di almeno "
             "32 caratteri (es. `python -c \"import secrets;print(secrets.token_urlsafe(48))\"`). "
-            "Per sviluppo locale puoi impostare ALLOW_INSECURE_SECRET=true "
-            "(ignorato quando PUBLIC_BASE_URL è https)."
+            "Per sviluppo locale puoi impostare ALLOW_INSECURE_SECRET=true."
+        )
+    if settings.secret_is_weak() and settings.cookies_secure():
+        # Not a refusal: 1.5.4 did that and broke running deploys. A new key set
+        # by hand would lose every encrypted setting; rotating from Settings won't.
+        import logging
+
+        logging.getLogger("pum.startup").warning(
+            "ALLOW_INSECURE_SECRET is on with an https PUBLIC_BASE_URL: cookies and "
+            "stored secrets rest on a weak key. Rotate it from Settings > System, "
+            "set APP_SECRET_KEY to the new key and remove ALLOW_INSECURE_SECRET."
         )
     app.state.telegram_bot = None  # exposed to /healthz; stays None if bot is off
     try:
