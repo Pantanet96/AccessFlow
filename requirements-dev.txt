@@ -2,7 +2,7 @@
 # (the Dockerfile installs only requirements.txt) so test tooling never ships.
 -r requirements.txt
 # 9.0.3+ fixes CVE-2025-71176 (world-writable, predictable tmp_path base dir).
-pytest==9.1.1
+pytest==9.2.0
 # pybabel (extract/update/compile). Build-time only — the production image
 # compiles catalogs in a throwaway stage, see Dockerfile.
 babel==2.18.0
