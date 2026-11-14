@@ -5,6 +5,24 @@ All notable changes to AccessFlow are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.6.0] - 2026-11-14
+
+### Added
+
+- Notification emails have a new layout: readable on a phone, dark mode, and the accent colour of the instance theme. Templates can use four building blocks (`button`, `notice`, `facts`, `rows`); the plain-text part is derived from the HTML.
+- One-click unsubscribe: emails carry `List-Unsubscribe` headers and a footer link that turns off email notifications for that user. It needs a public `PUBLIC_BASE_URL`; the mailbox provider's own button also needs https.
+- The users list flags who has email notifications turned off.
+- Reply-To address for notifications (Settings, or `SMTP_REPLY_TO`).
+- `SMTP_SEND_DELAY`: optional pause between messages of the same run, for relays that throttle bursts.
+- Settings warn when the From address is missing or on a freemail domain your relay can't sign for.
+- `docs/EMAIL_DELIVERABILITY.md`: SPF, DKIM and DMARC setup.
+
+### Changed
+
+- Emails carry `Date`, a `Message-ID` on the From domain and `Auto-Submitted`, and an expiry scan, a digest run or a broadcast uses one SMTP connection instead of one per message.
+- The default email texts are rewritten. Templates you customised are kept as they are.
+- Digests list at most 40 rows by email and 25 on Telegram, then a count of the rest.
+
 ## [1.5.5] - 2026-10-27
 
 ### Security
