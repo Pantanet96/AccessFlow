@@ -208,6 +208,14 @@
           <small class="flex items-center gap-1">
             <span class="material-symbols-outlined text-sm" aria-hidden="true">send</span>{{ _("Telegram linked") }}
           </small>{% endif %}
+          {# Only where an address exists: with none on file there is nothing
+             to switch off. The one-click link in an email flips this without
+             the user ever opening the app, so it has to show up here. #}
+          {% if u.effective_notify_email and not u.notify_via_email %}
+          <small class="flex items-center gap-1 text-error" data-flag="email-off"
+                 title="{{ _('This user turned off email notifications: expiry warnings are not emailed.') }}">
+            <span class="material-symbols-outlined text-sm" aria-hidden="true">notifications_off</span>{{ _("Email off") }}
+          </small>{% endif %}
         </div>
       </td>
       <td class="py-3 px-3">
@@ -323,6 +331,10 @@
            dash would cost a third of the line to say nothing. #}
         <span class="block text-xs text-on-surface-variant truncate">{{ u.role.value }}{% if u.plex_username %} · <span class="font-mono">{{ u.plex_username }}</span>{% endif %}</span>
       </span>
+      {% if u.effective_notify_email and not u.notify_via_email %}
+      <span class="material-symbols-outlined text-base text-error flex-none" data-flag="email-off"
+            role="img" aria-label="{{ _('Email off') }}" title="{{ _('Email off') }}">notifications_off</span>
+      {% endif %}
       <span class="badge {{ card_cls }} flex-none">{{ card_badge }}</span>
     </a>
   </li>

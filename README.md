@@ -63,7 +63,7 @@ Upgrade with `docker compose pull && docker compose up -d`.
 
 ## Documentation
 
-Roles, plans, workflows, deploy details, security, configuration, background jobs, translations and local development are in the **[full guide](docs/GUIDE.md)**. Security details: [docs/SECURITY.md](docs/SECURITY.md).
+Roles, plans, workflows, deploy details, security, configuration, background jobs, translations and local development are in the **[full guide](docs/GUIDE.md)**. Security details: [docs/SECURITY.md](docs/SECURITY.md). Getting your notification emails delivered (SPF/DKIM/DMARC): [docs/EMAIL_DELIVERABILITY.md](docs/EMAIL_DELIVERABILITY.md).
 
 ## Star history
 

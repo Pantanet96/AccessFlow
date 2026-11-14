@@ -10,14 +10,16 @@ the HTML. Telegram is MarkdownV2: dynamic values are escaped with the |tg filter
 static markup (*bold*, _italics_) stays literal in the template.
 """
 import html as _htmlmod
+import logging
 import re
+from pathlib import Path
 
-from jinja2 import ChainableUndefined
+from jinja2 import ChainableUndefined, Environment, pass_context
 from jinja2.sandbox import SandboxedEnvironment
 from sqlmodel import Session
 
 from app.config import get_settings
-from app.services import settings_store
+from app.services import email_blocks, settings_store
 
 PARTS = ("email_subject", "email_html", "telegram")
 LOCALES = ("it", "en")
@@ -46,6 +48,29 @@ TYPE_PARTS: dict[str, tuple[str, ...]] = {
 def parts_for(type_: str) -> tuple[str, ...]:
     return TYPE_PARTS.get(type_, PARTS)
 
+
+# Available in every template, injected at render time rather than carried
+# by each caller's context. Listed separately in the editor for the same
+# reason: they are not specific to any one message.
+COMMON_VARS = ("site_url", "brand")
+
+
+def public_site_url() -> str:
+    """The instance's public address, or "" while it is still the local
+    default. One place for that rule: the footer, the blocks and the
+    unsubscribe link must all agree on whether there is a URL to give."""
+    from app import runtime_config  # lazy: avoid an import cycle
+
+    url = runtime_config.public_base_url()
+    return "" if _LOCAL_URL_RE.match(url) else url
+
+
+def _common_ctx() -> dict:
+    """site_url is empty when public_base_url is still the local default, so
+    a template calling button(site_url, ...) renders nothing rather than a
+    link to localhost."""
+    return {"site_url": public_site_url(), "brand": _brand()}
+
 # Sample context to validate/preview a template without real data.
 SAMPLE_CTX = {
     "name": "Mario Rossi",
@@ -72,6 +97,8 @@ SAMPLE_CTX = {
     "libraries": ["Film", "Serie TV"],
     "inviter_name": "Admin",
     "expires_date": "2026-08-21",
+    "site_url": "https://accessflow.example.com",
+    "brand": "AccessFlow",
 }
 
 
@@ -107,21 +134,130 @@ def _tgmoney(amount) -> str:
     return _tg(_money(amount))
 
 
+log = logging.getLogger("pum.templates")
+
+_MONTHS = {
+    "it": ("gennaio", "febbraio", "marzo", "aprile", "maggio", "giugno",
+           "luglio", "agosto", "settembre", "ottobre", "novembre", "dicembre"),
+    "en": ("January", "February", "March", "April", "May", "June",
+           "July", "August", "September", "October", "November", "December"),
+}
+
+
+def _fmt_date(value, locale) -> str:
+    """2026-07-22 -> "22 luglio 2026". Anything else is returned unchanged.
+
+    A reminder is read in a hurry; an ISO date is for a database. Shared by
+    the |longdate filter and the rows() block, which would otherwise print
+    the raw date in the one message that lists several of them."""
+    raw = str(value or "")
+    parts = raw.split("-")
+    if len(parts) != 3:
+        return raw  # 'illimitato', an empty value, an already-formatted date
+    try:
+        year, month, day = int(parts[0]), int(parts[1]), int(parts[2])
+    except ValueError:
+        return raw
+    # Guarded rather than trusted: expiry_date is a variable, and a template
+    # may hand this filter anything. A month of 0 would index [-1] and quietly
+    # report December.
+    if not 1 <= month <= 12 or not 1 <= day <= 31:
+        return raw
+    return f"{day} {_MONTHS.get(locale, _MONTHS['en'])[month - 1]} {year}"
+
+
+@pass_context
+def _longdate(ctx, value) -> str:
+    """The locale rides in the render context, so a template author writes
+    {{ expiry_date|longdate }} and nothing more."""
+    return _fmt_date(value, ctx.get("_locale"))
+
+
+@pass_context
+def _rows(ctx, items) -> str:
+    """rows() with this render's locale applied to the dates and the
+    "not shown" line. The block itself stays free of template concerns."""
+    locale = ctx.get("_locale")
+    strings = _LAYOUT_STRINGS.get(locale) or _LAYOUT_STRINGS["en"]
+    return email_blocks.rows(
+        items,
+        fmt_date=lambda d: _fmt_date(d, locale),
+        more_label=strings["more_rows"],
+    )
+
+
 _env.filters["tg"] = _tg
 _env.filters["money"] = _money
 _env.filters["tgmoney"] = _tgmoney
+_env.filters["longdate"] = _longdate
+
+# Layout blocks an admin can call from a template. Globals and not filters:
+# they take several arguments and read as what they are, `{{ button(url,
+# "Rinnova") }}`. Each escapes its own arguments -- autoescape is off here.
+_env.globals.update(
+    button=email_blocks.button,
+    notice=email_blocks.notice,
+    facts=email_blocks.facts,
+    rows=_rows,
+)
+
+# Shown in the Settings editor next to the variables, so the blocks are
+# discoverable without reading this file.
+_BLOCK_NAMES = ("button", "notice", "facts", "rows")
+
+BLOCKS = (
+    'button(url, "Etichetta")',
+    'notice("Testo", "warn|stop|info")',
+    'facts("Etichetta", valore, "Etichetta", valore)',
+    "rows(items)",
+)
+
+
+def _link_to_text(m: re.Match) -> str:
+    """"Rinnova" + an href become "Rinnova (https://...)".
+
+    A button is a link with no visible URL: readable in the HTML part, a dead
+    end in the plain one, which is what a text-only client and most filters
+    actually read."""
+    href, label = m.group(1).strip(), re.sub(r"<[^>]+>", "", m.group(2)).strip()
+    if not label:
+        return href
+    if label == href or href.startswith("mailto:"):
+        return label
+    return f"{label} ({href})"
 
 
 def _html_to_text(html: str) -> str:
     """Cheap plain-text fallback for the multipart email."""
-    text = re.sub(r"(?i)<br\s*/?>", "\n", html)
+    # Drop what these carry, not just their tags: a template exported from
+    # a mail builder brings a <head> with a <style>, and stripping only the
+    # tags left the stylesheet as the first readable line -- the plain-text
+    # part, and with it the inbox preview, opened with CSS.
+    text = re.sub(r"(?is)<(style|script|title|head)\b[^>]*>.*?</\1\s*>", " ", html)
+    # Keep the destination: the layout blocks render their call to action as a
+    # styled link, so without this the plain part says "Rinnova" and stops.
+    text = re.sub(r'(?is)<a\s[^>]*href="([^"]*)"[^>]*>(.*?)</a>', _link_to_text, text)
+    # Table cells carry real content now (facts, rows, notice), and stripping
+    # their tags with no separator ran every value into the next one.
+    text = re.sub(r"(?i)</t[dh]\s*>", " ", text)
+    text = re.sub(r"(?i)</tr\s*>", "\n", text)
+    text = re.sub(r"(?i)</table\s*>", "\n\n", text)
+    text = re.sub(r"(?i)<br\s*/?>", "\n", text)
     # <li> carries the invite's step-by-step instructions and the digest's
     # per-user rows; without these the items run together into one long line.
     text = re.sub(r"(?i)<li\s*>", "- ", text)
     text = re.sub(r"(?i)</li\s*>", "\n", text)
     text = re.sub(r"(?i)</(p|ul|ol)\s*>", "\n\n", text)
     text = re.sub(r"<[^>]+>", "", text)
-    return _htmlmod.unescape(text).strip()
+    text = _htmlmod.unescape(text)
+    # The blocks space their labels with &nbsp;, which unescapes to a
+    # non-breaking space -- invisible here, but a stray byte in a part
+    # that is meant to be plain.
+    text = text.replace(" ", " ")
+    # Nested tables leave runs of blank lines and trailing spaces behind.
+    text = re.sub(r"[ \t]+(\n)", r"\1", text)
+    text = re.sub(r"\n{3,}", "\n\n", text)
+    return text.strip()
 
 
 # ---------------------------------------------------------------- defaults
@@ -137,13 +273,19 @@ DEFAULTS: dict[tuple[str, str], dict[str, str]] = {
     ),
     ("user_expiry", "email_html"): _d(
         "<p>Ciao {{ name|e }},</p>"
-        "<p>il tuo abbonamento <strong>{{ plan_name|e }}</strong> scade il "
-        "<strong>{{ expiry_date }}</strong> (tra {{ days }} giorni).</p>"
-        "<p>Contatta il tuo referente per rinnovare.</p>",
+        "<p>il tuo abbonamento <strong>{{ plan_name|e }}</strong> scade "
+        "fra {{ days }} giorni.</p>"
+        '{{ facts("Piano", plan_name, "Scade il", expiry_date|longdate,'
+        ' "Giorni rimasti", days) }}'
+        "<p>Per non restare senza accesso, contatta il tuo referente e rinnova.</p>"
+        '{{ button(site_url, "Vedi il tuo abbonamento") }}',
         "<p>Hello {{ name|e }},</p>"
-        "<p>your <strong>{{ plan_name|e }}</strong> subscription expires on "
-        "<strong>{{ expiry_date }}</strong> (in {{ days }} day(s)).</p>"
-        "<p>Please contact your manager to renew.</p>",
+        "<p>your <strong>{{ plan_name|e }}</strong> subscription expires "
+        "in {{ days }} day(s).</p>"
+        '{{ facts("Plan", plan_name, "Expires on", expiry_date|longdate,'
+        ' "Days left", days) }}'
+        "<p>Contact your manager to renew and keep your access.</p>"
+        '{{ button(site_url, "View your subscription") }}',
     ),
     ("user_expiry", "telegram"): _d(
         "⏳ Ciao {{ name|tg }}\\! Il tuo *{{ plan_name|tg }}* scade il "
@@ -157,14 +299,16 @@ DEFAULTS: dict[tuple[str, str], dict[str, str]] = {
         "Collect: {{ user_name }} — {{ plan_name }} expires in {{ days }} day(s)",
     ),
     ("manager_collect", "email_html"): _d(
-        "<p>L'abbonamento <strong>{{ plan_name|e }}</strong> di {{ user_name|e }} "
-        "scade il <strong>{{ expiry_date }}</strong> (tra {{ days }} giorni).</p>"
-        "<p>Importo dovuto: <strong>{{ amount_eur|money }}</strong>. "
-        "Incassa il pagamento e rinnova.</p>",
-        "<p>{{ user_name|e }}'s <strong>{{ plan_name|e }}</strong> subscription "
-        "expires on <strong>{{ expiry_date }}</strong> (in {{ days }} day(s)).</p>"
-        "<p>Amount due: <strong>{{ amount_eur|money }}</strong>. "
-        "Please collect payment and renew.</p>",
+        "<p>Ciao {{ name|e }},</p>"
+        "<p>c'è un pagamento da incassare da <strong>{{ user_name|e }}</strong>.</p>"
+        '{{ facts("Utente", user_name, "Piano", plan_name,'
+        ' "Scade il", expiry_date|longdate, "Importo", amount_eur|money) }}'
+        '{{ button(site_url, "Apri " ~ brand) }}',
+        "<p>Hello {{ name|e }},</p>"
+        "<p>there is a payment to collect from <strong>{{ user_name|e }}</strong>.</p>"
+        '{{ facts("User", user_name, "Plan", plan_name,'
+        ' "Expires on", expiry_date|longdate, "Amount", amount_eur|money) }}'
+        '{{ button(site_url, "Open " ~ brand) }}',
     ),
     ("manager_collect", "telegram"): _d(
         "💶 *{{ user_name|tg }}* — {{ plan_name|tg }} scade il {{ expiry_date|tg }} "
@@ -182,24 +326,28 @@ DEFAULTS: dict[tuple[str, str], dict[str, str]] = {
     ("user_overdue", "email_html"): _d(
         "<p>Ciao {{ name|e }},</p>"
         "{% if suspended %}"
-        "<p>il tuo abbonamento <strong>{{ plan_name|e }}</strong> è scaduto il "
-        "{{ expiry_date }} e l'accesso è ora <strong>sospeso</strong>. "
-        "Rinnova per riattivarlo.</p>"
+        '{{ notice("Il tuo accesso è sospeso: l\'abbonamento è scaduto.", "stop") }}'
+        '{{ facts("Piano", plan_name, "Scaduto il", expiry_date|longdate) }}'
+        "<p>Rinnova con il tuo referente per riattivarlo.</p>"
         "{% else %}"
-        "<p>il tuo abbonamento <strong>{{ plan_name|e }}</strong> è scaduto il "
-        "{{ expiry_date }}. La tolleranza finisce tra {{ grace_left }} giorni — "
-        "rinnova ora per non perdere l'accesso.</p>"
-        "{% endif %}",
+        '{{ notice("Abbonamento scaduto. Hai ancora " ~ grace_left ~'
+        ' " giorni prima della sospensione.", "warn") }}'
+        '{{ facts("Piano", plan_name, "Scaduto il", expiry_date|longdate) }}'
+        "<p>Rinnova ora con il tuo referente per non perdere l'accesso.</p>"
+        "{% endif %}"
+        '{{ button(site_url, "Vedi il tuo abbonamento") }}',
         "<p>Hello {{ name|e }},</p>"
         "{% if suspended %}"
-        "<p>your <strong>{{ plan_name|e }}</strong> subscription expired on "
-        "{{ expiry_date }} and access is now <strong>suspended</strong>. "
-        "Renew to restore access.</p>"
+        '{{ notice("Your access is suspended: the subscription has expired.", "stop") }}'
+        '{{ facts("Plan", plan_name, "Expired on", expiry_date|longdate) }}'
+        "<p>Renew with your manager to restore it.</p>"
         "{% else %}"
-        "<p>your <strong>{{ plan_name|e }}</strong> subscription expired on "
-        "{{ expiry_date }}. Grace ends in {{ grace_left }} day(s) — renew now to "
-        "keep access.</p>"
-        "{% endif %}",
+        '{{ notice("Subscription expired. You have " ~ grace_left ~'
+        ' " days left before access is suspended.", "warn") }}'
+        '{{ facts("Plan", plan_name, "Expired on", expiry_date|longdate) }}'
+        "<p>Renew now with your manager to keep your access.</p>"
+        "{% endif %}"
+        '{{ button(site_url, "View your subscription") }}',
     ),
     ("user_overdue", "telegram"): _d(
         "{% if suspended %}🚫 Ciao {{ name|tg }}, il tuo *{{ plan_name|tg }}* è "
@@ -217,12 +365,18 @@ DEFAULTS: dict[tuple[str, str], dict[str, str]] = {
         "Collect: {{ user_name }} — {{ plan_name }} overdue",
     ),
     ("manager_overdue", "email_html"): _d(
-        "<p>L'abbonamento <strong>{{ plan_name|e }}</strong> di {{ user_name|e }} "
-        "è scaduto il <strong>{{ expiry_date }}</strong>.</p>"
-        "<p>Importo dovuto: <strong>{{ amount_eur|money }}</strong>. Incassa e rinnova.</p>",
-        "<p>{{ user_name|e }}'s <strong>{{ plan_name|e }}</strong> subscription "
-        "expired on <strong>{{ expiry_date }}</strong>.</p>"
-        "<p>Amount due: <strong>{{ amount_eur|money }}</strong>. Please collect and renew.</p>",
+        "<p>Ciao {{ name|e }},</p>"
+        '{{ notice("Abbonamento scaduto: l\'accesso di " ~ user_name ~ '
+        '" sta per essere sospeso.", "warn") }}'
+        '{{ facts("Utente", user_name, "Piano", plan_name,'
+        ' "Scaduto il", expiry_date|longdate, "Importo", amount_eur|money) }}'
+        '{{ button(site_url, "Apri " ~ brand) }}',
+        "<p>Hello {{ name|e }},</p>"
+        '{{ notice("Subscription expired: " ~ user_name ~ '
+        '" is about to lose access.", "warn") }}'
+        '{{ facts("User", user_name, "Plan", plan_name,'
+        ' "Expired on", expiry_date|longdate, "Amount", amount_eur|money) }}'
+        '{{ button(site_url, "Open " ~ brand) }}',
     ),
     ("manager_overdue", "telegram"): _d(
         "💶 *{{ user_name|tg }}* — {{ plan_name|tg }} scaduto il {{ expiry_date|tg }}\\. "
@@ -237,32 +391,30 @@ DEFAULTS: dict[tuple[str, str], dict[str, str]] = {
     ),
     ("manager_digest", "email_html"): _d(
         "<p>Ciao {{ name|e }},</p>"
-        "<p>Hai <strong>{{ count }}</strong> abbonamenti da incassare nei prossimi "
-        "{{ window_days }} giorni:</p>"
-        "<ul>"
-        "{% for it in items %}<li>{{ it.user_name|e }} — <strong>{{ it.plan_name|e }}</strong> "
-        "· scade il {{ it.expiry_date }} ({{ it.days_left }}g) · "
-        "<strong>{{ it.amount_eur|money }}</strong></li>{% endfor %}"
-        "</ul>"
-        "<p>Totale da incassare: <strong>{{ total_eur|money }}</strong>.</p>",
+        "<p>hai <strong>{{ count }}</strong> abbonamenti da incassare nei prossimi "
+        "{{ window_days }} giorni.</p>"
+        "{{ rows(items[:40]) }}"
+        "{% if count > 40 %}<p>\u2026e altri {{ count - 40 }}. Aprili in {{ brand }} per vederli tutti.</p>{% endif %}"
+        '{{ facts("Totale da incassare", total_eur|money) }}'
+        '{{ button(site_url, "Apri " ~ brand) }}',
         "<p>Hello {{ name|e }},</p>"
-        "<p>You have <strong>{{ count }}</strong> subscription(s) to collect in the next "
-        "{{ window_days }} days:</p>"
-        "<ul>"
-        "{% for it in items %}<li>{{ it.user_name|e }} — <strong>{{ it.plan_name|e }}</strong> "
-        "· expires {{ it.expiry_date }} ({{ it.days_left }}d) · "
-        "<strong>{{ it.amount_eur|money }}</strong></li>{% endfor %}"
-        "</ul>"
-        "<p>Total to collect: <strong>{{ total_eur|money }}</strong>.</p>",
+        "<p>you have <strong>{{ count }}</strong> subscription(s) to collect in the "
+        "next {{ window_days }} days.</p>"
+        "{{ rows(items[:40]) }}"
+        "{% if count > 40 %}<p>\u2026and {{ count - 40 }} more. Open {{ brand }} to see them all.</p>{% endif %}"
+        '{{ facts("Total to collect", total_eur|money) }}'
+        '{{ button(site_url, "Open " ~ brand) }}',
     ),
     ("manager_digest", "telegram"): _d(
         "💶 Ciao {{ name|tg }}, {{ count }} da incassare entro {{ window_days }} giorni:\n"
-        "{% for it in items %}• {{ it.user_name|tg }} — {{ it.plan_name|tg }} · "
+        "{% for it in items[:25] %}• {{ it.user_name|tg }} — {{ it.plan_name|tg }} · "
         "{{ it.expiry_date|tg }} · {{ it.amount_eur|tgmoney }}\n{% endfor %}"
+        "{% if count > 25 %}\\+{{ count - 25 }} non mostrati\n{% endif %}"
         "Totale: *{{ total_eur|tgmoney }}*",
         "💶 Hi {{ name|tg }}, {{ count }} to collect within {{ window_days }} days:\n"
-        "{% for it in items %}• {{ it.user_name|tg }} — {{ it.plan_name|tg }} · "
+        "{% for it in items[:25] %}• {{ it.user_name|tg }} — {{ it.plan_name|tg }} · "
         "{{ it.expiry_date|tg }} · {{ it.amount_eur|tgmoney }}\n{% endfor %}"
+        "{% if count > 25 %}\\+{{ count - 25 }} not shown\n{% endif %}"
         "Total: *{{ total_eur|tgmoney }}*",
     ),
     # ---- welcome ----
@@ -272,19 +424,17 @@ DEFAULTS: dict[tuple[str, str], dict[str, str]] = {
     ),
     ("welcome", "email_html"): _d(
         "<p>Ciao {{ name|e }},</p>"
-        "<p>il tuo abbonamento <strong>{{ plan_name|e }}</strong> è attivo "
-        "(scadenza: {{ expiry_date }}).</p>"
-        "{% if public_url %}<p>Richiedi film e serie qui: "
-        "<a href=\"{{ public_url }}\">{{ public_url }}</a></p>{% endif %}"
-        "{% if telegram_link %}<p>Attiva i promemoria su Telegram: "
-        "<a href=\"{{ telegram_link }}\">{{ telegram_link }}</a></p>{% endif %}",
+        "<p>il tuo accesso è attivo. Buona visione.</p>"
+        '{{ facts("Piano", plan_name, "Scadenza", expiry_date|longdate) }}'
+        '{{ button(public_url, "Richiedi film e serie") }}'
+        "{% if telegram_link %}<p>Vuoi i promemoria anche su Telegram?</p>"
+        '{{ button(telegram_link, "Collega il bot") }}{% endif %}',
         "<p>Hello {{ name|e }},</p>"
-        "<p>your <strong>{{ plan_name|e }}</strong> subscription is now active "
-        "(expires: {{ expiry_date }}).</p>"
-        "{% if public_url %}<p>Request movies and shows here: "
-        "<a href=\"{{ public_url }}\">{{ public_url }}</a></p>{% endif %}"
-        "{% if telegram_link %}<p>Enable reminders on Telegram: "
-        "<a href=\"{{ telegram_link }}\">{{ telegram_link }}</a></p>{% endif %}",
+        "<p>your access is active. Enjoy.</p>"
+        '{{ facts("Plan", plan_name, "Expires", expiry_date|longdate) }}'
+        '{{ button(public_url, "Request movies and shows") }}'
+        "{% if telegram_link %}<p>Want reminders on Telegram too?</p>"
+        '{{ button(telegram_link, "Connect the bot") }}{% endif %}',
     ),
     ("welcome", "telegram"): _d(
         "🎉 Ciao {{ name|tg }}\\! Il tuo *{{ plan_name|tg }}* è attivo "
@@ -301,53 +451,49 @@ DEFAULTS: dict[tuple[str, str], dict[str, str]] = {
     ),
     ("invite", "email_html"): _d(
         "<p>Ciao {{ name|e }},</p>"
-        "<p>{{ inviter_name|e }} ti ha invitato a condividere il suo server Plex"
-        "{% if libraries %} (librerie: {{ libraries|join(', ')|e }}){% endif %}"
-        "{% if plan_name %}, piano <strong>{{ plan_name|e }}</strong>{% endif %}.</p>"
-        "<p>L'invito è stato inviato a <strong>{{ email|e }}</strong>: usa "
-        "<strong>questo stesso indirizzo</strong> in ogni passaggio, altrimenti "
-        "l'accesso non verrà riconosciuto.</p>"
-        "{% if expires_date %}<p>L'invito scade il <strong>{{ expires_date }}</strong>."
-        "</p>{% endif %}"
+        "<p><strong>{{ inviter_name|e }}</strong> ti ha invitato a condividere "
+        "il suo server Plex.</p>"
+        '{{ facts("Librerie", libraries|join(", ") if libraries else "tutte",'
+        ' "Piano", plan_name or "-",'
+        ' "Invito valido fino al", expires_date|longdate if expires_date else "-") }}'
+        '{{ notice("Usa sempre l\'indirizzo " ~ email ~ ": con un altro indirizzo"'
+        ' " l\'accesso non viene riconosciuto.", "warn") }}'
         "<p><strong>Se hai già un account Plex</strong></p>"
         "<ol>"
         "<li>Apri la mail di Plex e accetta la condivisione "
         "(oppure vai su <a href=\"https://app.plex.tv\">app.plex.tv</a>).</li>"
-        "<li>Accedi qui con il tuo account Plex: "
-        "<a href=\"{{ login_url }}\">{{ login_url }}</a></li>"
+        "<li>Torna qui e accedi con il tuo account Plex.</li>"
         "</ol>"
         "<p><strong>Se non hai ancora un account Plex</strong></p>"
         "<ol>"
-        "<li>Crea un account gratuito su <a href=\"https://www.plex.tv\">plex.tv</a>, "
-        "usando l'indirizzo {{ email|e }}.</li>"
+        "<li>Crea un account gratuito su <a href=\"https://www.plex.tv\">plex.tv</a> "
+        "con l'indirizzo {{ email|e }}.</li>"
         "<li>Apri la mail di Plex e accetta la condivisione.</li>"
-        "<li>Accedi qui con il tuo account Plex: "
-        "<a href=\"{{ login_url }}\">{{ login_url }}</a></li>"
-        "</ol>",
+        "<li>Torna qui e accedi con il tuo account Plex.</li>"
+        "</ol>"
+        '{{ button(login_url, "Accedi con Plex") }}',
         "<p>Hello {{ name|e }},</p>"
-        "<p>{{ inviter_name|e }} has invited you to their Plex server"
-        "{% if libraries %} (libraries: {{ libraries|join(', ')|e }}){% endif %}"
-        "{% if plan_name %}, plan <strong>{{ plan_name|e }}</strong>{% endif %}.</p>"
-        "<p>The invite was sent to <strong>{{ email|e }}</strong>: use "
-        "<strong>that same address</strong> at every step, or your access "
-        "will not be recognised.</p>"
-        "{% if expires_date %}<p>The invite expires on <strong>{{ expires_date }}</strong>."
-        "</p>{% endif %}"
+        "<p><strong>{{ inviter_name|e }}</strong> has invited you to their "
+        "Plex server.</p>"
+        '{{ facts("Libraries", libraries|join(", ") if libraries else "all",'
+        ' "Plan", plan_name or "-",'
+        ' "Invite valid until", expires_date|longdate if expires_date else "-") }}'
+        '{{ notice("Always use the address " ~ email ~ ": with any other address"'
+        ' " your access will not be recognised.", "warn") }}'
         "<p><strong>If you already have a Plex account</strong></p>"
         "<ol>"
         "<li>Open the email from Plex and accept the share "
         "(or go to <a href=\"https://app.plex.tv\">app.plex.tv</a>).</li>"
-        "<li>Sign in here with your Plex account: "
-        "<a href=\"{{ login_url }}\">{{ login_url }}</a></li>"
+        "<li>Come back here and sign in with your Plex account.</li>"
         "</ol>"
         "<p><strong>If you do not have a Plex account yet</strong></p>"
         "<ol>"
-        "<li>Create a free account at <a href=\"https://www.plex.tv\">plex.tv</a>, "
+        "<li>Create a free account at <a href=\"https://www.plex.tv\">plex.tv</a> "
         "using the address {{ email|e }}.</li>"
         "<li>Open the email from Plex and accept the share.</li>"
-        "<li>Sign in here with your Plex account: "
-        "<a href=\"{{ login_url }}\">{{ login_url }}</a></li>"
-        "</ol>",
+        "<li>Come back here and sign in with your Plex account.</li>"
+        "</ol>"
+        '{{ button(login_url, "Sign in with Plex") }}',
     ),
 }
 
@@ -380,14 +526,208 @@ def render_part(session: Session, type_: str, part: str, locale: str, ctx: dict)
     src = _source(session, type_, part, locale)
     if not src.strip():
         return ""
-    return _env.from_string(src).render(**ctx).strip()
+    # _locale rides along for |longdate, which has no other way to know it.
+    # Underscored so it does not look like a variable to use in a template.
+    # The caller's ctx wins over the common values, never the other way.
+    merged = dict(_common_ctx(), **ctx)
+    merged.pop("_locale", None)  # the render's locale is not the caller's to set
+    return _env.from_string(src).render(_locale=locale, **merged).strip()
 
 
-def render_email(session: Session, type_: str, locale: str, ctx: dict) -> tuple[str, str, str]:
-    """Returns (subject, html, plain_text)."""
-    subject = render_part(session, type_, "email_subject", locale, ctx)
+_PREHEADER_MAX = 120
+# Padding after the hidden preheader. Without it a client fills the rest of the
+# preview line with whatever follows in the body -- the greeting we just skipped.
+_PREHEADER_PAD = "&#847;&zwnj;&nbsp;" * 30
+
+
+def _preheader(text: str) -> str:
+    """The inbox-preview line: the first line of the body that says something.
+
+    With no preheader a client previews the start of the body, which for nearly
+    every template here is "Ciao <name>," -- the one line carrying no
+    information, shown next to the subject in the message list."""
+    lines = [ln for ln in (ln.strip() for ln in text.splitlines()) if ln]
+    if not lines:
+        return ""
+    # Drop the greeting: the FIRST line, and only when it ends in a comma.
+    # Keyed on position, not on length -- a length cutoff turned a long
+    # real_name ("Ciao Giovanni Battista Della Rovere,") into the preview
+    # itself, and the padding after it then hid the informative line that a
+    # client would otherwise have shown.
+    start = 1 if len(lines) > 1 and lines[0].endswith(",") else 0
+    line = lines[start]
+    clipped = line[:_PREHEADER_MAX].rstrip()
+    return clipped + "…" if len(line) > _PREHEADER_MAX else clipped
+
+
+_BODY_RE = re.compile(r"<body\b[^>]*>", re.I)
+
+
+def _with_preheader(html: str, text: str) -> str:
+    """Insert the hidden preview line. Admin copy itself is untouched."""
+    pre = _preheader(text)
+    if not pre:
+        return html
+    # mso-hide:all is the Outlook half of the hide; the rest covers every other
+    # client, including the ones that ignore display:none on its own.
+    block = (
+        '<div style="display:none;max-height:0;max-width:0;overflow:hidden;'
+        'opacity:0;mso-hide:all;font-size:1px;line-height:1px;color:transparent">'
+        + _htmlmod.escape(pre, quote=False) + _PREHEADER_PAD + "</div>"
+    )
+    # The built-in templates are fragments, but an admin may well paste a whole
+    # document. Going in front of <!DOCTYPE> would drop the page into quirks
+    # mode and leave the block outside <body>, where most webmail strips it --
+    # losing the preheader silently.
+    opening = _BODY_RE.search(html)
+    if opening:
+        return html[:opening.end()] + block + html[opening.end():]
+    return block + html
+
+
+# ---------------------------------------------------------------- layout
+# The shell the rendered fragment is dropped into: hand-written table HTML,
+# versioned like any other template, with no build step behind it. See the
+# comment at the top of that file for why it is not generated.
+_LAYOUT_PATH = Path(__file__).resolve().parent.parent / "templates" / "email" / "_layout.html"
+
+# A plain Environment, NOT the sandboxed _env above: that one deliberately has
+# no loader, and this one never renders anything an admin wrote. Keeping them
+# apart is what stops an override from reaching the filesystem.
+_layout_env = Environment(autoescape=False, trim_blocks=True, lstrip_blocks=True)
+_layout_cache: list = []  # one slot: the compiled Template
+
+# Already a whole document of the admin's own: wrapping it in ours would nest a
+# second <html> inside the first and break both.
+_FULL_DOC_RE = re.compile(r"<(?:html|body|head)\b", re.I)
+
+# public_base_url defaults to http://localhost:8000, and an instance behind a
+# proxy can easily never have changed it -- the setting is introduced as the
+# one that fixes the cookie Secure flag. A footer pointing there is a dead
+# link for every recipient, or worse whatever answers on their own port 8000,
+# so drop the link rather than ship it.
+_LOCAL_URL_RE = re.compile(
+    r"^https?://(localhost|127\.0\.0\.1|0\.0\.0\.0|\[::1\])(:\d+)?(/|$)", re.I
+)
+
+_LAYOUT_STRINGS = {
+    "it": {
+        "footer_note": "Ricevi questo messaggio perché il tuo accesso è gestito con %(brand)s.",
+        "site_label": "Apri %(brand)s",
+        "more_rows": "+ %d non mostrati",
+        "unsubscribe": "Non ricevere più queste email",
+    },
+    "en": {
+        "footer_note": "You are receiving this because your access is managed with %(brand)s.",
+        "site_label": "Open %(brand)s",
+        "more_rows": "+ %d not shown",
+        "unsubscribe": "Stop these emails",
+    },
+}
+
+
+def _layout_template():
+    """The shell, parsed once. None when the file cannot be read.
+
+    Caches the compiled Template and not the source: from_string() does not
+    go through Jinja's own cache, so holding the source still re-parsed the
+    whole shell for every single message (~3ms each, which a 500-reminder
+    scan pays with the scheduler's job lock held)."""
+    if _layout_cache:
+        return _layout_cache[0]
+    try:
+        source = _LAYOUT_PATH.read_text(encoding="utf-8")
+    except OSError:
+        # Deliberately NOT cached. A transient failure (a rolling update, a
+        # hiccup on a mounted volume) would otherwise send every later
+        # message unstyled for the life of the process, with one log line
+        # at the start and nothing visible afterwards.
+        log.warning("email layout unreadable at %s; sending unwrapped bodies",
+                    _LAYOUT_PATH)
+        return None
+    _layout_cache.append(_layout_env.from_string(source))
+    return _layout_cache[0]
+
+
+def _brand() -> str:
+    from app import runtime_config  # lazy: avoid an import cycle at module load
+
+    return (runtime_config.smtp_config().get("from_name") or "").strip() or "AccessFlow"
+
+
+def _compose(fragment: str, text: str, locale: str, *,
+             full_doc: bool, unsubscribe_url: str = "") -> tuple[str, str]:
+    """Wrap the rendered fragment in the layout. Returns (html, plain_text)."""
+    strings = _LAYOUT_STRINGS.get(locale) or _LAYOUT_STRINGS["en"]
+    brand = _brand()
+    site_url = public_site_url()
+    footer_note = strings["footer_note"] % {"brand": brand}
+    # Appended whichever branch we take below: the footer says who sent the
+    # message, which is as true of an admin's own document as of ours.
+    tail = footer_note + (" " + site_url if site_url else "")
+    if unsubscribe_url:
+        # In the plain part as well: a text-only client has no header
+        # button, and this line is the only way out it can offer.
+        tail += "\n" + strings["unsubscribe"] + ": " + unsubscribe_url
+    text_out = (text + "\n\n--\n" + tail) if text else text
+
+    template = _layout_template()
+    if template is None or full_doc:
+        return _with_preheader(fragment, text), text_out
+
+    pre = _preheader(text)
+    accent = email_blocks.palette()
+    html = template.render(
+        lang=locale if locale in LOCALES else "en",
+        # Straight from the theme table, never from admin input, so they
+        # go into the stylesheet as-is.
+        accent=accent["accent"],
+        accent_link=accent["link"],
+        accent_dark=accent["dark"],
+        brand=_htmlmod.escape(brand),
+        # Escaped here, not by the environment: autoescape is off so that
+        # `content` can carry the markup the admin's template produced.
+        # quote=False on the preheader: it is a text node, and some clients
+        # build the list snippet by stripping tags WITHOUT decoding entities,
+        # which turns an apostrophe into a visible &#x27;.
+        preheader=(_htmlmod.escape(pre, quote=False) + _PREHEADER_PAD) if pre else "",
+        content=fragment,
+        footer_note=_htmlmod.escape(footer_note),
+        site_url=_htmlmod.escape(site_url),
+        site_label=_htmlmod.escape(strings["site_label"] % {"brand": brand}),
+        unsubscribe_url=_htmlmod.escape(unsubscribe_url),
+        unsubscribe_label=_htmlmod.escape(strings["unsubscribe"]),
+    )
+    return html, text_out
+
+
+def render_email(session: Session, type_: str, locale: str, ctx: dict, *,
+                 unsubscribe_url: str = "") -> tuple[str, str, str]:
+    """Returns (subject, html, plain_text).
+
+    `unsubscribe_url` puts a visible way out in the footer of both parts.
+    It belongs to the recipient, not to the template, which is why it is
+    an argument here and not one more variable in `ctx`."""
+    # Folded to one line: the subject is edited in a textarea, and EmailMessage
+    # raises on a header holding CR/LF. One stray Enter there would otherwise
+    # fail every send of that type forever -- logged, never delivered, with
+    # nothing in Settings to say why.
+    subject = " ".join(render_part(session, type_, "email_subject", locale, ctx).split())
     html = render_part(session, type_, "email_html", locale, ctx)
+    # Derive the text part BEFORE the preheader goes in: the preheader repeats a
+    # line that is already in the body, and a plain-text part opening by saying
+    # the same thing twice reads as broken.
     text = _html_to_text(html) if html else ""
+    if html:
+        # Decided on the TEMPLATE, not on the rendered output: whether this
+        # is a whole document is a property of what the admin wrote. Read
+        # from the render, a value could decide it instead -- a user's
+        # real_name reaches {{ user_name }} in the manager templates, so a
+        # name holding a tag would reshape the mail their manager gets.
+        full_doc = bool(_FULL_DOC_RE.search(
+            _source(session, type_, "email_html", locale)))
+        html, text = _compose(html, text, locale, full_doc=full_doc,
+                              unsubscribe_url=unsubscribe_url)
     return subject, html, text
 
 
@@ -395,15 +735,29 @@ def render_telegram(session: Session, type_: str, locale: str, ctx: dict) -> str
     return render_part(session, type_, "telegram", locale, ctx)
 
 
-def validate(src: str, type_: str | None = None) -> str | None:
+def validate(src: str, type_: str | None = None,
+             part: str | None = None) -> str | None:
     """None if `src` renders, else the error message.
 
     With `type_`, only that type's variables are defined, as at send time.
     Against the whole SAMPLE_CTX a digest template using `days` passed here,
-    then raised on `days > 1` when sent and aborted the digest run."""
-    ctx = SAMPLE_CTX if type_ is None else {k: SAMPLE_CTX[k] for k in TYPES[type_]}
+    then raised on `days > 1` when sent and aborted the digest run.
+
+    With `part`, the layout blocks are refused outside the HTML body: they
+    are globals on the whole environment, so pasting one into the subject
+    renders a table into a header, and into the Telegram part it produces
+    markup Telegram rejects outright."""
+    if part and part != "email_html":
+        used = [b for b in _BLOCK_NAMES
+                if re.search(r"\b%s\s*\(" % b, src)]
+        if used:
+            return ("%s() renders HTML and belongs in the email body only."
+                    % used[0])
+    ctx = (SAMPLE_CTX if type_ is None else
+           {k: SAMPLE_CTX[k] for k in (*TYPES[type_], *COMMON_VARS)})
     try:
-        _env.from_string(src).render(**ctx)
+        # _locale so |longdate behaves here as it will at send time.
+        _env.from_string(src).render(_locale=get_settings().default_locale, **ctx)
         return None
     except Exception as exc:  # noqa: BLE001 — surface any Jinja error to the editor
         return str(exc)

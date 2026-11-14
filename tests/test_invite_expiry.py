@@ -129,4 +129,9 @@ def test_invite_email_states_the_expiry(db_session, monkeypatch):
                         lambda to, subject, text, html=None: sent.update(html=html) or True)
     inv = _invite(db_session, "mail@example.com")
     notifications.notify_invite(db_session, inv)
-    assert local_date(inv.expires_at).isoformat() in sent["html"]
+    # Written out for the reader ("11 dicembre 2026"), not as the ISO date the
+    # database keeps: a reminder is read in a hurry.
+    from app.services.notification_templates import _MONTHS
+
+    d = local_date(inv.expires_at)
+    assert f"{d.day} {_MONTHS['it'][d.month - 1]} {d.year}" in sent["html"]

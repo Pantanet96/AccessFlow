@@ -80,7 +80,7 @@ def test_broadcast_falls_back_to_email(db_session, monkeypatch):
     sent_emails = []
     monkeypatch.setattr(
         mail_service, "send_email",
-        lambda to, subject, body, html=None: sent_emails.append(to) or True,
+        lambda to, subject, body, html=None, **kw: sent_emails.append(to) or True,
     )
     _mk(db_session, Role.user, "EmailOnly", notify_email="a@x.com")
     _mk(db_session, Role.user, "Neither")  # no telegram_id, no email -> skipped
@@ -88,6 +88,23 @@ def test_broadcast_falls_back_to_email(db_session, monkeypatch):
     sent = broadcast_svc.broadcast(db_session, "hello")
     assert sent == 1
     assert sent_emails == ["a@x.com"]
+
+
+def test_broadcast_emails_share_one_smtp_connection(db_session, monkeypatch):
+    # The broadcast is the biggest burst the app sends: a TLS handshake per
+    # recipient is the pattern a provider throttles.
+    monkeypatch.setattr(telegram_service, "send_message", lambda chat, text: False)
+    seen = []
+    monkeypatch.setattr(
+        mail_service, "send_email",
+        lambda to, subject, body, html=None, **kw: seen.append(mail_service._bulk.get()) or True,
+    )
+    for n in ("One", "Two", "Three"):
+        _mk(db_session, Role.user, n, notify_email=f"{n.lower()}@x.com")
+
+    broadcast_svc.broadcast(db_session, "hello")
+    assert len(seen) == 3
+    assert seen[0] is not None and len(set(id(c) for c in seen)) == 1
 
 
 def test_active_broadcast_role_filter_and_dismiss(db_session):

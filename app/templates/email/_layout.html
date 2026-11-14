@@ -1,0 +1,140 @@
+{#
+  Shell every notification body is dropped into (notification_templates._compose).
+
+  Hand-written table HTML, not generated. MJML was the obvious candidate and was
+  tried first: it pulls 33 advisories into the dev tree (31 high, one of them a
+  directory traversal in MJML's own mj-include) to generate what this file is --
+  one column, a card, a rule and a footer, with no buttons, images or grid. For
+  that shape the generator costs more than it saves, so this stays a file you
+  can read and edit directly, with no build step and no new dependency.
+
+  What MJML does give for free is a pile of client workarounds, so the ones that
+  matter are written out here by hand: the Outlook ghost table, the max-width
+  div that makes the layout fluid without a media query, mso-line-height-rule,
+  bgcolor next to every background-color, and the preheader block.
+
+  Rules it has to keep, because mail clients are not browsers:
+    - tables for layout; Outlook renders with Word and ignores float/flex
+    - every colour and spacing inline on the element, since Gmail strips <style>
+      from the document it forwards and keeps only what sits on the tag
+    - nothing load-bearing in <style>: it carries polish, never the layout
+    - no webfont and no remote image: both are blocked or simply never arrive
+
+  Rendered by a non-sandboxed Jinja env with autoescape OFF, so `content` keeps
+  the markup the admin's template produced. Every other value is escaped in
+  Python before it gets here.
+
+  Light on purpose: the app's palette is dark, but a dark email collides with
+  each client's own dark-mode handling and inverts badly in several. The copper
+  accent carries the brand; the dark variant is in the media query below.
+#}<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:o="urn:schemas-microsoft-com:office:office" lang="{{ lang }}">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+<meta name="color-scheme" content="light dark" />
+<meta name="supported-color-schemes" content="light dark" />
+<meta name="x-apple-disable-message-reformatting" />
+{# Dates like 2026-07-22 sit inside <strong>; iOS Mail otherwise turns them into
+   blue "create event" links in the middle of the sentence. #}
+<meta name="format-detection" content="telephone=no,date=no,address=no" />
+<title>{{ brand }}</title>
+<!--[if mso]>
+<noscript><xml><o:OfficeDocumentSettings><o:PixelsPerInch>96</o:PixelsPerInch></o:OfficeDocumentSettings></xml></noscript>
+<![endif]-->
+<style type="text/css">
+  /* Also here, not only in the <meta>: Gmail drops <head> and would otherwise
+     apply its own colour inversion on top of the dark rules below, which
+     cancels the contrast inside the card. */
+  :root { color-scheme: light dark; supported-color-schemes: light dark; }
+  body, table, td, div, p, a { -webkit-text-size-adjust: 100%; -ms-text-size-adjust: 100%; }
+  table, td { mso-table-lspace: 0pt; mso-table-rspace: 0pt; border-collapse: collapse; }
+  body { margin: 0; padding: 0; width: 100% !important; }
+  /* The admin's fragment is plain paragraphs, lists and links. Client defaults
+     for those differ enough to break the rhythm, so set them here once.
+     (Tag names spelled out, not written as markup: this block ships inside the
+     message, and a literal tag in a comment is still a tag to anything
+     counting them.) */
+  .af-body p { margin: 0 0 16px; }
+  .af-body p:last-child { margin-bottom: 0; }
+  .af-body ul, .af-body ol { margin: 0 0 16px; padding-left: 22px; }
+  .af-body li { margin: 0 0 6px; }
+  /* The link accent is a darker shade of the wordmark's: that one is 4.3:1
+     on white, under the 4.5:1 a 16px link needs, while a wordmark at 18px
+     bold only needs 3:1. Both follow the theme picked in Settings. */
+  .af-body a { color: {{ accent_link }}; text-decoration: underline; }
+  .af-body strong { color: #1F1C16; }
+  /* Width is handled by the max-width div plus the Outlook ghost table, not
+     here: Gmail drops this whole block when it forwards a message, and a
+     layout whose width depends on it then overflows every phone. */
+  @media only screen and (max-width: 620px) {
+    .af-card { padding: 22px 18px !important; }
+    .af-gutter { padding-left: 14px !important; padding-right: 14px !important; }
+  }
+  /* `only screen and` is deliberate: clients that strip the at-rule wrapper and
+     keep the declarations would otherwise paint everyone with the dark palette. */
+  @media only screen and (prefers-color-scheme: dark) {
+    .af-page { background-color: #15130F !important; }
+    .af-card { background-color: #1F1C16 !important; }
+    .af-body, .af-body p, .af-body li, .af-body td { color: #EDE7DC !important; }
+    /* After the rule above, and more specific than it: these sit on the
+       same <td> and would otherwise lose to it. */
+    .af-body td.af-dim, .af-body .af-dim { color: #96876F !important; }
+    .af-body td.af-strong, .af-body .af-strong { color: #FFFFFF !important; }
+    .af-body td.af-late, .af-body .af-late { color: #E59C7E !important; }
+    .af-body strong { color: #FFFFFF !important; }
+    .af-body a { color: {{ accent_dark }} !important; }
+    .af-rule { background-color: #4A3F2E !important; }
+    .af-muted, .af-muted a { color: #96876F !important; }
+    /* Blocks from email_blocks.py: their light colours are inline, so
+       these are the dark overrides they cannot carry themselves. */
+    .af-panel, .af-panel td { background-color: #232019 !important; }
+    .af-notice td { background-color: #2A2520 !important; color: #EDE7DC !important; }
+    .af-rowline { border-top-color: #3A332A !important; }
+  }
+</style>
+</head>
+<body class="af-page" bgcolor="#F4F2EE" style="margin:0; padding:0; background-color:#F4F2EE;">
+{# Preview line, hidden in the body but shown next to the subject in the list. #}
+<div style="display:none; max-height:0; max-width:0; overflow:hidden; opacity:0; mso-hide:all; font-size:1px; line-height:1px; color:transparent;">{{ preheader }}</div>
+<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" class="af-page" bgcolor="#F4F2EE" style="background-color:#F4F2EE;">
+  <tr>
+    <td align="center" class="af-gutter" style="padding:32px 20px 40px;">
+      <!--[if mso]><table role="presentation" cellpadding="0" cellspacing="0" border="0" width="600" align="center"><tr><td><![endif]-->
+      <div style="max-width:600px; margin:0 auto; text-align:left;">
+      <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" align="center" style="width:100%; max-width:600px;">
+
+        <tr>
+          <td style="padding:0 4px 14px; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif; font-size:18px; line-height:24px; mso-line-height-rule:exactly; font-weight:700; letter-spacing:0.3px; color:{{ accent }};">{{ brand }}</td>
+        </tr>
+
+        <tr>
+          <td class="af-card" bgcolor="#FFFFFF" style="background-color:#FFFFFF; border-radius:12px; padding:28px;">
+            <div class="af-body" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif; font-size:16px; line-height:26px; mso-line-height-rule:exactly; color:#2E2A22;">{{ content }}</div>
+          </td>
+        </tr>
+
+        <tr>
+          <td style="padding:18px 4px 0;">
+            {# A filled 1px row, not a border: Word clamps font-size:0 on a
+               bordered cell and the rule grows into a visible band. #}
+            <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+              <tr>
+                <td class="af-rule" height="1" bgcolor="#E5E0D8" style="height:1px; font-size:1px; line-height:1px; mso-line-height-rule:exactly; background-color:#E5E0D8;">&nbsp;</td>
+              </tr>
+            </table>
+            <div class="af-muted" style="padding-top:14px; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif; font-size:13px; line-height:20px; mso-line-height-rule:exactly; color:#6B6557;">
+              {{ footer_note }}{% if site_url %}<br /><a href="{{ site_url }}" style="color:#6B6557; text-decoration:underline;">{{ site_label }}</a>{% endif %}{% if unsubscribe_url %}<br /><a href="{{ unsubscribe_url }}" style="color:#6B6557; text-decoration:underline;">{{ unsubscribe_label }}</a>{% endif %}
+            </div>
+          </td>
+        </tr>
+
+      </table>
+      </div>
+      <!--[if mso]></td></tr></table><![endif]-->
+    </td>
+  </tr>
+</table>
+</body>
+</html>

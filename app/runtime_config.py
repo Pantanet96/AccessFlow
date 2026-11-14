@@ -43,6 +43,7 @@ def _load_all() -> dict:
             "smtp_pass",
             "smtp_from",
             "smtp_from_name",
+            "smtp_reply_to",
             "smtp_tls",
             "telegram_bot_token",
             "telegram_bot_username",
@@ -105,7 +106,10 @@ def smtp_config() -> dict:
         "password": db["smtp_pass"] or s.smtp_pass,
         "from_addr": db["smtp_from"] or s.smtp_from,
         "from_name": db["smtp_from_name"] or s.smtp_from_name,
+        "reply_to": db["smtp_reply_to"] or s.smtp_reply_to,
         "tls": (tls.lower() == "true") if tls is not None else s.smtp_tls,
+        # ENV-only (no Settings field): a burst throttle only a few relays need.
+        "send_delay": s.smtp_send_delay,
     }
 
 

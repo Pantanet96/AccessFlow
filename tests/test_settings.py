@@ -121,6 +121,74 @@ def test_save_smtp_keeps_password_when_blank(client, db_session, login_as):
     assert settings_store.get_value(db_session, "smtp_host") == "h2"
 
 
+def test_save_smtp_stores_reply_to(client, db_session, login_as):
+    login_as(client, _superadmin(db_session).id)
+    client.post("/settings/smtp",
+                data={"smtp_host": "h", "smtp_reply_to": "support@example.com"})
+    assert settings_store.get_value(db_session, "smtp_reply_to") == "support@example.com"
+    assert runtime_config.smtp_config()["reply_to"] == "support@example.com"
+
+
+def test_save_smtp_rejects_a_malformed_reply_to(client, db_session, login_as):
+    # The header ships either way: a bad one bounces every reply back at the user.
+    login_as(client, _superadmin(db_session).id)
+    settings_store.set_value(db_session, "smtp_host", "keep-me")
+    resp = client.post("/settings/smtp",
+                       data={"smtp_host": "changed", "smtp_reply_to": "nonsense"})
+    assert resp.status_code == 400
+    assert settings_store.get_value(db_session, "smtp_host") == "keep-me"  # nothing saved
+    # The rejected page keeps what was typed, instead of redrawing the form
+    # from the stored values and wiping the rest of the admin's input.
+    assert 'value="changed"' in resp.text and 'value="nonsense"' in resp.text
+
+
+def test_save_smtp_rejects_a_line_break(client, db_session, login_as):
+    # Each SMTP field ends up in a header, and EmailMessage refuses a header
+    # holding a line break: saved, it would fail every later send with nothing
+    # but a log line to explain it.
+    login_as(client, _superadmin(db_session).id)
+    settings_store.set_value(db_session, "smtp_host", "keep-me")
+    resp = client.post("/settings/smtp", data={
+        "smtp_host": "changed", "smtp_from_name": "Acme\r\nBcc: victim@x.test"})
+    assert resp.status_code == 400
+    assert settings_store.get_value(db_session, "smtp_host") == "keep-me"
+
+
+def test_the_sender_warning_follows_the_submitted_values(client, db_session, login_as):
+    # A rejected save redraws the form with what was typed, so the warning has
+    # to judge those values and not the ones still stored.
+    login_as(client, _superadmin(db_session).id)
+    settings_store.set_value(db_session, "smtp_host", "mx.myrelay.net")
+    settings_store.set_value(db_session, "smtp_from", "noreply@mydomain.test")
+    assert 'data-warn="smtp-sender"' not in client.get("/settings?group=notifiche").text
+    resp = client.post("/settings/smtp", data={
+        "smtp_host": "mx.myrelay.net", "smtp_from": "me@gmail.com",
+        "smtp_reply_to": "nonsense"})
+    assert resp.status_code == 400
+    assert 'data-warn="smtp-sender"' in resp.text
+
+
+def test_rejected_smtp_save_escapes_what_it_echoes_back(client, db_session, login_as):
+    # The rejected page now echoes the submitted values back into the form.
+    login_as(client, _superadmin(db_session).id)
+    resp = client.post("/settings/smtp", data={
+        "smtp_host": '"><script>alert(1)</script>', "smtp_reply_to": "nonsense"})
+    assert resp.status_code == 400
+    assert "<script>alert(1)</script>" not in resp.text
+    assert "&lt;script&gt;" in resp.text
+
+
+def test_settings_warns_when_the_from_is_a_freemail_domain(client, db_session, login_as):
+    # Asserts on the block the template renders, not on its copy: the warning
+    # text is translatable, its data-warn marker is not.
+    login_as(client, _superadmin(db_session).id)
+    settings_store.set_value(db_session, "smtp_host", "mx.myrelay.net")
+    settings_store.set_value(db_session, "smtp_from", "me@gmail.com")
+    assert 'data-warn="smtp-sender"' in client.get("/settings?group=notifiche").text
+    settings_store.set_value(db_session, "smtp_from", "noreply@mydomain.test")
+    assert 'data-warn="smtp-sender"' not in client.get("/settings?group=notifiche").text
+
+
 def test_smtp_test_route(client, db_session, login_as, monkeypatch):
     monkeypatch.setattr(mail_service, "send_email", lambda to, s, b: True)
     login_as(client, _superadmin(db_session).id)

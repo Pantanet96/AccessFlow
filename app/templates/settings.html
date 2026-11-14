@@ -130,6 +130,18 @@
       <span class="material-symbols-outlined text-primary-container" aria-hidden="true">mail</span>
       <h3 class="text-lg font-semibold text-on-surface m-0">SMTP</h3>
     </div>
+    {% if smtp_sender_warning %}
+    <div data-warn="smtp-sender" class="flex items-start gap-2 rounded-lg border-l-4 border-status-suspended bg-status-suspended/10 px-4 py-3 mb-4 text-status-suspended">
+      <span class="material-symbols-outlined" aria-hidden="true">warning</span>
+      <p class="m-0 text-sm">
+        {% if smtp_sender_warning == 'freemail' %}
+        {{ _("The From address is on a free-mail domain but your messages leave a different server. That domain's DMARC policy will have them rejected or filed as spam — use an address on a domain you control.") }}
+        {% elif smtp_sender_warning == 'no_from' %}
+        {{ _("No From address set: the SMTP username is used instead, which on most relays is not a deliverable address.") }}
+        {% endif %}
+      </p>
+    </div>
+    {% endif %}
     <form method="post" action="/settings/smtp" class="space-y-4">
       <div class="grid gap-4 sm:grid-cols-2">
         <label class="form-label">{{ _("Host") }}<input name="smtp_host" value="{{ smtp.host }}" class="form-input"></label>
@@ -143,11 +155,22 @@
         </label>
       </div>
       <div class="grid gap-4 sm:grid-cols-2">
-        <label class="form-label">{{ _("From address") }}<input name="smtp_from" type="email" value="{{ smtp.from_addr }}" class="form-input"></label>
+        <label class="form-label">
+          {{ _("From address") }}
+          <input name="smtp_from" type="email" value="{{ smtp.from_addr }}" class="form-input">
+          <small class="block mt-1 text-xs font-normal text-on-surface-variant">{{ _("Its domain needs SPF, DKIM and DMARC records covering this relay, or most providers will file these messages as spam.") }}</small>
+        </label>
         <label class="form-label">
           {{ _("From display name") }}
           <input name="smtp_from_name" value="{{ smtp.from_name }}" placeholder="Plex Manager" class="form-input">
           <small class="block mt-1 text-xs font-normal text-on-surface-variant">{{ _("Shown as the sender name, e.g. \"Plex Manager\".") }}</small>
+        </label>
+      </div>
+      <div class="grid gap-4 sm:grid-cols-2">
+        <label class="form-label">
+          {{ _("Reply-To address") }}
+          <input name="smtp_reply_to" type="email" value="{{ smtp.reply_to }}" class="form-input">
+          <small class="block mt-1 text-xs font-normal text-on-surface-variant">{{ _("Where a reply to a notification lands. Empty = the From address.") }}</small>
         </label>
       </div>
       <label class="toggle-switch gap-3">

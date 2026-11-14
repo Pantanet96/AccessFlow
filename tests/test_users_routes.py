@@ -11,6 +11,30 @@ def _mk(session, role, name, manager_id=None):
     return u
 
 
+def test_users_list_flags_email_turned_off(client, db_session, login_as):
+    # One click in Gmail turns the emails off without the user opening the
+    # app: the list is the only place an admin can notice it.
+    admin = _mk(db_session, Role.admin, "FlagAdmin")
+    muted = AppUser(role=Role.user, real_name="MutedUser",
+                    notify_email="muted@x.com", notify_via_email=False)
+    db_session.add(muted)
+    db_session.commit()
+    login_as(client, admin.id)
+    page = client.get("/users").text
+    # Table row and phone card.
+    assert page.count('data-flag="email-off"') == 2
+
+
+def test_users_list_no_email_flag_by_default(client, db_session, login_as):
+    admin = _mk(db_session, Role.admin, "FlagAdmin2")
+    db_session.add(AppUser(role=Role.user, real_name="Loud", notify_email="loud@x.com"))
+    # Emails "off" but no address on file: nothing was ever going to be sent.
+    db_session.add(AppUser(role=Role.user, real_name="NoAddr", notify_via_email=False))
+    db_session.commit()
+    login_as(client, admin.id)
+    assert 'data-flag="email-off"' not in client.get("/users").text
+
+
 def test_users_list_requires_login(client):
     resp = client.get("/users", follow_redirects=False)
     assert resp.status_code == 303

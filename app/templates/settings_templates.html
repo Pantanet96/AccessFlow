@@ -47,7 +47,7 @@
     {{ TYPE_LABELS.get(e.type, e.type) }}
   </summary>
   <div class="border-t border-outline-variant py-gap-md space-y-gap-md">
-    <p class="text-on-surface-variant text-sm">{{ _("Available variables") }}: {{ e.variables|join(', ') }}
+    <p class="text-on-surface-variant text-sm">{{ _("Available variables") }}: {{ e.variables|join(', ') }}, {{ common_vars|join(', ') }}
       — {{ _("wrap each in double braces, e.g.") }} <code class="font-mono text-xs bg-surface-container-high px-1.5 py-0.5 rounded">&#123;&#123; name &#125;&#125;</code></p>
     {% for row in e.rows %}
     <div class="pt-gap-md border-t border-outline-variant first:pt-0 first:border-t-0">
@@ -60,6 +60,11 @@
             {{ PART_LABELS.get(row.part, row.part) }} — {{ row.locale|upper }}
             {% if row.overridden %}<span class="badge badge--active">{{ _("custom") }}</span>{% endif %}
           </span>
+        {% if row.part == 'email_html' %}
+        <p class="text-on-surface-variant text-xs mt-1 mb-1.5">{{ _("Layout blocks") }}:
+          {% for b in blocks %}<code class="font-mono bg-surface-container-high px-1.5 py-0.5 rounded">&#123;&#123; {{ b }} &#125;&#125;</code>{% if not loop.last %} {% endif %}{% endfor %}
+          — {{ _("they render a button, a highlighted note, a label/value panel and the digest list.") }}</p>
+        {% endif %}
           <textarea name="text" rows="{{ 2 if row.part == 'email_subject' else 4 }}"
                     class="w-full rounded-lg bg-surface-container-low border border-outline-variant text-on-surface font-mono text-sm p-3 focus:outline-none focus:border-primary-container">{{ row.text }}</textarea>
         </label>

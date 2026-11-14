@@ -12,7 +12,7 @@ from app.models import (
     NotificationType,
     Role,
 )
-from app.services import mail_service, telegram_service
+from app.services import mail_service, telegram_service, unsubscribe
 
 log = logging.getLogger("pum.broadcast")
 
@@ -49,29 +49,44 @@ def broadcast(session: Session, message: str, *, only_role: Role | None = None) 
 
     nonce = secrets.token_hex(6)
     sent = 0
-    for user in recipients:
-        if user.notify_via_telegram and user.telegram_id:
-            if telegram_service.send_message(user.telegram_id, message):
-                sent += _log_result(session, user.id, NotificationChannel.telegram, nonce)
-            else:
-                # Unreachable recipient (bot blocked, network, invalid token).
-                # Generic reason only: the Telegram error URL embeds the bot token.
-                _log_result(
-                    session, user.id, NotificationChannel.telegram, nonce,
-                    error="Telegram: invio rifiutato (bot bloccato, rete o token)",
-                )
-        if user.notify_via_email and user.effective_notify_email:
-            subject = _EMAIL_SUBJECT.get(user.locale, _EMAIL_SUBJECT["it"])
-            try:
-                ok = mail_service.send_email(user.effective_notify_email, subject, message)
-            except Exception as exc:  # noqa: BLE001 - one bad recipient must not abort the broadcast
-                log.warning("broadcast email failed (user=%s): %s", user.id, exc)
-                _log_result(
-                    session, user.id, NotificationChannel.email, nonce,
-                    error=f"{type(exc).__name__}: {exc}"[:250],
-                )
-            else:
-                if ok:
-                    sent += _log_result(session, user.id, NotificationChannel.email, nonce)
+    # The broadcast is the biggest burst the app sends: one TLS handshake per
+    # recipient is exactly the pattern a provider throttles. See bulk_session().
+    with mail_service.bulk_session():
+        for user in recipients:
+            if user.notify_via_telegram and user.telegram_id:
+                if telegram_service.send_message(user.telegram_id, message):
+                    sent += _log_result(session, user.id, NotificationChannel.telegram, nonce)
+                else:
+                    # Unreachable recipient (bot blocked, network, invalid token).
+                    # Generic reason only: the Telegram error URL embeds the bot token.
+                    _log_result(
+                        session, user.id, NotificationChannel.telegram, nonce,
+                        error="Telegram: invio rifiutato (bot bloccato, rete o token)",
+                    )
+            if user.notify_via_email and user.effective_notify_email:
+                subject = _EMAIL_SUBJECT.get(user.locale, _EMAIL_SUBJECT["it"])
+                try:
+                    unsub = unsubscribe.url_for(user)
+                    body = message
+                    if unsub:
+                        # Plain text has no footer of its own: without this
+                        # line the only way out is the provider's button,
+                        # which not every client shows.
+                        body += "\n\n--\n%s: %s" % (
+                            unsubscribe.label_for(user.locale), unsub)
+                    ok = mail_service.send_email(
+                        user.effective_notify_email, subject, body,
+                        unsubscribe_url=unsub or None,
+                    )
+                except Exception as exc:  # noqa: BLE001
+                    # One bad recipient must not abort the whole broadcast.
+                    log.warning("broadcast email failed (user=%s): %s", user.id, exc)
+                    _log_result(
+                        session, user.id, NotificationChannel.email, nonce,
+                        error=f"{type(exc).__name__}: {exc}"[:250],
+                    )
+                else:
+                    if ok:
+                        sent += _log_result(session, user.id, NotificationChannel.email, nonce)
     session.commit()
     return sent
