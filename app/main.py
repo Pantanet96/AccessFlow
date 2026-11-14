@@ -1,4 +1,5 @@
 """FastAPI application factory + app instance."""
+import re
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -21,11 +22,16 @@ from app.routers import plans as plans_router
 from app.routers import audit as audit_router
 from app.routers import profile as profile_router
 from app.routers import reports as reports_router
+from app.routers import unsubscribe as unsubscribe_router
 from app.routers import settings as settings_router
 from app.routers import subscriptions as subscriptions_router
 from app.routers import tutorial as tutorial_router
 from app.routers import users as users_router
 from app.templating import BASE_DIR, templates
+
+
+# The only path the CSRF check lets through: /unsubscribe/<signed token>.
+_UNSUBSCRIBE_PATH = re.compile(r"/unsubscribe/[A-Za-z0-9_.\-]+")
 
 
 def _allowed_origins(request: Request) -> set[str]:
@@ -181,7 +187,21 @@ def create_app() -> FastAPI:
         A request carrying neither header is refused: every current browser
         sends Origin on POST (Fetch spec), so only legacy browsers and scripts
         land there. Health probes are GETs and never reach this check."""
-        if request.method not in _SAFE_METHODS:
+        # The one exemption. RFC 8058 has the mailbox provider POST the
+        # unsubscribe link from its own servers: no browser, so neither
+        # Origin nor Sec-Fetch-Site, and the check below would refuse it.
+        # It is safe to let through because these routes use no ambient
+        # credential -- they never read the session cookie, and the
+        # signed token in the path is the only authority they act on. A
+        # forged cross-site POST can do nothing its sender could not
+        # already do by opening the same link.
+        # Narrow by construction, not by what happens to be routed today:
+        # POST only, and exactly one token-shaped segment. A prefix match
+        # would also wave through PUT/DELETE, and any route later added
+        # under /unsubscribe/ would be born exempt without anyone deciding.
+        exempt = (request.method == "POST"
+                  and _UNSUBSCRIBE_PATH.fullmatch(request.url.path) is not None)
+        if request.method not in _SAFE_METHODS and not exempt:
             sfs = request.headers.get("sec-fetch-site")
             if sfs is not None:
                 # Modern browsers: only a same-origin (or user-initiated "none")
@@ -218,6 +238,7 @@ def create_app() -> FastAPI:
     app.include_router(plans_router.router)
     app.include_router(settings_router.router)
     app.include_router(profile_router.router)
+    app.include_router(unsubscribe_router.router)
     app.include_router(audit_router.router)
     app.include_router(tutorial_router.router)
 

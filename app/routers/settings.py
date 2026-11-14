@@ -69,6 +69,7 @@ def _context(session: Session, viewer: AppUser, group: str = "plex", **extra) ->
         "color_themes": list(runtime_config.COLOR_THEMES),
         "smtp": smtp,
         "smtp_pass_set": bool(smtp["password"]),
+        "smtp_sender_warning": mail_service.sender_warning(smtp),
         "telegram_username": tg["username"],
         "telegram_token_set": bool(tg["token"]),
         "overseerr_url": ov["url"],
@@ -83,6 +84,10 @@ def _context(session: Session, viewer: AppUser, group: str = "plex", **extra) ->
         "error": None,
     }
     ctx.update(extra)
+    # After the override, not before: a rejected save re-renders the form with
+    # the values just typed, and the warning has to judge those rather than
+    # keep reporting on what is still stored.
+    ctx["smtp_sender_warning"] = mail_service.sender_warning(ctx["smtp"])
     return ctx
 
 
@@ -121,18 +126,45 @@ def save_smtp(
     smtp_pass: str = Form(""),
     smtp_from: str = Form(""),
     smtp_from_name: str = Form(""),
+    smtp_reply_to: str = Form(""),
     smtp_tls: str = Form("false"),
     viewer: AppUser = Depends(_admin),
     session: Session = Depends(get_session),
 ):
     smtp_port = smtp_port.strip()
+    smtp_reply_to = smtp_reply_to.strip()
+    error = None
     if smtp_port and not (smtp_port.isdigit() and 1 <= int(smtp_port) <= 65535):
+        error = _("SMTP port must be a number between 1 and 65535.")
+    elif any("\r" in v or "\n" in v for v in
+             (smtp_host, smtp_user, smtp_from, smtp_from_name, smtp_reply_to)):
+        # Each of these ends up in a header, and EmailMessage refuses a header
+        # holding a line break: saving one would fail every later send, with
+        # nothing but a log line to show for it.
+        error = _("Line breaks are not allowed in the SMTP fields.")
+    elif smtp_reply_to and not mail_service.valid_address(smtp_reply_to):
+        # A malformed Reply-To is worse than none: the header still ships and
+        # every reply to a reminder bounces back at the user.
+        error = _("Reply-To must be an email address.")
+    if error:
         return templates.TemplateResponse(
             request,
             "settings.html",
             _context(
-                session, viewer, group="notifiche",
-                error=_("SMTP port must be a number between 1 and 65535."),
+                session, viewer, group="notifiche", error=error,
+                # Keep what was just typed: _context() rebuilds `smtp` from the
+                # STORED values, so without this a rejected save also wipes
+                # every other field the admin had just filled in.
+                smtp={
+                    **runtime_config.smtp_config(),
+                    "host": smtp_host,
+                    "port": smtp_port,
+                    "user": smtp_user,
+                    "from_addr": smtp_from,
+                    "from_name": smtp_from_name,
+                    "reply_to": smtp_reply_to,
+                    "tls": smtp_tls == "on",
+                },
             ),
             status_code=400,
         )
@@ -141,6 +173,7 @@ def save_smtp(
     settings_store.set_value(session, "smtp_user", smtp_user)
     settings_store.set_value(session, "smtp_from", smtp_from)
     settings_store.set_value(session, "smtp_from_name", smtp_from_name)
+    settings_store.set_value(session, "smtp_reply_to", smtp_reply_to)
     settings_store.set_value(session, "smtp_tls", "true" if smtp_tls == "on" else "false")
     if smtp_pass:  # blank keeps the existing password
         settings_store.set_value(session, "smtp_pass", smtp_pass)
@@ -485,6 +518,8 @@ def _templates_ctx(session: Session, viewer: AppUser, **extra) -> dict:
     ctx = {
         "current_user": viewer,
         "entries": notification_templates.editor_entries(session),
+        "common_vars": notification_templates.COMMON_VARS,
+        "blocks": notification_templates.BLOCKS,
         "message": None,
         "error": None,
     }
@@ -519,7 +554,7 @@ def save_template(
         or locale not in notification_templates.LOCALES
     ):
         return RedirectResponse("/settings/templates", status_code=303)
-    err = notification_templates.validate(text, tpl_type)
+    err = notification_templates.validate(text, tpl_type, part)
     if err:
         return templates.TemplateResponse(
             request, "settings_templates.html",

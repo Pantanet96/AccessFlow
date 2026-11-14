@@ -55,7 +55,14 @@ class Settings(BaseSettings):
     smtp_pass: str = ""
     smtp_from: str = ""
     smtp_from_name: str = ""  # display name in the From header, e.g. "Plex Manager"
+    smtp_reply_to: str = ""  # Reply-To header: where a user's reply actually lands
     smtp_tls: bool = True
+    # Seconds to keep between two messages of the same bulk run (scan, digests,
+    # broadcast). 0 = off, which is right for a normal relay; raise it only for
+    # a provider that throttles bursts. Capped at 10s in mail_service: read as
+    # "messages per minute" it would otherwise stall the scheduler for hours.
+    # ENV-only: too niche for the Settings page.
+    smtp_send_delay: float = 0.0
 
     # Scheduler / background workers
     notify_hour: int = 9

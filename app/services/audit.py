@@ -21,6 +21,7 @@ _ACTION_LABELS = {
     "login_lockout": N_("login locked out (too many failed attempts)"),
     "send_reminder": N_("manually sent an expiry reminder"),
     "update_profile": N_("updated their profile"),
+    "unsubscribe_email": N_("turned off email notifications from an email link"),
     "change_password": N_("changed their password"),
     "enable_mfa": N_("turned on two-step verification"),
     "disable_mfa": N_("turned off two-step verification"),

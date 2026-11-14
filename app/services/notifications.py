@@ -25,7 +25,7 @@ from app.models import (
     local_date,
     utcnow,
 )
-from app.services import mail_service, telegram_service
+from app.services import mail_service, telegram_service, unsubscribe
 from app.services.notification_templates import render_email, render_telegram
 
 _TG = "MarkdownV2"  # templates emit MarkdownV2; dynamic values escaped via |tg
@@ -132,7 +132,12 @@ def _send_deduped(
 def _send_email(session, *, recipient, sub_id, ntype, dedup_key, type_, ctx) -> bool:
     if not (recipient.notify_via_email and recipient.effective_notify_email):
         return False
-    subject, html, text = render_email(session, type_, recipient.locale, ctx)
+    # One link, used twice: as the List-Unsubscribe header the mailbox
+    # provider turns into its own button, and as a visible line in the
+    # footer for the clients that show no such button.
+    unsub = unsubscribe.url_for(recipient)
+    subject, html, text = render_email(session, type_, recipient.locale, ctx,
+                                       unsubscribe_url=unsub)
     if not (subject or html or text):
         return False  # template empty for this type/locale -> nothing to send
     return _send_deduped(
@@ -143,7 +148,8 @@ def _send_email(session, *, recipient, sub_id, ntype, dedup_key, type_, ctx) -> 
         channel=NotificationChannel.email,
         dedup_key=dedup_key,
         sender=lambda: mail_service.send_email(
-            recipient.effective_notify_email, subject, text, html=html or None
+            recipient.effective_notify_email, subject, text, html=html or None,
+            unsubscribe_url=unsub or None,
         ),
     )
 
@@ -219,28 +225,32 @@ def run_expiry_scan(session: Session, today: datetime | None = None) -> dict:
             )
         )
     ).all()
-    for sub in subs:
-        if sub.expiry_at is None:          # unlimited / F&F -> never dunned
-            continue
-        days_left = (local_date(sub.expiry_at) - local_date(now)).days
-        # Latest step already reached, not only an exact hit: an exact match
-        # lost a reminder for good when its send failed (SMTP down) or the app
-        # was off that day. The per-step dedup key keeps each one once-only.
-        # ponytail: catch-up capped at CATCH_UP_DAYS and kept within the phase
-        # (before/after expiry), so an old overdue sub isn't dunned on deploy.
-        reached = [
-            b for b in fire_days
-            if days_left <= b <= days_left + CATCH_UP_DAYS and (b > 0) == (days_left > 0)
-        ]
-        if reached:
-            notify_expiry(session, sub, days_left, bucket=min(reached))
-            counts["notified"] += 1
-        # Flip to expired once; expired subs stay scanned so overdue buckets fire.
-        if days_left < 0 and sub.status != SubscriptionStatus.expired:
-            sub.status = SubscriptionStatus.expired
-            session.add(sub)
-            session.commit()
-            counts["expired"] += 1
+    # One SMTP connection for the whole scan instead of one per message: see
+    # mail_service.bulk_session(). Opened lazily, so a scan that sends nothing
+    # (or an instance with no SMTP) never touches the network.
+    with mail_service.bulk_session():
+        for sub in subs:
+            if sub.expiry_at is None:          # unlimited / F&F -> never dunned
+                continue
+            days_left = (local_date(sub.expiry_at) - local_date(now)).days
+            # Latest step already reached, not only an exact hit: an exact match
+            # lost a reminder for good when its send failed (SMTP down) or the app
+            # was off that day. The per-step dedup key keeps each one once-only.
+            # ponytail: catch-up capped at CATCH_UP_DAYS and kept within the phase
+            # (before/after expiry), so an old overdue sub isn't dunned on deploy.
+            reached = [
+                b for b in fire_days
+                if days_left <= b <= days_left + CATCH_UP_DAYS and (b > 0) == (days_left > 0)
+            ]
+            if reached:
+                notify_expiry(session, sub, days_left, bucket=min(reached))
+                counts["notified"] += 1
+            # Flip to expired once; expired subs stay scanned so overdue buckets fire.
+            if days_left < 0 and sub.status != SubscriptionStatus.expired:
+                sub.status = SubscriptionStatus.expired
+                session.add(sub)
+                session.commit()
+                counts["expired"] += 1
     return counts
 
 
@@ -303,33 +313,34 @@ def run_manager_digests(session, today=None) -> int:
         ).all()
     }
     sent = 0
-    for mid in mgr_ids:
-        mgr = session.get(AppUser, mid)
-        if mgr is None or not mgr.is_active or not mgr.digest_enabled:
-            continue
-        if mgr.digest_weekday != weekday:
-            continue
-        items = collectables(session, manager_id=mid, lookahead=lookahead, today=now)
-        if not items:
-            continue
-        total_cents = sum(r["amount_cents"] for r in items)
-        ctx = {
-            "name": mgr.real_name,
-            "items": items,
-            "count": len(items),
-            "window_days": lookahead,
-            "total_eur": f"{total_cents / 100:.2f}",
-        }
-        sent += _send_email(
-            session, recipient=mgr, sub_id=None,
-            ntype=NotificationType.manager_digest, type_="manager_digest",
-            dedup_key=f"digest:{mid}:{period}:email", ctx=ctx,
-        )
-        sent += _send_telegram(
-            session, recipient=mgr, sub_id=None,
-            ntype=NotificationType.manager_digest, type_="manager_digest",
-            dedup_key=f"digest:{mid}:{period}:telegram", ctx=ctx,
-        )
+    with mail_service.bulk_session():
+        for mid in mgr_ids:
+            mgr = session.get(AppUser, mid)
+            if mgr is None or not mgr.is_active or not mgr.digest_enabled:
+                continue
+            if mgr.digest_weekday != weekday:
+                continue
+            items = collectables(session, manager_id=mid, lookahead=lookahead, today=now)
+            if not items:
+                continue
+            total_cents = sum(r["amount_cents"] for r in items)
+            ctx = {
+                "name": mgr.real_name,
+                "items": items,
+                "count": len(items),
+                "window_days": lookahead,
+                "total_eur": f"{total_cents / 100:.2f}",
+            }
+            sent += _send_email(
+                session, recipient=mgr, sub_id=None,
+                ntype=NotificationType.manager_digest, type_="manager_digest",
+                dedup_key=f"digest:{mid}:{period}:email", ctx=ctx,
+            )
+            sent += _send_telegram(
+                session, recipient=mgr, sub_id=None,
+                ntype=NotificationType.manager_digest, type_="manager_digest",
+                dedup_key=f"digest:{mid}:{period}:telegram", ctx=ctx,
+            )
     return sent
 
 

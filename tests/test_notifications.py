@@ -45,7 +45,7 @@ def _capture(monkeypatch):
     sent = {"email": [], "tg": []}
     monkeypatch.setattr(
         mail_service, "send_email",
-        lambda to, subj, body, html=None: sent["email"].append(to) or True,
+        lambda to, subj, body, html=None, **kw: sent["email"].append(to) or True,
     )
     monkeypatch.setattr(
         telegram_service,
@@ -188,6 +188,49 @@ def test_run_expiry_scan_buckets_and_expiry(db_session, monkeypatch):
     notif.run_expiry_scan(db_session)
     after = len(db_session.exec(select(NotificationLog)).all())
     assert before == after
+
+
+def _bulk_probe(monkeypatch):
+    """Record the bulk connection in effect at each send (None = own socket)."""
+    seen = []
+    monkeypatch.setattr(
+        mail_service, "send_email",
+        lambda to, subj, body, html=None, **kw: seen.append(mail_service._bulk.get()) or True,
+    )
+    monkeypatch.setattr(
+        telegram_service, "send_message",
+        lambda chat, text, parse_mode=None: True,
+    )
+    return seen
+
+
+def test_expiry_scan_sends_inside_one_bulk_session(db_session, monkeypatch):
+    # One SMTP connection for the whole run, not a TLS handshake per reminder:
+    # that burst is what a provider's abuse heuristics throttle.
+    seen = _bulk_probe(monkeypatch)
+    bronze = _plan(db_session, "bronze")
+    for d in (7, 3):
+        u = _user(db_session, f"Bulk{d}", plex_email=f"bulk{d}@example.com")
+        _sub(db_session, u, bronze, d)
+    notif.run_expiry_scan(db_session)
+    assert len(seen) == 2
+    assert seen[0] is not None and seen[0] is seen[1]  # same connection reused
+
+
+def test_manager_digests_send_inside_a_bulk_session(db_session, monkeypatch):
+    seen = _bulk_probe(monkeypatch)
+    bronze = _plan(db_session, "bronze")
+    when = utcnow()
+    mgr = AppUser(
+        role=Role.moderator, real_name="BulkMgr", notify_email="bm@example.com",
+        digest_enabled=True, digest_weekday=when.weekday(),
+    )
+    db_session.add(mgr)
+    db_session.commit()
+    db_session.refresh(mgr)
+    _sub(db_session, _user(db_session, "BulkCli", manager_id=mgr.id), bronze, 5)
+    notif.run_manager_digests(db_session, today=when)
+    assert seen and seen[0] is not None
 
 
 def test_run_expiry_scan_respects_configured_days(db_session, monkeypatch):
