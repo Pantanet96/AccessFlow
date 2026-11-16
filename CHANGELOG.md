@@ -5,6 +5,12 @@ All notable changes to AccessFlow are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.6.1] - 2026-11-16
+
+### Changed
+
+- Dependencies updated: fastapi 0.162.5, sqlmodel 0.0.49, pydantic-settings 2.16.3, python-dateutil 4.0.0, python-multipart 0.0.33, cryptography 50.0.2, alembic 1.20.1, uvloop 0.23.0, httptools 0.9.0.
+
 ## [1.6.0] - 2026-11-14
 
 ### Added
